@@ -1,18 +1,21 @@
 export interface VeriCredConfig {
   issuer: {
     name: string;
-    url: string; // base URL, e.g. https://uni.example.com
-    did: string; // auto-derived: did:web:uni.example.com
+    url: string;
+    did: string;
   };
   credential: {
-    type: string;         // e.g. "UniversityDegreeCredential"
+    type: string;
     expiresInDays: number;
   };
   dataSource: {
     type: 'json' | 'postgres' | 'mysql' | 'rest' | 'csv';
-    path?: string;        // for json/csv
-    connectionString?: string; // for postgres/mysql
-    endpoint?: string;   // for rest
+    path?: string;           // json / csv
+    connectionString?: string; // postgres / mysql
+    table?: string;          // postgres / mysql (default: users)
+    identifierColumn?: string; // postgres / mysql (default: email)
+    endpoint?: string;       // rest
+    authHeader?: string;     // rest
   };
-  fieldMappings: Record<string, string>; // VC claim name → source field name
+  fieldMappings: Record<string, string>;
 }
