@@ -57,8 +57,8 @@ The server **refuses to start** if the configured template type is unknown or `f
 | OID4VCI pre-authorized code flow | ✅ Implemented | Token endpoint, offer endpoint, credential endpoint |
 | did:web issuer DID | ✅ Implemented | `/.well-known/did.json` |
 | OID4VCI metadata | ✅ Implemented | `/.well-known/openid-credential-issuer` |
-| SD-JWT-VC credential format | ⚠️ Partial | JWT structure correct (vct, iss, iat, exp, sub, claims at top level); selective disclosure uses simplified HMAC commitment model, not IETF SD-JWT `~disclosure~` serialization |
-| IETF SD-JWT disclosure serialization | ❌ Not implemented | Requires base64url(JSON[salt, name, value]) + appended `~d1~d2~` to JWT |
+| SD-JWT-VC credential format | ✅ Implemented | vct, iss, iat, exp, sub, jti top-level; all claims in `_sd` hashes; Combined Format with `~disclosure~` appended |
+| IETF SD-JWT disclosure serialization | ✅ Implemented | `src/sdjwt/disclosures.ts`; base64url(JSON[salt, name, value]); SHA-256 digests in `_sd`; Combined Format `<jwt>~<d1>~<d2>~` |
 | Holder binding (cnf claim) | ❌ Not implemented | `proof_thumbprint` accepted but not verified; anonymous fallback in DEMO_MODE |
 | OID4VP verifier endpoint | ❌ Not in scope | Planned for future sprint |
 | mDoc / ISO 18013-5 | ❌ Not in scope | See miTch for reference implementation |
