@@ -4,7 +4,7 @@ import { requireAdmin } from '../middleware/auth.js';
 import { getRuntimeStats, getUptime } from './runtime.js';
 import { getIssuedCredentials } from '../revocation/statuslist.js';
 import { loadSecrets } from '../config/secrets.js';
-import { createSession, destroySession } from '../middleware/auth.js';
+import { createSession, destroySession, createCsrfToken, requireCsrf, cookieFlags } from '../middleware/auth.js';
 import { setHolderPassword, formatInTimezone, readHolders, REGIONS, REGION_TIMEZONE } from '../connectors/generator.js';
 import type { HolderRecord } from '../connectors/generator.js';
 
@@ -15,6 +15,14 @@ function groupByRegion(holders: HolderRecord[]) {
     acc[h.region] = (acc[h.region] ?? 0) + 1;
     return acc;
   }, {});
+}
+
+
+function maskEmail(email: string): string {
+  const [user, domain] = email.split('@');
+  if (!domain) return '***';
+  const visible = user.length > 3 ? user.slice(0, 3) : user.slice(0, 1);
+  return visible + '***@' + domain;
 }
 
 export function createAdminRouter(): Router {
@@ -33,7 +41,7 @@ export function createAdminRouter(): Router {
     const { apiKey } = req.body as { apiKey: string };
     if (apiKey === loadSecrets().adminApiKey) {
       const sessionToken = createSession();
-      res.setHeader('Set-Cookie', 'admin_session=' + sessionToken + '; HttpOnly; Path=/; SameSite=Strict; Max-Age=28800');
+      res.setHeader('Set-Cookie', 'admin_session=' + sessionToken + cookieFlags());
       res.redirect('/admin');
       return;
     }
@@ -44,7 +52,7 @@ export function createAdminRouter(): Router {
     const rawCookie = req.headers.cookie ?? '';
     const part = rawCookie.split(';').find(c => c.trim().startsWith('admin_session='));
     if (part) destroySession(part.split('=').slice(1).join('=').trim());
-    res.setHeader('Set-Cookie', 'admin_session=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict');
+    res.setHeader('Set-Cookie', 'admin_session=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict' + (process.env['NODE_ENV'] === 'production' ? '; Secure' : ''));
     res.redirect('/admin/login');
   });
 
@@ -131,7 +139,7 @@ export function createAdminRouter(): Router {
       return '<tr>'
         + '<td style="font-size:.75rem;color:#94a3b8">' + h.id.slice(-8) + '</td>'
         + '<td>' + h.firstName + ' ' + h.lastName + '</td>'
-        + '<td style="font-size:.8rem">' + h.email + '</td>'
+        + '<td style="font-size:.8rem;font-family:monospace">' + (process.env['PII_ADMIN_MODE'] === 'true' ? h.email : maskEmail(h.email)) + '</td>'
         + '<td><a href="?' + rp + '" style="color:#94a3b8;text-decoration:none">' + h.region + '</a></td>'
         + '<td style="font-size:.75rem;color:#94a3b8;white-space:nowrap">' + localTime + '</td>'
         + '<td style="text-align:center">' + (credCount > 0
@@ -152,7 +160,7 @@ export function createAdminRouter(): Router {
     const credRows = filteredCreds.slice(-200).reverse().map(c =>
       '<tr>'
       + '<td style="font-size:.75rem;color:#94a3b8">' + c.credentialId.slice(-12) + '</td>'
-      + '<td>' + c.holderEmail + '</td>'
+      + '<td style="font-family:monospace">' + (process.env['PII_ADMIN_MODE'] === 'true' ? c.holderEmail : maskEmail(c.holderEmail)) + '</td>'
       + '<td style="font-size:.75rem">' + c.issuedAt.slice(0, 16).replace('T', ' ') + '</td>'
       + '<td style="color:' + (c.revoked ? '#f87171' : '#4ade80') + '">' + (c.revoked ? 'Revoked' : 'Active') + '</td>'
       + '<td>' + (c.revoked

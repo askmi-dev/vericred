@@ -38,7 +38,7 @@ Admin UI: http://localhost:3100/admin
 
 ## Configuration
 
-Edit `config/vericred.json` (created on first start):
+Edit `vericred.config.json` (auto-created in project root on first start):
 
 ```json
 {
@@ -64,10 +64,19 @@ This is a local demo / Sprint 1–3 prototype. Before any production use:
 
 ## Privacy design
 
-- Holder passwords are hashed (SHA-256 based derivation), never stored in plaintext
+- Demo holder secrets are derived (SHA-256 based) for local testing only. Production deployments must use Argon2id/bcrypt or an external IAM system
 - Pairwise pseudonyms via HMAC — no global user ID reuse across verifiers
 - Admin dashboard shows no credential content — only status and counts
 - `data/` directory is gitignored — holder data never leaves the machine via git
+
+## Environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `PORT` | `3100` | Server port |
+| `DEMO_MODE` | unset | Set to `true` to generate synthetic holders on startup |
+| `PII_ADMIN_MODE` | unset | Set to `true` to show full emails in admin UI (default: masked) |
+| `NODE_ENV` | unset | Set to `production` to enforce Secure cookie flag |
 
 ## Repo structure
 
