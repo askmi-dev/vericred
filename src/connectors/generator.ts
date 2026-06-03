@@ -1,8 +1,10 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync } from 'fs';
 import { randomUUID } from 'crypto';
 import { deriveHolderPassword } from '../config/secrets.js';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
-const REGION_TIMEZONE: Record<string, string> = {
+export const REGION_TIMEZONE: Record<string, string> = {
   'Tirol': 'Europe/Vienna',
   'Salzburg': 'Europe/Vienna',
   'Wien': 'Europe/Vienna',
@@ -21,11 +23,10 @@ const REGION_TIMEZONE: Record<string, string> = {
   'Genf': 'Europe/Zurich',
 };
 
-const REGIONS = Object.keys(REGION_TIMEZONE);
+export const REGIONS = Object.keys(REGION_TIMEZONE);
+
 const FIRST_NAMES = ['Alex', 'Marie', 'Jonas', 'Lena', 'Tobias', 'Sara', 'Felix', 'Mia', 'Noah', 'Emma'];
 const LAST_NAMES = ['Müller', 'Schmidt', 'Fischer', 'Weber', 'Mayer', 'Wagner', 'Becker', 'Schulz'];
-
-export const SUPPORTED_TIMEZONES = ['Europe/Vienna', 'Europe/Berlin', 'Europe/Zurich'];
 
 export interface HolderRecord {
   id: string;
@@ -36,17 +37,28 @@ export interface HolderRecord {
   timezone: string;
   defaultPassword: string;
   customPassword?: string;
-  createdAt: string; // always stored as UTC ISO string
+  createdAt: string; // UTC ISO string
   sessionId: string;
 }
 
 function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
 
+/** Atomic write: write to temp file, then rename — prevents truncation on crash */
+function atomicWrite(filePath: string, data: string): void {
+  const tmp = join(tmpdir(), `vc-${randomUUID()}.tmp`);
+  writeFileSync(tmp, data, 'utf-8');
+  renameSync(tmp, filePath);
+}
+
+export function readHolders(dataPath: string): HolderRecord[] {
+  return existsSync(dataPath) ? JSON.parse(readFileSync(dataPath, 'utf-8')) : [];
+}
+
 export function generateHolders(count: number, pseudonymSecret: string, sessionId: string, dataPath: string): HolderRecord[] {
   const dir = dataPath.substring(0, dataPath.lastIndexOf('/'));
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 
-  const existing: HolderRecord[] = existsSync(dataPath) ? JSON.parse(readFileSync(dataPath, 'utf-8')) : [];
+  const existing = readHolders(dataPath);
 
   const newHolders: HolderRecord[] = Array.from({ length: count }, () => {
     const id = `holder-${randomUUID()}`;
@@ -66,33 +78,21 @@ export function generateHolders(count: number, pseudonymSecret: string, sessionI
     };
   });
 
-  writeFileSync(dataPath, JSON.stringify([...existing, ...newHolders], null, 2));
+  atomicWrite(dataPath, JSON.stringify([...existing, ...newHolders], null, 2));
   console.log(`[generator] Spawned ${count} new holders (session: ${sessionId.slice(0, 8)})`);
   return newHolders;
 }
 
 export function setHolderPassword(dataPath: string, holderId: string, newPassword: string): boolean {
-  if (!existsSync(dataPath)) return false;
-  const holders: HolderRecord[] = JSON.parse(readFileSync(dataPath, 'utf-8'));
+  const holders = readHolders(dataPath);
   const holder = holders.find(h => h.id === holderId);
   if (!holder) return false;
   holder.customPassword = newPassword;
-  writeFileSync(dataPath, JSON.stringify(holders, null, 2));
+  atomicWrite(dataPath, JSON.stringify(holders, null, 2));
   return true;
 }
 
-export function setHolderTimezone(dataPath: string, holderId: string, timezone: string): boolean {
-  if (!SUPPORTED_TIMEZONES.includes(timezone)) return false;
-  if (!existsSync(dataPath)) return false;
-  const holders: HolderRecord[] = JSON.parse(readFileSync(dataPath, 'utf-8'));
-  const holder = holders.find(h => h.id === holderId);
-  if (!holder) return false;
-  holder.timezone = timezone;
-  writeFileSync(dataPath, JSON.stringify(holders, null, 2));
-  return true;
-}
-
-/** Format a UTC ISO date string in a given IANA timezone */
+/** Format a UTC ISO date string in the holder's IANA timezone */
 export function formatInTimezone(isoString: string, timezone: string): string {
   return new Intl.DateTimeFormat('de-AT', {
     timeZone: timezone,
