@@ -1,0 +1,32 @@
+{
+  "name": "vericred",
+  "version": "0.1.0",
+  "description": "Lightweight OID4VCI issuer gateway — connect your database, issue W3C Verifiable Credentials",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@askmi/revocation-statuslist": "^0.1.0",
+    "@askmi/shared-crypto": "^0.1.0",
+    "@askmi/shared-types": "^0.1.0",
+    "@noble/curves": "^2.0.1",
+    "@noble/hashes": "^2.0.1",
+    "express": "^4.18.2",
+    "jose": "^5.2.0",
+    "uuid": "^9.0.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.0.0",
+    "@types/uuid": "^9.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0",
+    "vitest": "^2.1.9"
+  }
+}

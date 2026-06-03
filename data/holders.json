@@ -1,0 +1,18 @@
+[
+  {
+    "id": "student-001",
+    "email": "alice@example.com",
+    "firstName": "Alice",
+    "lastName": "Muster",
+    "studentId": "S-2024-001",
+    "program": "Computer Science"
+  },
+  {
+    "id": "student-002",
+    "email": "bob@example.com",
+    "firstName": "Bob",
+    "lastName": "Beispiel",
+    "studentId": "S-2024-002",
+    "program": "Law"
+  }
+]
