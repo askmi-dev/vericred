@@ -19,6 +19,18 @@ function pairwisePseudonym(secret: string, thumbprint: string, issuer: string, t
     .digest('base64url');
 }
 
+/**
+ * SD-JWT-VC disclosure model (simplified / non-interoperable with external wallets).
+ *
+ * Each claim value is hashed with a random salt using HMAC-SHA256.
+ * The commitment is stored alongside the salt so the holder can prove knowledge
+ * of the original value without revealing it directly.
+ *
+ * NOTE: This is NOT the IETF SD-JWT disclosure format (draft-ietf-oauth-selective-disclosure-jwt).
+ * For wallet interop, replace with: base64url(JSON.stringify([salt, claimName, claimValue]))
+ * and include the raw disclosures appended to the JWT as: <jwt>~<d1>~<d2>~
+ * Tracked as: TODO interop-sd-jwt-disclosure-format
+ */
 function saltedCommitment(value: unknown): { salt: string; commitment: string } {
   const salt = randomBytes(16).toString('hex');
   const commitment = createHmac('sha256', salt).update(String(value)).digest('base64url');
@@ -76,11 +88,12 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
     }
 
     // Pairwise pseudonym
+    // TODO: proof_thumbprint should be required for production; anonymous fallback only in DEMO_MODE
     const holderThumbprint = (req.body as Record<string, string>).proof_thumbprint ?? 'anonymous';
     const pseudonym = pairwisePseudonym(pseudonymSecret, holderThumbprint, config.issuer.did, config.credential.type);
 
-    // Salted commitments for selective disclosure
-    const disclosures = Object.fromEntries(
+    // Simplified salted commitments (non-standard, see comment on saltedCommitment)
+    const sdDisclosures = Object.fromEntries(
       Object.entries(claims).map(([k, v]) => [k, saltedCommitment(v)])
     );
 
@@ -92,6 +105,16 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
     const now = Math.floor(Date.now() / 1000);
     const exp = now + config.credential.expiresInDays * 86400;
 
+    /**
+     * SD-JWT-VC payload (draft-ietf-oauth-sd-jwt-vc):
+     * - vct: credential type identifier
+     * - iss, iat, exp, sub: standard JWT claims
+     * - jti: unique credential identifier
+     * - claims spread at top level (NOT nested under credentialSubject — that is W3C VC-JWT, not SD-JWT-VC)
+     * - _sd_alg: hash algorithm for selective disclosure
+     * - _sd_disclosures: simplified commitment map (non-standard — see TODO above)
+     * - credentialStatus: StatusList2021 revocation entry
+     */
     const jwt = await new SignJWT({
       vct: config.credential.type,
       jti: credentialId,
@@ -99,8 +122,10 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
       sub: pseudonym,
       iat: now,
       exp,
-      credentialSubject: claims,
-      _sd_disclosures: disclosures,
+      // Claims at top level per SD-JWT-VC spec (not nested under credentialSubject)
+      ...claims,
+      _sd_alg: 'sha-256',
+      _sd_disclosures: sdDisclosures,
       credentialStatus: {
         id: config.issuer.url + '/status/' + listId + '#' + statusIndex,
         type: 'StatusList2021Entry',

@@ -7,6 +7,7 @@
  *   - optionalFields: source fields used if present
  *   - buildClaims(): maps holderData -> VC claims (no unnecessary raw PII)
  *   - validateMappings(): checks config.fieldMappings covers requiredFields
+ *   - validateOptions?(): checks templateOptions at startup (fail-fast)
  *
  * issuer.ts calls getTemplate(config.credential.type) and uses buildClaims().
  */
@@ -21,6 +22,8 @@ export interface CredentialTemplate {
     options?: Record<string, unknown>
   ): Record<string, unknown>;
   validateMappings(fieldMappings: Record<string, string>): string[];
+  /** Optional: validate templateOptions at server startup. Return error strings (empty = valid). */
+  validateOptions?(options: Record<string, unknown>): string[];
 }
 
 const registry = new Map<string, CredentialTemplate>();

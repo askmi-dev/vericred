@@ -33,7 +33,7 @@ const dataPath = config.dataSource.path ?? './data/holders.json';
   let startupOk = true;
   console.log('[startup] Validating credential template config...');
 
-  // Check configured type exists
+  // 1. Check configured type exists
   let template;
   try {
     template = getTemplate(config.credential.type);
@@ -43,14 +43,26 @@ const dataPath = config.dataSource.path ?? './data/holders.json';
     startupOk = false;
   }
 
-  // Check field mappings cover required fields
   if (template) {
+    // 2. Check field mappings cover required fields
     const mappingErrors = template.validateMappings(config.fieldMappings);
     if (mappingErrors.length > 0) {
       console.error('[startup] FATAL: Field mapping errors for ' + config.credential.type + ':');
       for (const err of mappingErrors) console.error('  - ' + err);
       startupOk = false;
-    } else {
+    }
+
+    // 3. Check templateOptions (if template supports it)
+    if (template.validateOptions) {
+      const optErrors = template.validateOptions(config.templateOptions ?? {});
+      if (optErrors.length > 0) {
+        console.error('[startup] FATAL: templateOptions errors for ' + config.credential.type + ':');
+        for (const err of optErrors) console.error('  - ' + err);
+        startupOk = false;
+      }
+    }
+
+    if (startupOk) {
       console.log('[startup] Template "' + config.credential.type + '" OK');
     }
   }

@@ -1,97 +1,129 @@
 # VeriCred
 
-Lightweight OID4VCI issuer gateway — connect your data source, issue W3C Verifiable Credentials.
+**Lightweight, template-driven OID4VCI issuer gateway with privacy-preserving defaults.**
 
-> **Status: Sprint 1–3 / Local Demo**  
-> Not production-hardened. See [Security Notes](#security-notes) below.
-
-## What it does
-
-- Issues SD-JWT-VC credentials via OID4VCI pre-authorized code flow
-- Generates `did:web` identity from a persistent P-256 keypair
-- Supports JSON, Postgres, MySQL, REST, and CSV data sources
-- StatusList2021 revocation built in
-- Admin dashboard with holder management, credential status, and revocation
-
-## Architecture position
+VeriCred sits between a holder data source and a wallet. It issues SD-JWT-VC credentials without exposing raw PII from the source — each credential template defines exactly which claims are derived, which are omitted, and why.
 
 ```
-VeriCred          miTch                    Mensch / Verifier
-(Issuer Gateway)  (User Policy Boundary)   (Verifier Portal)
-     │                   │                        │
-     └── issues VCs ──▶  │── consent + proof ──▶  │── audit evidence
+Holder Data Source → VeriCred (Issuer) → Wallet
+                         ↓
+                     miTch (User Policy Boundary)
+                         ↓
+                     Verifier Portal
 ```
-
-VeriCred is Issuer infrastructure. It is not the User-sovereignty core — that is miTch.
 
 ## Quick start
 
 ```bash
-cp .env.example .env      # set DEMO_MODE=true for local testing
-npm install
-npm run dev               # runs on http://localhost:3100
+cp .env.example .env       # edit secrets
+npm run dev
+# open http://localhost:3100/admin
 ```
-
-On first start: admin API key is printed once to the terminal. Save it.
-
-Admin UI: http://localhost:3100/admin
 
 ## Configuration
 
-Edit `vericred.config.json` (auto-created in project root on first start):
+`vericred.config.json` (auto-created on first run):
 
 ```json
 {
-  "issuer": { "name": "My Issuer", "url": "http://localhost:3100" },
-  "credential": { "type": "VerifiableCredential", "expiresInDays": 365 },
+  "issuer": { "name": "VeriCred Issuer", "url": "http://localhost:3100", "did": "did:web:localhost%3A3100" },
+  "credential": { "type": "AgeCredential", "expiresInDays": 30 },
+  "templateOptions": { "ageThresholds": [18, 21], "jurisdiction": "EU" },
   "dataSource": { "type": "json", "path": "./data/holders.json" },
-  "fieldMappings": { "given_name": "firstName", "family_name": "lastName" }
+  "fieldMappings": { "dateOfBirth": "dateOfBirth" }
 }
 ```
 
-## Security Notes
+See [`docs/templates.md`](docs/templates.md) for per-template field reference.
 
-This is a local demo / Sprint 1–3 prototype. Before any production use:
+## Credential Templates
 
-- [ ] Replace in-memory session store with persistent, signed sessions
-- [ ] Add CSRF protection on admin POST endpoints
-- [ ] Add login rate limiting
-- [ ] Run behind HTTPS reverse proxy (nginx, Caddy) — never expose directly
-- [ ] Set `DEMO_MODE=false` — synthetic holders must not appear in production
-- [ ] Replace synthetic data connector with a real, audited data source
-- [ ] Review SD-JWT VC claim structure for standard compliance
-- [ ] Add audit logging for all credential issuance and revocation events
-
-## Privacy design
-
-- Demo holder secrets are derived (SHA-256 based) for local testing only. Production deployments must use Argon2id/bcrypt or an external IAM system
-- Pairwise pseudonyms via HMAC — no global user ID reuse across verifiers
-- Admin dashboard shows no credential content — only status and counts
-- `data/` directory is gitignored — holder data never leaves the machine via git
-
-## Environment variables
-
-| Variable | Default | Description |
+| Template | Purpose | Never emits |
 |---|---|---|
-| `PORT` | `3100` | Server port |
-| `DEMO_MODE` | unset | Set to `true` to generate synthetic holders on startup |
-| `PII_ADMIN_MODE` | unset | Set to `true` to show full emails in admin UI (default: masked) |
-| `NODE_ENV` | unset | Set to `production` to enforce Secure cookie flag |
+| `AgeCredential` | Age predicates (age_over_N) without revealing DOB | `dateOfBirth` |
+| `EmployeeCredential` | Professional identity | `email`, `dateOfBirth`, `address` |
+| `MembershipCredential` | Org membership, works with only a member ID | `email` |
 
-## Repo structure
+The server **refuses to start** if the configured template type is unknown or `fieldMappings` are incomplete. `templateOptions` are also validated at startup for templates that declare `validateOptions()`.
 
-```
-src/
-  admin/        Admin dashboard and runtime stats
-  config/       Config loader and secrets manager
-  connectors/   Data source connectors (JSON, Postgres, MySQL, REST, CSV)
-  did/          did:web publisher
-  keys/         P-256 keypair manager
-  middleware/   Auth middleware (session-based, not key-in-cookie)
-  oid4vci/      OID4VCI issuer: metadata, token, credential, offer
-  revocation/   StatusList2021 revocation router and state
-```
+---
 
-## Relation to miTch
+## Capability Matrix
 
-VeriCred issues miTch-compatible Verifiable Credentials. It is designed to be one input into the miTch ecosystem, not a replacement for user-side policy enforcement. See `docs/ARCHITECTURE.md` (coming soon).
+### Protocol
+
+| Capability | Status | Notes |
+|---|---|---|
+| OID4VCI pre-authorized code flow | ✅ Implemented | Token endpoint, offer endpoint, credential endpoint |
+| did:web issuer DID | ✅ Implemented | `/.well-known/did.json` |
+| OID4VCI metadata | ✅ Implemented | `/.well-known/openid-credential-issuer` |
+| SD-JWT-VC credential format | ⚠️ Partial | JWT structure correct (vct, iss, iat, exp, sub, claims at top level); selective disclosure uses simplified HMAC commitment model, not IETF SD-JWT `~disclosure~` serialization |
+| IETF SD-JWT disclosure serialization | ❌ Not implemented | Requires base64url(JSON[salt, name, value]) + appended `~d1~d2~` to JWT |
+| Holder binding (cnf claim) | ❌ Not implemented | `proof_thumbprint` accepted but not verified; anonymous fallback in DEMO_MODE |
+| OID4VP verifier endpoint | ❌ Not in scope | Planned for future sprint |
+| mDoc / ISO 18013-5 | ❌ Not in scope | See miTch for reference implementation |
+
+### Credential Templates
+
+| Capability | Status | Notes |
+|---|---|---|
+| Template registry | ✅ Implemented | `registerTemplate()` / `getTemplate()` / `listTemplates()` |
+| AgeCredential (predicates only) | ✅ Implemented | Exact UTC age; DOB never emitted |
+| EmployeeCredential | ✅ Implemented | No email, DOB, or address |
+| MembershipCredential | ✅ Implemented | Works without name or email |
+| `validateMappings()` at startup | ✅ Implemented | `process.exit(1)` on missing required fields |
+| `validateOptions()` at startup | ✅ Implemented | Template-defined, called at boot |
+| Claim name consistency (snake_case) | ✅ Implemented | `age_over_N`, `member_id`, `valid_until`, etc. |
+
+### Security
+
+| Capability | Status | Notes |
+|---|---|---|
+| Session token auth (admin) | ✅ Implemented | 64-char hex token, 8h TTL, server-side store |
+| CSRF protection | ✅ Implemented | Single-use 48-char tokens; all state-mutating admin routes protected |
+| API key never stored in cookie | ✅ Implemented | Session token only |
+| PII masking in admin UI | ✅ Implemented | `PII_ADMIN_MODE=true` to reveal |
+| DEMO_MODE flag | ✅ Implemented | Synthetic holders only when explicitly set |
+| Atomic file writes | ✅ Implemented | tmpdir + rename; prevents truncation on crash |
+| HTTPS enforcement | ⚠️ Partial | "; Secure" cookie flag set in production; TLS termination external |
+| Pairwise pseudonyms | ✅ Implemented | HMAC-SHA256(thumbprint\|issuer\|type) |
+| Proof-of-possession verification | ❌ Not implemented | Holder binding not enforced |
+| Rate limiting | ❌ Not implemented | Planned |
+| Audit log | ❌ Not implemented | Planned |
+
+### Revocation
+
+| Capability | Status | Notes |
+|---|---|---|
+| StatusList2021 | ✅ Implemented | Status index assignment, revocation endpoint |
+| Status list credential endpoint | ✅ Implemented | `GET /status/:listId` |
+| Revocation via admin UI | ✅ Implemented | CSRF-protected |
+
+### Privacy
+
+| Capability | Status | Notes |
+|---|---|---|
+| Privacy-by-design credential templates | ✅ Implemented | Templates declare what is never emitted |
+| Selective disclosure (holder-controlled) | ⚠️ Partial | Commitments generated; disclosure protocol not yet wallet-interoperable |
+| Crypto-shredding | ❌ Not in scope | See miTch |
+| GDPR Art. 25 (data minimisation) | ✅ By design | AgeCredential as archetype |
+
+---
+
+## Architecture
+
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (planned).
+
+Related projects:
+- **[miTch](https://github.com/Late-bloomer420/miTch)** — User policy boundary, ZK-style proof mediation, crypto-shredding
+- **Mensch** — Verifier portal (private)
+
+## Security checklist (pre-production)
+
+- [ ] Enable TLS termination (nginx / Caddy in front)
+- [ ] Replace `anonymous` thumbprint fallback with fail-closed or DEMO_MODE guard
+- [ ] Implement holder binding (cnf claim verification)
+- [ ] Add rate limiting on `/token` and `/credentials`
+- [ ] Add audit log (immutable trail per credential issuance)
+- [ ] Review SD-JWT disclosure serialization for wallet interop
+- [ ] Rotate `PSEUDONYM_SECRET` with a documented key-rotation procedure

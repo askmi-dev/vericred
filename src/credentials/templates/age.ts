@@ -12,12 +12,36 @@
  */
 import { registerTemplate } from '../registry.js';
 
+const DOB_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Strict DOB validation.
+ * Rejects: non-string, wrong format, invalid calendar date, future dates, unrealistic dates (>130y).
+ */
+function parseDob(dob: unknown): Date {
+  if (typeof dob !== 'string' || !DOB_PATTERN.test(dob)) {
+    throw new Error(`Invalid dateOfBirth format: "${dob}" — expected YYYY-MM-DD`);
+  }
+  const birth = new Date(dob + 'T00:00:00Z');
+  if (isNaN(birth.getTime())) {
+    throw new Error(`Invalid dateOfBirth value: "${dob}" — not a valid calendar date`);
+  }
+  const now = new Date();
+  if (birth > now) {
+    throw new Error(`Invalid dateOfBirth: "${dob}" — date is in the future`);
+  }
+  const maxAge = new Date(Date.UTC(now.getUTCFullYear() - 130, now.getUTCMonth(), now.getUTCDate()));
+  if (birth < maxAge) {
+    throw new Error(`Invalid dateOfBirth: "${dob}" — age would exceed 130 years`);
+  }
+  return birth;
+}
+
 /**
  * Exact UTC-based age calculation.
  * Handles birthday boundaries correctly — no floating-point year approximation.
  */
-function ageAt(dob: string, at = new Date()): number {
-  const birth = new Date(dob + 'T00:00:00Z');
+function ageAt(birth: Date, at = new Date()): number {
   let age = at.getUTCFullYear() - birth.getUTCFullYear();
   const monthDiff = at.getUTCMonth() - birth.getUTCMonth();
   if (monthDiff < 0 || (monthDiff === 0 && at.getUTCDate() < birth.getUTCDate())) age--;
@@ -43,7 +67,7 @@ function validateAgeOptions(options: Record<string, unknown>): string[] {
         }
       }
       const unique = new Set(thresholds);
-      if (unique.size !== thresholds.length) {
+      if (unique.size !== (thresholds as unknown[]).length) {
         errors.push('templateOptions.ageThresholds must not contain duplicates');
       }
     }
@@ -61,14 +85,11 @@ registerTemplate({
   requiredFields: ['dateOfBirth'],
   optionalFields: ['jurisdiction'],
 
+  validateOptions: validateAgeOptions,
+
   buildClaims(holderData, options = {}) {
-    const dob = holderData['dateOfBirth'] as string | undefined;
-    if (!dob) throw new Error('AgeCredential requires dateOfBirth');
-
-    const optErrors = validateAgeOptions(options);
-    if (optErrors.length > 0) throw new Error('Invalid templateOptions: ' + optErrors.join('; '));
-
-    const ageYears = ageAt(dob);
+    const birth = parseDob(holderData['dateOfBirth']);
+    const ageYears = ageAt(birth);
     const thresholds = (options['ageThresholds'] as number[] | undefined) ?? [18, 21];
 
     const claims: Record<string, unknown> = {};
