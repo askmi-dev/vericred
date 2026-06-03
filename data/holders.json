@@ -4,10 +4,11 @@
     "firstName": "Emma",
     "lastName": "Schulz",
     "email": "emma.schulz.c8f64c@example.com",
-    "region": "Ober\u00f6sterreich",
+    "region": "Oberösterreich",
     "defaultPassword": "Ng3IGZIXc7XwM9Ot",
     "createdAt": "2026-06-03T19:44:04.770Z",
-    "sessionId": "6db08b1c-d098-46ad-93c1-bbfd66643e50"
+    "sessionId": "6db08b1c-d098-46ad-93c1-bbfd66643e50",
+    "timezone": "Europe/Vienna"
   },
   {
     "id": "holder-dd83803c-5c2d-4926-b6c8-4132c9292572",
@@ -17,7 +18,8 @@
     "region": "Niedersachsen",
     "defaultPassword": "C39p1axPxdhaM97c",
     "createdAt": "2026-06-03T19:44:04.770Z",
-    "sessionId": "6db08b1c-d098-46ad-93c1-bbfd66643e50"
+    "sessionId": "6db08b1c-d098-46ad-93c1-bbfd66643e50",
+    "timezone": "Europe/Berlin"
   },
   {
     "id": "holder-dab7b2bd-d336-440f-a1a8-5d275d9a6f81",
@@ -27,7 +29,8 @@
     "region": "Berlin",
     "defaultPassword": "WYKUv-XAfDutqSMr",
     "createdAt": "2026-06-03T19:44:04.770Z",
-    "sessionId": "6db08b1c-d098-46ad-93c1-bbfd66643e50"
+    "sessionId": "6db08b1c-d098-46ad-93c1-bbfd66643e50",
+    "timezone": "Europe/Berlin"
   },
   {
     "id": "holder-7aaae38e-e043-4739-a057-9591170c5b28",
@@ -37,7 +40,8 @@
     "region": "Berlin",
     "defaultPassword": "RIEbbDTLa1lgeIf-",
     "createdAt": "2026-06-03T19:44:04.770Z",
-    "sessionId": "6db08b1c-d098-46ad-93c1-bbfd66643e50"
+    "sessionId": "6db08b1c-d098-46ad-93c1-bbfd66643e50",
+    "timezone": "Europe/Berlin"
   },
   {
     "id": "holder-2007343e-f5d2-40e6-a868-b70b258253f6",
@@ -47,17 +51,19 @@
     "region": "Salzburg",
     "defaultPassword": "cCrxw7glPB3_vJCI",
     "createdAt": "2026-06-03T19:44:04.770Z",
-    "sessionId": "6db08b1c-d098-46ad-93c1-bbfd66643e50"
+    "sessionId": "6db08b1c-d098-46ad-93c1-bbfd66643e50",
+    "timezone": "Europe/Vienna"
   },
   {
     "id": "holder-d2e2a0f9-50ca-4187-8ff7-af002a027940",
     "firstName": "Alex",
-    "lastName": "M\u00fcller",
-    "email": "alex.m\u00fcller.027940@example.com",
-    "region": "Z\u00fcrich",
+    "lastName": "Müller",
+    "email": "alex.müller.027940@example.com",
+    "region": "Zürich",
     "defaultPassword": "T0xmAFGEqi6-g7bX",
     "createdAt": "2026-06-03T19:44:51.343Z",
-    "sessionId": "0f38249a-962e-4999-b8bb-f90b6a1fd05a"
+    "sessionId": "0f38249a-962e-4999-b8bb-f90b6a1fd05a",
+    "timezone": "Europe/Zurich"
   },
   {
     "id": "holder-d24a536d-2b53-45c3-b21b-be4c8d350885",
@@ -67,7 +73,8 @@
     "region": "Bayern",
     "defaultPassword": "IZjihf84qiN_eo3Q",
     "createdAt": "2026-06-03T19:44:51.343Z",
-    "sessionId": "0f38249a-962e-4999-b8bb-f90b6a1fd05a"
+    "sessionId": "0f38249a-962e-4999-b8bb-f90b6a1fd05a",
+    "timezone": "Europe/Berlin"
   },
   {
     "id": "holder-67d0e2d2-6051-4a1b-bc85-baa0e46d46ec",
@@ -77,7 +84,8 @@
     "region": "Wien",
     "defaultPassword": "hHlo7wS6HPs1ghKr",
     "createdAt": "2026-06-03T19:44:51.343Z",
-    "sessionId": "0f38249a-962e-4999-b8bb-f90b6a1fd05a"
+    "sessionId": "0f38249a-962e-4999-b8bb-f90b6a1fd05a",
+    "timezone": "Europe/Vienna"
   },
   {
     "id": "holder-23530630-7da3-4e9a-abfa-7424077a2cec",
@@ -87,27 +95,30 @@
     "region": "Basel",
     "defaultPassword": "IYEN9diHVkOhaljS",
     "createdAt": "2026-06-03T19:44:51.343Z",
-    "sessionId": "0f38249a-962e-4999-b8bb-f90b6a1fd05a"
+    "sessionId": "0f38249a-962e-4999-b8bb-f90b6a1fd05a",
+    "timezone": "Europe/Zurich"
   },
   {
     "id": "holder-8472d16d-47c1-495e-aa1e-1bb48c3fd91e",
     "firstName": "Lena",
     "lastName": "Wagner",
     "email": "lena.wagner.3fd91e@example.com",
-    "region": "Baden-W\u00fcrttemberg",
+    "region": "Baden-Württemberg",
     "defaultPassword": "bpyGTyJ7VBmxnop7",
     "createdAt": "2026-06-03T19:44:51.343Z",
-    "sessionId": "0f38249a-962e-4999-b8bb-f90b6a1fd05a"
+    "sessionId": "0f38249a-962e-4999-b8bb-f90b6a1fd05a",
+    "timezone": "Europe/Berlin"
   },
   {
     "id": "holder-f8a13d9e-3646-41d8-8c30-fc945b23c0bd",
     "firstName": "Noah",
     "lastName": "Mayer",
     "email": "noah.mayer.23c0bd@example.com",
-    "region": "Z\u00fcrich",
+    "region": "Zürich",
     "defaultPassword": "p9VFoV4JXfy2D6Py",
     "createdAt": "2026-06-03T19:47:29.839Z",
-    "sessionId": "f744ac19-a101-448e-8996-18b309ed1ce6"
+    "sessionId": "f744ac19-a101-448e-8996-18b309ed1ce6",
+    "timezone": "Europe/Zurich"
   },
   {
     "id": "holder-c084094a-9088-4412-a481-fc479be39b20",
@@ -117,7 +128,8 @@
     "region": "Niedersachsen",
     "defaultPassword": "-UAygkKicF35X-s2",
     "createdAt": "2026-06-03T19:47:29.839Z",
-    "sessionId": "f744ac19-a101-448e-8996-18b309ed1ce6"
+    "sessionId": "f744ac19-a101-448e-8996-18b309ed1ce6",
+    "timezone": "Europe/Berlin"
   },
   {
     "id": "holder-5fb2f2d1-42f1-41d4-b360-8066763510d6",
@@ -127,7 +139,8 @@
     "region": "NRW",
     "defaultPassword": "mcnTPSkbGC5rQu7O",
     "createdAt": "2026-06-03T19:47:29.839Z",
-    "sessionId": "f744ac19-a101-448e-8996-18b309ed1ce6"
+    "sessionId": "f744ac19-a101-448e-8996-18b309ed1ce6",
+    "timezone": "Europe/Berlin"
   },
   {
     "id": "holder-349d8b8d-b2ac-41f7-a4f6-aea199be24db",
@@ -137,7 +150,8 @@
     "region": "Salzburg",
     "defaultPassword": "USPg6dbBPVNZzgLM",
     "createdAt": "2026-06-03T19:47:29.839Z",
-    "sessionId": "f744ac19-a101-448e-8996-18b309ed1ce6"
+    "sessionId": "f744ac19-a101-448e-8996-18b309ed1ce6",
+    "timezone": "Europe/Vienna"
   },
   {
     "id": "holder-2fcb6cd0-f349-4158-be60-8e7dd0fc4870",
@@ -147,7 +161,8 @@
     "region": "Bayern",
     "defaultPassword": "wQwqQvUfyyWetHxR",
     "createdAt": "2026-06-03T19:47:29.839Z",
-    "sessionId": "f744ac19-a101-448e-8996-18b309ed1ce6"
+    "sessionId": "f744ac19-a101-448e-8996-18b309ed1ce6",
+    "timezone": "Europe/Berlin"
   },
   {
     "id": "holder-e030d29f-baa2-4ba4-8768-0f69e1ab3663",
@@ -157,7 +172,8 @@
     "region": "Wien",
     "defaultPassword": "u0Lpqo-GmLUoHh4M",
     "createdAt": "2026-06-03T19:47:34.715Z",
-    "sessionId": "80deda46-7415-4330-9ca7-dde52fe821e8"
+    "sessionId": "80deda46-7415-4330-9ca7-dde52fe821e8",
+    "timezone": "Europe/Vienna"
   },
   {
     "id": "holder-b75ca787-d900-48da-8a92-d0d022b25e8d",
@@ -167,7 +183,8 @@
     "region": "Steiermark",
     "defaultPassword": "auX9MGz5JZVu4KKZ",
     "createdAt": "2026-06-03T19:47:34.716Z",
-    "sessionId": "80deda46-7415-4330-9ca7-dde52fe821e8"
+    "sessionId": "80deda46-7415-4330-9ca7-dde52fe821e8",
+    "timezone": "Europe/Vienna"
   },
   {
     "id": "holder-5882f2b1-398d-48ba-861d-786718dac0aa",
@@ -177,47 +194,52 @@
     "region": "Salzburg",
     "defaultPassword": "ZDr2t0uKXZfoBzl9",
     "createdAt": "2026-06-03T19:47:34.716Z",
-    "sessionId": "80deda46-7415-4330-9ca7-dde52fe821e8"
+    "sessionId": "80deda46-7415-4330-9ca7-dde52fe821e8",
+    "timezone": "Europe/Vienna"
   },
   {
     "id": "holder-0276ba08-0ece-41d6-a62e-3bcec7ad7a5d",
     "firstName": "Noah",
     "lastName": "Wagner",
     "email": "noah.wagner.ad7a5d@example.com",
-    "region": "Ober\u00f6sterreich",
+    "region": "Oberösterreich",
     "defaultPassword": "HMLlUNGjrIDu6r4h",
     "createdAt": "2026-06-03T19:47:34.716Z",
-    "sessionId": "80deda46-7415-4330-9ca7-dde52fe821e8"
+    "sessionId": "80deda46-7415-4330-9ca7-dde52fe821e8",
+    "timezone": "Europe/Vienna"
   },
   {
     "id": "holder-cfb6847f-4848-43ce-96a8-cba80c577178",
     "firstName": "Mia",
     "lastName": "Weber",
     "email": "mia.weber.577178@example.com",
-    "region": "Baden-W\u00fcrttemberg",
+    "region": "Baden-Württemberg",
     "defaultPassword": "uXR2XEGQ4yLi5Li0",
     "createdAt": "2026-06-03T19:47:34.716Z",
-    "sessionId": "80deda46-7415-4330-9ca7-dde52fe821e8"
+    "sessionId": "80deda46-7415-4330-9ca7-dde52fe821e8",
+    "timezone": "Europe/Berlin"
   },
   {
     "id": "holder-0e0d5915-096c-4368-9c2e-09c6f487aeee",
     "firstName": "Felix",
     "lastName": "Fischer",
     "email": "felix.fischer.87aeee@example.com",
-    "region": "Ober\u00f6sterreich",
+    "region": "Oberösterreich",
     "defaultPassword": "yha24n-W2JXJsWbG",
     "createdAt": "2026-06-03T19:47:42.974Z",
-    "sessionId": "25fd06fa-fd1b-4463-b0c4-6725dc5ab21c"
+    "sessionId": "25fd06fa-fd1b-4463-b0c4-6725dc5ab21c",
+    "timezone": "Europe/Vienna"
   },
   {
     "id": "holder-b184d0ee-027e-4a78-8896-d6b00c1e8d94",
     "firstName": "Tobias",
     "lastName": "Mayer",
     "email": "tobias.mayer.1e8d94@example.com",
-    "region": "Baden-W\u00fcrttemberg",
+    "region": "Baden-Württemberg",
     "defaultPassword": "JeVoJCwufzJjj1mo",
     "createdAt": "2026-06-03T19:47:42.974Z",
-    "sessionId": "25fd06fa-fd1b-4463-b0c4-6725dc5ab21c"
+    "sessionId": "25fd06fa-fd1b-4463-b0c4-6725dc5ab21c",
+    "timezone": "Europe/Berlin"
   },
   {
     "id": "holder-41ef86b4-27ee-46a4-b296-4c984079ce9a",
@@ -227,7 +249,8 @@
     "region": "Wien",
     "defaultPassword": "ZNWQALxuaAS8EPuq",
     "createdAt": "2026-06-03T19:47:42.974Z",
-    "sessionId": "25fd06fa-fd1b-4463-b0c4-6725dc5ab21c"
+    "sessionId": "25fd06fa-fd1b-4463-b0c4-6725dc5ab21c",
+    "timezone": "Europe/Vienna"
   },
   {
     "id": "holder-f3db6527-33d4-4c86-a311-02b711f0bfac",
@@ -237,27 +260,30 @@
     "region": "Niedersachsen",
     "defaultPassword": "crhQo6rCI6gRLF6r",
     "createdAt": "2026-06-03T19:47:42.974Z",
-    "sessionId": "25fd06fa-fd1b-4463-b0c4-6725dc5ab21c"
+    "sessionId": "25fd06fa-fd1b-4463-b0c4-6725dc5ab21c",
+    "timezone": "Europe/Berlin"
   },
   {
     "id": "holder-e0663bf9-5af9-4929-9fa8-2a974a3dfe40",
     "firstName": "Noah",
     "lastName": "Mayer",
     "email": "noah.mayer.3dfe40@example.com",
-    "region": "Baden-W\u00fcrttemberg",
+    "region": "Baden-Württemberg",
     "defaultPassword": "pARMvhxfD4xVCIcZ",
     "createdAt": "2026-06-03T19:47:42.974Z",
-    "sessionId": "25fd06fa-fd1b-4463-b0c4-6725dc5ab21c"
+    "sessionId": "25fd06fa-fd1b-4463-b0c4-6725dc5ab21c",
+    "timezone": "Europe/Berlin"
   },
   {
     "id": "holder-84a373a5-055a-4ad4-b9b4-820aaf9723c1",
     "firstName": "Mia",
     "lastName": "Mayer",
     "email": "mia.mayer.9723c1@example.com",
-    "region": "Z\u00fcrich",
+    "region": "Zürich",
     "defaultPassword": "1iFKz6frDIyPI_aa",
     "createdAt": "2026-06-03T19:47:43.226Z",
-    "sessionId": "79c978a3-9d79-4a24-90d0-339cc351118f"
+    "sessionId": "79c978a3-9d79-4a24-90d0-339cc351118f",
+    "timezone": "Europe/Zurich"
   },
   {
     "id": "holder-fa835599-108e-4469-a28b-ad95063c0b25",
@@ -267,17 +293,19 @@
     "region": "Steiermark",
     "defaultPassword": "42kY4rUpEXNDAgpD",
     "createdAt": "2026-06-03T19:47:43.226Z",
-    "sessionId": "79c978a3-9d79-4a24-90d0-339cc351118f"
+    "sessionId": "79c978a3-9d79-4a24-90d0-339cc351118f",
+    "timezone": "Europe/Vienna"
   },
   {
     "id": "holder-5b081e48-5bf0-4596-a443-703e678918ac",
     "firstName": "Emma",
-    "lastName": "M\u00fcller",
-    "email": "emma.m\u00fcller.8918ac@example.com",
+    "lastName": "Müller",
+    "email": "emma.müller.8918ac@example.com",
     "region": "Steiermark",
     "defaultPassword": "zdRfASgjY-lrDoCv",
     "createdAt": "2026-06-03T19:47:43.227Z",
-    "sessionId": "79c978a3-9d79-4a24-90d0-339cc351118f"
+    "sessionId": "79c978a3-9d79-4a24-90d0-339cc351118f",
+    "timezone": "Europe/Vienna"
   },
   {
     "id": "holder-65aae7df-2572-47d4-b9a1-e98c3df6f765",
@@ -287,7 +315,8 @@
     "region": "Salzburg",
     "defaultPassword": "ooFoWdblHPxIX2Rc",
     "createdAt": "2026-06-03T19:47:43.227Z",
-    "sessionId": "79c978a3-9d79-4a24-90d0-339cc351118f"
+    "sessionId": "79c978a3-9d79-4a24-90d0-339cc351118f",
+    "timezone": "Europe/Vienna"
   },
   {
     "id": "holder-3a3cb66a-629f-47a5-b7c2-eef39fef614a",
@@ -297,7 +326,8 @@
     "region": "Genf",
     "defaultPassword": "-gDOgQygaLj1V_B6",
     "createdAt": "2026-06-03T19:47:43.227Z",
-    "sessionId": "79c978a3-9d79-4a24-90d0-339cc351118f"
+    "sessionId": "79c978a3-9d79-4a24-90d0-339cc351118f",
+    "timezone": "Europe/Zurich"
   },
   {
     "id": "holder-af1617e5-ba4e-4ec9-aa7a-098e5853fd69",
@@ -307,17 +337,19 @@
     "region": "NRW",
     "defaultPassword": "JH4BgNmugPyFpdhq",
     "createdAt": "2026-06-03T19:49:40.058Z",
-    "sessionId": "61c490c0-4a8c-477f-9dd1-7d6ac07989d4"
+    "sessionId": "61c490c0-4a8c-477f-9dd1-7d6ac07989d4",
+    "timezone": "Europe/Berlin"
   },
   {
     "id": "holder-a141e962-c41f-461d-bccc-70593d707610",
     "firstName": "Alex",
-    "lastName": "M\u00fcller",
-    "email": "alex.m\u00fcller.707610@example.com",
+    "lastName": "Müller",
+    "email": "alex.müller.707610@example.com",
     "region": "Bern",
     "defaultPassword": "xRAE8dxhE4N1ZVA5",
     "createdAt": "2026-06-03T19:49:40.058Z",
-    "sessionId": "61c490c0-4a8c-477f-9dd1-7d6ac07989d4"
+    "sessionId": "61c490c0-4a8c-477f-9dd1-7d6ac07989d4",
+    "timezone": "Europe/Zurich"
   },
   {
     "id": "holder-cf820202-0ac9-4ea6-8ac7-ff6cdca8991e",
@@ -327,7 +359,8 @@
     "region": "Steiermark",
     "defaultPassword": "6E0iTlzmO7Jgykp8",
     "createdAt": "2026-06-03T19:49:40.058Z",
-    "sessionId": "61c490c0-4a8c-477f-9dd1-7d6ac07989d4"
+    "sessionId": "61c490c0-4a8c-477f-9dd1-7d6ac07989d4",
+    "timezone": "Europe/Vienna"
   },
   {
     "id": "holder-448929fe-1739-4d58-aa34-73be33706e8f",
@@ -337,17 +370,19 @@
     "region": "Bern",
     "defaultPassword": "fE8QuutGwjU2Wc09",
     "createdAt": "2026-06-03T19:49:40.058Z",
-    "sessionId": "61c490c0-4a8c-477f-9dd1-7d6ac07989d4"
+    "sessionId": "61c490c0-4a8c-477f-9dd1-7d6ac07989d4",
+    "timezone": "Europe/Zurich"
   },
   {
     "id": "holder-2d206399-252f-4840-94d5-650e5b8548ce",
     "firstName": "Lena",
     "lastName": "Mayer",
     "email": "lena.mayer.8548ce@example.com",
-    "region": "Baden-W\u00fcrttemberg",
+    "region": "Baden-Württemberg",
     "defaultPassword": "6WBYOgReID8_7Ucn",
     "createdAt": "2026-06-03T19:49:40.058Z",
-    "sessionId": "61c490c0-4a8c-477f-9dd1-7d6ac07989d4"
+    "sessionId": "61c490c0-4a8c-477f-9dd1-7d6ac07989d4",
+    "timezone": "Europe/Berlin"
   },
   {
     "id": "holder-58358f10-35ea-4ee1-8a34-c17f41c202d0",
@@ -357,7 +392,8 @@
     "region": "NRW",
     "defaultPassword": "E8M-vmTpFn88Cc1q",
     "createdAt": "2026-06-03T19:52:46.316Z",
-    "sessionId": "e1c7e42c-d638-40b2-8c7e-a4d691b5907b"
+    "sessionId": "e1c7e42c-d638-40b2-8c7e-a4d691b5907b",
+    "timezone": "Europe/Berlin"
   },
   {
     "id": "holder-f3ab5aef-c150-40ec-a92e-818b39797cfc",
@@ -367,17 +403,19 @@
     "region": "Bayern",
     "defaultPassword": "aEV9iyK1zirrWre3",
     "createdAt": "2026-06-03T19:52:46.316Z",
-    "sessionId": "e1c7e42c-d638-40b2-8c7e-a4d691b5907b"
+    "sessionId": "e1c7e42c-d638-40b2-8c7e-a4d691b5907b",
+    "timezone": "Europe/Berlin"
   },
   {
     "id": "holder-1ec00c27-1b9b-4f72-9aed-e4b27b791dbc",
     "firstName": "Jonas",
     "lastName": "Wagner",
     "email": "jonas.wagner.791dbc@example.com",
-    "region": "Z\u00fcrich",
+    "region": "Zürich",
     "defaultPassword": "Y4yMV-Aa3DkMmID4",
     "createdAt": "2026-06-03T19:52:46.316Z",
-    "sessionId": "e1c7e42c-d638-40b2-8c7e-a4d691b5907b"
+    "sessionId": "e1c7e42c-d638-40b2-8c7e-a4d691b5907b",
+    "timezone": "Europe/Zurich"
   },
   {
     "id": "holder-43c43b45-5a3e-4488-9c54-0077fa815069",
@@ -387,7 +425,8 @@
     "region": "Berlin",
     "defaultPassword": "GH7jc9U_LZPMg_oA",
     "createdAt": "2026-06-03T19:52:46.316Z",
-    "sessionId": "e1c7e42c-d638-40b2-8c7e-a4d691b5907b"
+    "sessionId": "e1c7e42c-d638-40b2-8c7e-a4d691b5907b",
+    "timezone": "Europe/Berlin"
   },
   {
     "id": "holder-872b5d6b-0796-4232-bb5f-df542a822a52",
@@ -397,17 +436,19 @@
     "region": "Tirol",
     "defaultPassword": "acJvG6XNFYuJxep5",
     "createdAt": "2026-06-03T19:52:46.316Z",
-    "sessionId": "e1c7e42c-d638-40b2-8c7e-a4d691b5907b"
+    "sessionId": "e1c7e42c-d638-40b2-8c7e-a4d691b5907b",
+    "timezone": "Europe/Vienna"
   },
   {
     "id": "holder-b6dae9aa-411a-4af2-bf10-6b895580cad0",
     "firstName": "Mia",
     "lastName": "Fischer",
     "email": "mia.fischer.80cad0@example.com",
-    "region": "Baden-W\u00fcrttemberg",
+    "region": "Baden-Württemberg",
     "defaultPassword": "Kn8a7DMZHxQbAwFy",
     "createdAt": "2026-06-03T19:56:15.004Z",
-    "sessionId": "9ec70e55-2076-41b0-8841-48b4b930c394"
+    "sessionId": "9ec70e55-2076-41b0-8841-48b4b930c394",
+    "timezone": "Europe/Berlin"
   },
   {
     "id": "holder-309cdb7b-451d-4a20-8f25-6c3ab0460044",
@@ -417,36 +458,40 @@
     "region": "Tirol",
     "defaultPassword": "A2j-PFpmYok29qOx",
     "createdAt": "2026-06-03T19:56:15.004Z",
-    "sessionId": "9ec70e55-2076-41b0-8841-48b4b930c394"
+    "sessionId": "9ec70e55-2076-41b0-8841-48b4b930c394",
+    "timezone": "Europe/Vienna"
   },
   {
     "id": "holder-e23e7f45-1945-4ce6-8c27-3199bf48342c",
     "firstName": "Mia",
     "lastName": "Wagner",
     "email": "mia.wagner.48342c@example.com",
-    "region": "Z\u00fcrich",
+    "region": "Zürich",
     "defaultPassword": "Im0gb-Hz620mAFX0",
     "createdAt": "2026-06-03T19:56:15.004Z",
-    "sessionId": "9ec70e55-2076-41b0-8841-48b4b930c394"
+    "sessionId": "9ec70e55-2076-41b0-8841-48b4b930c394",
+    "timezone": "Europe/Zurich"
   },
   {
     "id": "holder-3bdc5765-6e5d-445c-b6e0-8b7a09052b10",
     "firstName": "Marie",
     "lastName": "Wagner",
     "email": "marie.wagner.052b10@example.com",
-    "region": "Ober\u00f6sterreich",
+    "region": "Oberösterreich",
     "defaultPassword": "PxVrBSN8HKM-meJh",
     "createdAt": "2026-06-03T19:56:15.004Z",
-    "sessionId": "9ec70e55-2076-41b0-8841-48b4b930c394"
+    "sessionId": "9ec70e55-2076-41b0-8841-48b4b930c394",
+    "timezone": "Europe/Vienna"
   },
   {
     "id": "holder-466a9489-9d15-4623-9f23-36afcb651afe",
     "firstName": "Lena",
     "lastName": "Mayer",
     "email": "lena.mayer.651afe@example.com",
-    "region": "Z\u00fcrich",
+    "region": "Zürich",
     "defaultPassword": "TiaGqtQ1-9oHdOpa",
     "createdAt": "2026-06-03T19:56:15.004Z",
-    "sessionId": "9ec70e55-2076-41b0-8841-48b4b930c394"
+    "sessionId": "9ec70e55-2076-41b0-8841-48b4b930c394",
+    "timezone": "Europe/Zurich"
   }
 ]

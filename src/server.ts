@@ -8,6 +8,7 @@ import { createTokenRouter } from './oid4vci/token.js';
 import { createCredentialRouter } from './oid4vci/issuer.js';
 import { createOfferRouter } from './oid4vci/offer.js';
 import { createAdminRouter } from './admin/router.js';
+import { createRevocationRouter } from './revocation/router.js';
 import { requireAdmin } from './middleware/auth.js';
 import { generateHolders } from './connectors/generator.js';
 import { logStartup, markProcessStart } from './admin/runtime.js';
@@ -38,6 +39,7 @@ app.use(createCredentialRouter(secrets.pseudonymSecret));
 // ── Protected routes (admin only) ──────────────────────────
 app.use('/offer', requireAdmin);  // offer generation is admin-only
 app.use(createOfferRouter(lookup));
+app.use(createRevocationRouter());
 app.use(createAdminRouter());
 
 // Health (public, no PII)

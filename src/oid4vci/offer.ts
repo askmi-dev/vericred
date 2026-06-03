@@ -1,22 +1,17 @@
-/**
- * Credential offer endpoint — generates a QR-ready offer link for a holder.
- */
 import { Router as createRouter } from 'express';
 import type { Router, Request, Response } from 'express';
 import { loadConfig } from '../config/loader.js';
 import { issuePreAuthCode } from './token.js';
+import type { Lookup } from '../connectors/index.js';
 
-export function createOfferRouter(
-  lookup: (id: string) => Record<string, unknown> | null
-): Router {
+export function createOfferRouter(lookup: Lookup): Router {
   const router = createRouter();
 
-  // POST /offer { "identifier": "alice@example.com" }
-  router.post('/offer', (req: Request, res: Response) => {
+  router.post('/offer', async (req: Request, res: Response) => {
     const { identifier } = req.body as { identifier?: string };
     if (!identifier) { res.status(400).json({ error: 'identifier required' }); return; }
 
-    const holderData = lookup(identifier);
+    const holderData = await Promise.resolve(lookup(identifier));
     if (!holderData) { res.status(404).json({ error: 'holder not found' }); return; }
 
     const config = loadConfig();
@@ -34,7 +29,6 @@ export function createOfferRouter(
     };
 
     const offerUri = `openid-credential-offer://?credential_offer=${encodeURIComponent(JSON.stringify(offer))}`;
-
     res.json({ offer, offer_uri: offerUri });
   });
 
