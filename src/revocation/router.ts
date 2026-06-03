@@ -1,7 +1,7 @@
 import { Router as createRouter } from 'express';
 import type { Router } from 'express';
 import { buildStatusListJWT, getListId } from './statuslist.js';
-import { requireAdmin } from '../middleware/auth.js';
+import { requireAdmin, requireCsrf } from '../middleware/auth.js';
 import { revokeCredential, getIssuedCredentials } from './statuslist.js';
 
 export function createRevocationRouter(): Router {
@@ -20,7 +20,7 @@ export function createRevocationRouter(): Router {
   });
 
   // Admin: revoke by credential ID
-  router.post('/admin/revoke', requireAdmin, (req, res) => {
+  router.post('/admin/revoke', requireAdmin, requireCsrf, (req, res) => {
     const { credentialId } = req.body as { credentialId?: string };
     if (!credentialId) { res.status(400).json({ error: 'credentialId required' }); return; }
     const ok = revokeCredential(credentialId);
