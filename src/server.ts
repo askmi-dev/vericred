@@ -22,22 +22,29 @@ const config = loadConfig();
 const secrets = loadSecrets();
 const dataPath = config.dataSource.path ?? './data/holders.json';
 
-// Startup: spawn synthetic holders, log session
+// Startup
 markProcessStart();
 const sessionId = logStartup(5);
-generateHolders(5, secrets.pseudonymSecret, sessionId, dataPath);
 
-// Data connector (reads holders.json)
+// Synthetic holders only in DEMO_MODE - never in production
+if (process.env['DEMO_MODE'] === 'true') {
+  generateHolders(5, secrets.pseudonymSecret, sessionId, dataPath);
+  console.log('  [DEMO_MODE] Synthetic holders generated. Set DEMO_MODE=false for production.');
+} else {
+  console.log('  [INFO] DEMO_MODE not set - no synthetic holders generated.');
+}
+
+// Data connector
 const lookup = buildConnector(config);
 
-// ── Public routes (wallet-facing) ──────────────────────────
+// Public routes (wallet-facing)
 app.use(createDidRouter());
 app.use(createMetadataRouter());
 app.use(createTokenRouter());
 app.use(createCredentialRouter(secrets.pseudonymSecret));
 
-// ── Protected routes (admin only) ──────────────────────────
-app.use('/offer', requireAdmin);  // offer generation is admin-only
+// Protected routes (admin only)
+app.use('/offer', requireAdmin);
 app.use(createOfferRouter(lookup));
 app.use(createRevocationRouter());
 app.use(createAdminRouter());
@@ -45,14 +52,16 @@ app.use(createAdminRouter());
 // Health (public, no PII)
 app.get('/health', (_req, res) => res.json({ status: 'ok', issuer: config.issuer.did }));
 
-const PORT = process.env.PORT ?? 3100;
+const PORT = process.env['PORT'] ?? 3100;
 export const SERVER_STARTED_AT = new Date();
 
 await getIssuerKeyPair();
 
 app.listen(PORT, () => {
-  console.log(`\n🎫 VeriCred running at ${config.issuer.url}`);
-  console.log(`   Admin:    ${config.issuer.url}/admin`);
-  console.log(`   DID:      ${config.issuer.url}/.well-known/did.json`);
-  console.log(`   Metadata: ${config.issuer.url}/.well-known/openid-credential-issuer\n`);
+  console.log('');
+  console.log('VeriCred running at ' + config.issuer.url);
+  console.log('  Admin:    ' + config.issuer.url + '/admin');
+  console.log('  DID:      ' + config.issuer.url + '/.well-known/did.json');
+  console.log('  Metadata: ' + config.issuer.url + '/.well-known/openid-credential-issuer');
+  console.log('');
 });

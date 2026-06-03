@@ -4,6 +4,7 @@ import { requireAdmin } from '../middleware/auth.js';
 import { getRuntimeStats, getUptime } from './runtime.js';
 import { getIssuedCredentials } from '../revocation/statuslist.js';
 import { loadSecrets } from '../config/secrets.js';
+import { createSession, destroySession } from '../middleware/auth.js';
 import { setHolderPassword, formatInTimezone, readHolders, REGIONS, REGION_TIMEZONE } from '../connectors/generator.js';
 import type { HolderRecord } from '../connectors/generator.js';
 
@@ -21,26 +22,29 @@ export function createAdminRouter(): Router {
 
   router.get('/admin/login', (_req, res) => {
     res.setHeader('Content-Type', 'text/html');
-    res.send(`<!DOCTYPE html>
-<html lang="de"><head><meta charset="UTF-8"><title>VeriCred Admin</title>
-<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh}.card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:2rem;width:360px}h1{font-size:1.4rem;margin-bottom:.25rem;color:#f1f5f9}p{font-size:.85rem;color:#94a3b8;margin-bottom:1.5rem}input{width:100%;padding:.6rem .8rem;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-size:.9rem;margin-bottom:1rem}button{width:100%;padding:.7rem;background:#6366f1;border:none;border-radius:6px;color:white;font-size:.95rem;cursor:pointer}button:hover{background:#4f46e5}</style>
-</head><body><div class="card"><h1>VeriCred</h1><p>Admin-Zugang</p>
-<form method="POST" action="/admin/login"><input type="password" name="apiKey" placeholder="Admin API Key" autofocus required /><button type="submit">Einloggen</button></form>
-</div></body></html>`);
+    res.send('<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>VeriCred Admin</title>'
+      + '<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh}.card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:2rem;width:360px}h1{font-size:1.4rem;margin-bottom:.25rem;color:#f1f5f9}p{font-size:.85rem;color:#94a3b8;margin-bottom:1.5rem}input{width:100%;padding:.6rem .8rem;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-size:.9rem;margin-bottom:1rem}button{width:100%;padding:.7rem;background:#6366f1;border:none;border-radius:6px;color:white;font-size:.95rem;cursor:pointer}button:hover{background:#4f46e5}</style>'
+      + '</head><body><div class="card"><h1>VeriCred</h1><p>Admin-Zugang</p>'
+      + '<form method="POST" action="/admin/login"><input type="password" name="apiKey" placeholder="Admin API Key" autofocus required /><button type="submit">Einloggen</button></form>'
+      + '</div></body></html>');
   });
 
   router.post('/admin/login', (req, res) => {
     const { apiKey } = req.body as { apiKey: string };
     if (apiKey === loadSecrets().adminApiKey) {
-      res.setHeader('Set-Cookie', `admin_session=${apiKey}; HttpOnly; Path=/; SameSite=Strict`);
+      const sessionToken = createSession();
+      res.setHeader('Set-Cookie', 'admin_session=' + sessionToken + '; HttpOnly; Path=/; SameSite=Strict; Max-Age=28800');
       res.redirect('/admin');
       return;
     }
     res.redirect('/admin/login?err=1');
   });
 
-  router.get('/admin/logout', (_req, res) => {
-    res.setHeader('Set-Cookie', 'admin_session=; HttpOnly; Path=/; Max-Age=0');
+  router.get('/admin/logout', (req, res) => {
+    const rawCookie = req.headers.cookie ?? '';
+    const part = rawCookie.split(';').find(c => c.trim().startsWith('admin_session='));
+    if (part) destroySession(part.split('=').slice(1).join('=').trim());
+    res.setHeader('Set-Cookie', 'admin_session=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict');
     res.redirect('/admin/login');
   });
 
@@ -101,7 +105,7 @@ export function createAdminRouter(): Router {
 
     function sortLink(col: string, label: string) {
       const active = sortCol === col;
-      const arrow = active ? (sortDir === 1 ? ' ↑' : ' ↓') : '';
+      const arrow = active ? (sortDir === 1 ? ' up' : ' down') : '';
       const nextDir = active && sortDir === -1 ? 'asc' : 'desc';
       const p = new URLSearchParams({ ...q, sort: col, dir: nextDir });
       return '<th style="cursor:pointer;white-space:nowrap" onclick="location.href=\'?' + p + '\'">' + label + arrow + '</th>';
@@ -117,12 +121,12 @@ export function createAdminRouter(): Router {
 
     const displayed = holders.slice(0, 200);
     const holderRows = displayed.map(h => {
-      const pw = h.customPassword ?? h.defaultPassword;
+      const hasPw = !!h.customPassword;
       const tz = h.timezone ?? REGION_TIMEZONE[h.region] ?? 'Europe/Vienna';
       const localTime = h.createdAt ? formatInTimezone(h.createdAt, tz) : '-';
       const credCount = credByHolder[h.email] ?? 0;
       const subj = encodeURIComponent('Dein VeriCred Zugang');
-      const body = encodeURIComponent('Hallo ' + h.firstName + ',\n\nNeues Passwort: ' + pw + '\n\nVeriCred');
+      const body = encodeURIComponent('Hallo ' + h.firstName + ',\n\nDein Passwort wurde zurueckgesetzt. Bitte melde dich an.\n\nVeriCred');
       const rp = new URLSearchParams({ ...q, region: h.region });
       return '<tr>'
         + '<td style="font-size:.75rem;color:#94a3b8">' + h.id.slice(-8) + '</td>'
@@ -134,8 +138,8 @@ export function createAdminRouter(): Router {
             ? '<span style="background:#1a3a2a;color:#4ade80;padding:1px 8px;border-radius:10px;font-size:.75rem">' + credCount + '</span>'
             : '<span style="color:#475569;font-size:.75rem">-</span>') + '</td>'
         + '<td style="white-space:nowrap">'
-        + '<span id="pw-' + h.id + '" style="font-family:monospace;font-size:.8rem;background:#0f172a;padding:2px 6px;border-radius:4px">' + pw + '</span>'
-        + '<button onclick="editPw(\'' + h.id + '\',\'' + h.email + '\')" style="margin-left:6px;background:#334155;border:none;color:#94a3b8;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.75rem">Pw</button>'
+        + '<span style="font-size:.75rem;color:' + (hasPw ? '#4ade80' : '#475569') + '">' + (hasPw ? 'Eigenes Pw' : 'Standard Pw') + '</span>'
+        + '<button onclick="editPw(\'' + h.id + '\',\'' + h.email + '\')" style="margin-left:8px;background:#334155;border:none;color:#94a3b8;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.75rem">Setzen</button>'
         + '<a href="mailto:' + h.email + '?subject=' + subj + '&body=' + body + '" style="margin-left:4px;font-size:.75rem;color:#6366f1">Mail</a>'
         + '</td></tr>';
     }).join('');
@@ -172,101 +176,85 @@ export function createAdminRouter(): Router {
 
     const hasFilters = search || regionFilter || dateFilter !== 'all';
 
-    const CSS = `*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:system-ui,sans-serif;background:#0f172a;color:#e2e8f0;padding:2rem}
-h1{font-size:1.5rem;margin-bottom:.25rem}
-.sub{color:#64748b;margin-bottom:1.5rem;font-size:.9rem}
-.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:2rem}
-.stat{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:1.2rem}
-.stat .num{font-size:2rem;font-weight:700;color:#6366f1}
-.stat .label{font-size:.8rem;color:#94a3b8;margin-top:.2rem}
-.stat.green .num{color:#4ade80}.stat.red .num{color:#f87171}
-.grid2{display:grid;grid-template-columns:220px 1fr;gap:1.5rem;margin-bottom:1.5rem}
-.box{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:1.2rem;margin-bottom:1.5rem}
-h2{font-size:1rem;margin-bottom:1rem;color:#cbd5e1}
-table{width:100%;border-collapse:collapse;font-size:.85rem}
-th{text-align:left;padding:.5rem;color:#64748b;border-bottom:1px solid #334155;user-select:none}
-th:hover{color:#cbd5e1}
-td{padding:.5rem;border-bottom:1px solid #1e293b;vertical-align:middle}
-tr:hover td{background:#263248}
-.toolbar{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem}
-.si{background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:5px 10px;font-size:.85rem;width:200px}
-.si:focus{outline:none;border-color:#6366f1}
-select.sel{background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:6px;padding:5px 8px;font-size:.85rem;cursor:pointer}
-a.logout{float:right;color:#64748b;font-size:.85rem;text-decoration:none}
-.cl{font-size:.75rem;color:#475569;text-decoration:none;padding:4px 8px;border:1px solid #334155;border-radius:4px}
-.cl:hover{color:#94a3b8}`;
+    const CSS = '*{box-sizing:border-box;margin:0;padding:0}'
+      + 'body{font-family:system-ui,sans-serif;background:#0f172a;color:#e2e8f0;padding:2rem}'
+      + 'h1{font-size:1.5rem;margin-bottom:.25rem}'
+      + '.sub{color:#64748b;margin-bottom:1.5rem;font-size:.9rem}'
+      + '.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:2rem}'
+      + '.stat{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:1.2rem}'
+      + '.stat .num{font-size:2rem;font-weight:700;color:#6366f1}'
+      + '.stat .label{font-size:.8rem;color:#94a3b8;margin-top:.2rem}'
+      + '.stat.green .num{color:#4ade80}.stat.red .num{color:#f87171}'
+      + '.grid2{display:grid;grid-template-columns:220px 1fr;gap:1.5rem;margin-bottom:1.5rem}'
+      + '.box{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:1.2rem;margin-bottom:1.5rem}'
+      + 'h2{font-size:1rem;margin-bottom:1rem;color:#cbd5e1}'
+      + 'table{width:100%;border-collapse:collapse;font-size:.85rem}'
+      + 'th{text-align:left;padding:.5rem;color:#64748b;border-bottom:1px solid #334155;user-select:none}'
+      + 'th:hover{color:#cbd5e1}'
+      + 'td{padding:.5rem;border-bottom:1px solid #1e293b;vertical-align:middle}'
+      + 'tr:hover td{background:#263248}'
+      + '.toolbar{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem}'
+      + '.si{background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:5px 10px;font-size:.85rem;width:200px}'
+      + '.si:focus{outline:none;border-color:#6366f1}'
+      + 'select.sel{background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:6px;padding:5px 8px;font-size:.85rem;cursor:pointer}'
+      + 'a.logout{float:right;color:#64748b;font-size:.85rem;text-decoration:none}'
+      + '.cl{font-size:.75rem;color:#475569;text-decoration:none;padding:4px 8px;border:1px solid #334155;border-radius:4px}'
+      + '.cl:hover{color:#94a3b8}';
 
     res.setHeader('Content-Type', 'text/html');
-    res.send(`<!DOCTYPE html>
-<html lang="de"><head><meta charset="UTF-8"><title>VeriCred Admin</title>
-<style>${CSS}</style></head>
-<body>
-<h1>VeriCred Admin <a class="logout" href="/admin/logout">Logout</a></h1>
-<p class="sub">Issuer-Ubersicht - Nur intern sichtbar</p>
-
-<div class="stats">
-  <div class="stat"><div class="num">${allHolders.length}</div><div class="label">Holder gesamt</div></div>
-  <div class="stat"><div class="num">${todayHolders.length}</div><div class="label">Holder heute</div></div>
-  <div class="stat green"><div class="num">${activeCredentials}</div><div class="label">Credentials aktiv</div></div>
-  <div class="stat red"><div class="num">${revokedCredentials}</div><div class="label">Revoked</div></div>
-  <div class="stat"><div class="num">${getUptime()}</div><div class="label">Uptime (${stats.totalRestarts} Starts)</div></div>
-</div>
-
-<div class="grid2">
-  <div class="box">
-    <h2>Regionen</h2>
-    <table><tr><th>Region</th><th>#</th></tr>${regionRows}</table>
-    ${regionFilter ? '<div style="margin-top:.75rem"><a href="/admin" style="font-size:.75rem;color:#475569;text-decoration:none">x Alle Regionen</a></div>' : ''}
-  </div>
-  <div class="box">
-    <h2>Holder</h2>
-    <form method="GET" action="/admin" id="hf">
-      <input type="hidden" name="sort" value="${sortCol}">
-      <input type="hidden" name="dir" value="${sortDir === 1 ? 'asc' : 'desc'}">
-      <div class="toolbar">
-        <input class="si" type="text" name="q" value="${search.replace(/"/g, '&quot;')}" placeholder="Name oder E-Mail..." oninput="deb()">
-        <select class="sel" name="region" onchange="this.form.submit()">
-          <option value="">Alle Regionen</option>${regionOptions}
-        </select>
-        <select class="sel" name="date" onchange="this.form.submit()">
-          <option value="all"${dateFilter === 'all' ? ' selected' : ''}>Alle Zeiten</option>
-          <option value="today"${dateFilter === 'today' ? ' selected' : ''}>Heute</option>
-          <option value="week"${dateFilter === 'week' ? ' selected' : ''}>Diese Woche</option>
-          <option value="month"${dateFilter === 'month' ? ' selected' : ''}>Dieser Monat</option>
-        </select>
-        ${hasFilters ? '<a href="/admin" class="cl">x Filter</a>' : ''}
-        <span style="margin-left:auto;font-size:.8rem;color:#64748b">${holders.length} Ergebnisse${holders.length > 200 ? ' - Top 200' : ''}</span>
-      </div>
-    </form>
-    <table>
-      <tr>${sortLink('id', 'ID')}${sortLink('name', 'Name')}${sortLink('email', 'Email')}${sortLink('region', 'Region')}${sortLink('date', 'Erstellt')}<th style="text-align:center">Creds</th><th>Passwort</th></tr>
-      ${holderRows || '<tr><td colspan="7" style="text-align:center;color:#475569;padding:2rem">Keine Eintraege</td></tr>'}
-    </table>
-  </div>
-</div>
-
-<div class="box">
-  <h2>Credentials - heute ${todayCredentials} ausgestellt</h2>
-  <div class="toolbar" style="margin-bottom:1rem">
-    ${chip('cred', '', 'Alle', credFilter)}
-    ${chip('cred', 'active', 'Aktiv', credFilter)}
-    ${chip('cred', 'revoked', 'Revoked', credFilter)}
-    <span style="margin-left:auto;font-size:.8rem;color:#64748b">${filteredCreds.length} Eintraege</span>
-  </div>
-  <table>
-    <tr><th>ID</th><th>Holder</th><th>Ausgestellt</th><th>Status</th><th></th></tr>
-    ${credRows || '<tr><td colspan="5" style="text-align:center;color:#475569;padding:2rem">Keine Credentials</td></tr>'}
-  </table>
-</div>
-
-<script>
-let t;
-function deb(){clearTimeout(t);t=setTimeout(()=>document.getElementById('hf').submit(),350)}
-async function revoke(id){if(!confirm('Revoken?'))return;const r=await fetch('/admin/revoke',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({credentialId:id})});const d=await r.json();alert(d.message);location.reload()}
-async function editPw(id,email){const p=prompt('Neues Passwort fuer '+email+' (min. 8 Zeichen):');if(!p||p.length<8)return;const r=await fetch('/admin/holder/password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({holderId:id,password:p})});const d=await r.json();if(d.success){document.getElementById('pw-'+id).textContent=p}else{alert('Fehler')}}
-</script>
-</body></html>`);
+    res.send('<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>VeriCred Admin</title>'
+      + '<style>' + CSS + '</style></head><body>'
+      + '<h1>VeriCred Admin <a class="logout" href="/admin/logout">Logout</a></h1>'
+      + '<p class="sub">Issuer-Uebersicht - Nur intern sichtbar</p>'
+      + '<div class="stats">'
+      + '<div class="stat"><div class="num">' + allHolders.length + '</div><div class="label">Holder gesamt</div></div>'
+      + '<div class="stat"><div class="num">' + todayHolders.length + '</div><div class="label">Holder heute</div></div>'
+      + '<div class="stat green"><div class="num">' + activeCredentials + '</div><div class="label">Credentials aktiv</div></div>'
+      + '<div class="stat red"><div class="num">' + revokedCredentials + '</div><div class="label">Revoked</div></div>'
+      + '<div class="stat"><div class="num">' + getUptime() + '</div><div class="label">Uptime (' + stats.totalRestarts + ' Starts)</div></div>'
+      + '</div>'
+      + '<div class="grid2">'
+      + '<div class="box"><h2>Regionen</h2>'
+      + '<table><tr><th>Region</th><th>#</th></tr>' + regionRows + '</table>'
+      + (regionFilter ? '<div style="margin-top:.75rem"><a href="/admin" style="font-size:.75rem;color:#475569;text-decoration:none">x Alle Regionen</a></div>' : '')
+      + '</div>'
+      + '<div class="box"><h2>Holder</h2>'
+      + '<form method="GET" action="/admin" id="hf">'
+      + '<input type="hidden" name="sort" value="' + sortCol + '">'
+      + '<input type="hidden" name="dir" value="' + (sortDir === 1 ? 'asc' : 'desc') + '">'
+      + '<div class="toolbar">'
+      + '<input class="si" type="text" name="q" value="' + search.replace(/"/g, '&quot;') + '" placeholder="Name oder E-Mail..." oninput="deb()">'
+      + '<select class="sel" name="region" onchange="this.form.submit()"><option value="">Alle Regionen</option>' + regionOptions + '</select>'
+      + '<select class="sel" name="date" onchange="this.form.submit()">'
+      + '<option value="all"' + (dateFilter === 'all' ? ' selected' : '') + '>Alle Zeiten</option>'
+      + '<option value="today"' + (dateFilter === 'today' ? ' selected' : '') + '>Heute</option>'
+      + '<option value="week"' + (dateFilter === 'week' ? ' selected' : '') + '>Diese Woche</option>'
+      + '<option value="month"' + (dateFilter === 'month' ? ' selected' : '') + '>Dieser Monat</option>'
+      + '</select>'
+      + (hasFilters ? '<a href="/admin" class="cl">x Filter</a>' : '')
+      + '<span style="margin-left:auto;font-size:.8rem;color:#64748b">' + holders.length + ' Ergebnisse' + (holders.length > 200 ? ' - Top 200' : '') + '</span>'
+      + '</div></form>'
+      + '<table><tr>'
+      + sortLink('id', 'ID') + sortLink('name', 'Name') + sortLink('email', 'Email')
+      + sortLink('region', 'Region') + sortLink('date', 'Erstellt')
+      + '<th style="text-align:center">Creds</th><th>Zugang</th>'
+      + '</tr>' + (holderRows || '<tr><td colspan="7" style="text-align:center;color:#475569;padding:2rem">Keine Eintraege</td></tr>') + '</table>'
+      + '</div></div>'
+      + '<div class="box"><h2>Credentials - heute ' + todayCredentials + ' ausgestellt</h2>'
+      + '<div class="toolbar" style="margin-bottom:1rem">'
+      + chip('cred', '', 'Alle', credFilter)
+      + chip('cred', 'active', 'Aktiv', credFilter)
+      + chip('cred', 'revoked', 'Revoked', credFilter)
+      + '<span style="margin-left:auto;font-size:.8rem;color:#64748b">' + filteredCreds.length + ' Eintraege</span>'
+      + '</div>'
+      + '<table><tr><th>ID</th><th>Holder</th><th>Ausgestellt</th><th>Status</th><th></th></tr>'
+      + (credRows || '<tr><td colspan="5" style="text-align:center;color:#475569;padding:2rem">Keine Credentials</td></tr>')
+      + '</table></div>'
+      + '<script>'
+      + 'let t;function deb(){clearTimeout(t);t=setTimeout(()=>document.getElementById("hf").submit(),350)}'
+      + 'async function revoke(id){if(!confirm("Revoken?"))return;const r=await fetch("/admin/revoke",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({credentialId:id})});const d=await r.json();alert(d.message);location.reload()}'
+      + 'async function editPw(id,email){const p=prompt("Neues Passwort fuer "+email+" (min. 8 Zeichen):");if(!p||p.length<8)return;const r=await fetch("/admin/holder/password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({holderId:id,password:p})});const d=await r.json();if(d.success){location.reload()}else{alert("Fehler")}}'
+      + '</script></body></html>');
   });
 
   router.get('/admin/api/holders', requireAdmin, (_req, res) => res.json(readHolders(DATA_PATH)));
