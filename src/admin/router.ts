@@ -56,7 +56,7 @@ export function createAdminRouter(): Router {
     res.redirect('/admin/login');
   });
 
-  router.post('/admin/holder/password', requireAdmin, (req, res) => {
+  router.post('/admin/holder/password', requireAdmin, requireCsrf, (req, res) => {
     const { holderId, password } = req.body as { holderId?: string; password?: string };
     if (!holderId || !password) { res.status(400).json({ error: 'holderId and password required' }); return; }
     if (password.length < 8) { res.status(400).json({ error: 'Password must be at least 8 characters' }); return; }
@@ -69,6 +69,7 @@ export function createAdminRouter(): Router {
     const credentials = getIssuedCredentials();
     const stats = getRuntimeStats();
     const q = req.query as Record<string, string>;
+    const csrf = createCsrfToken();
     const now = new Date();
     const today = now.toISOString().slice(0, 10);
 
@@ -259,9 +260,10 @@ export function createAdminRouter(): Router {
       + (credRows || '<tr><td colspan="5" style="text-align:center;color:#475569;padding:2rem">Keine Credentials</td></tr>')
       + '</table></div>'
       + '<script>'
+      + 'const CSRF="' + csrf + '";'
       + 'let t;function deb(){clearTimeout(t);t=setTimeout(()=>document.getElementById("hf").submit(),350)}'
-      + 'async function revoke(id){if(!confirm("Revoken?"))return;const r=await fetch("/admin/revoke",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({credentialId:id})});const d=await r.json();alert(d.message);location.reload()}'
-      + 'async function editPw(id,email){const p=prompt("Neues Passwort fuer "+email+" (min. 8 Zeichen):");if(!p||p.length<8)return;const r=await fetch("/admin/holder/password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({holderId:id,password:p})});const d=await r.json();if(d.success){location.reload()}else{alert("Fehler")}}'
+      + 'async function revoke(id){if(!confirm("Revoken?"))return;const r=await fetch("/admin/revoke",{method:"POST",headers:{"Content-Type":"application/json","x-csrf-token":CSRF},body:JSON.stringify({credentialId:id})});const d=await r.json();alert(d.message);location.reload()}'
+      + 'async function editPw(id,email){const p=prompt("Neues Passwort fuer "+email+" (min. 8 Zeichen):");if(!p||p.length<8)return;const r=await fetch("/admin/holder/password",{method:"POST",headers:{"Content-Type":"application/json","x-csrf-token":CSRF},body:JSON.stringify({holderId:id,password:p})});const d=await r.json();if(d.success){location.reload()}else{alert("Fehler")}}'
       + '</script></body></html>');
   });
 
