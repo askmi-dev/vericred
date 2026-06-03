@@ -8,14 +8,15 @@ export interface VeriCredConfig {
     type: string;
     expiresInDays: number;
   };
+  templateOptions?: Record<string, unknown>;
   dataSource: {
     type: 'json' | 'postgres' | 'mysql' | 'rest' | 'csv';
-    path?: string;           // json / csv
-    connectionString?: string; // postgres / mysql
-    table?: string;          // postgres / mysql (default: users)
-    identifierColumn?: string; // postgres / mysql (default: email)
-    endpoint?: string;       // rest
-    authHeader?: string;     // rest
+    path?: string;
+    connectionString?: string;
+    table?: string;
+    identifierColumn?: string;
+    endpoint?: string;
+    authHeader?: string;
   };
   fieldMappings: Record<string, string>;
 }

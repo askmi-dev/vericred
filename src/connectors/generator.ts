@@ -37,6 +37,7 @@ export interface HolderRecord {
   timezone: string;
   defaultPassword: string;
   customPassword?: string;
+  dateOfBirth: string; // ISO date YYYY-MM-DD (not emitted in AgeCredential claims)
   createdAt: string; // UTC ISO string
   sessionId: string;
 }
@@ -52,6 +53,17 @@ function atomicWrite(filePath: string, data: string): void {
 
 export function readHolders(dataPath: string): HolderRecord[] {
   return existsSync(dataPath) ? JSON.parse(readFileSync(dataPath, 'utf-8')) : [];
+}
+
+
+function randomDob(): string {
+  // Random age between 18 and 65
+  const ageYears = 18 + Math.floor(Math.random() * 47);
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - ageYears);
+  d.setMonth(Math.floor(Math.random() * 12));
+  d.setDate(1 + Math.floor(Math.random() * 28));
+  return d.toISOString().slice(0, 10);
 }
 
 export function generateHolders(count: number, pseudonymSecret: string, sessionId: string, dataPath: string): HolderRecord[] {
@@ -72,6 +84,7 @@ export function generateHolders(count: number, pseudonymSecret: string, sessionI
       email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}.${id.slice(-6)}@example.com`,
       region,
       timezone: REGION_TIMEZONE[region] ?? 'Europe/Vienna',
+      dateOfBirth: randomDob(),
       defaultPassword: deriveHolderPassword(id, pseudonymSecret),
       createdAt: new Date().toISOString(),
       sessionId,

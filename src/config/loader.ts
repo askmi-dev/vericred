@@ -10,17 +10,19 @@ export const DEFAULT_CONFIG: VeriCredConfig = {
     did: 'did:web:localhost%3A3100',
   },
   credential: {
-    type: 'VerifiableCredential',
-    expiresInDays: 365,
+    type: 'AgeCredential',
+    expiresInDays: 30,
+  },
+  templateOptions: {
+    ageThresholds: [18, 21],
+    jurisdiction: 'EU',
   },
   dataSource: {
     type: 'json',
     path: './data/holders.json',
   },
   fieldMappings: {
-    givenName: 'firstName',
-    familyName: 'lastName',
-    email: 'email',
+    dateOfBirth: 'dateOfBirth',
   },
 };
 
