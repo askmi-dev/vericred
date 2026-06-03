@@ -13,6 +13,12 @@ import { requireAdmin } from './middleware/auth.js';
 import { generateHolders } from './connectors/generator.js';
 import { logStartup, markProcessStart } from './admin/runtime.js';
 import { buildConnector } from './connectors/index.js';
+import { getTemplate, listTemplates } from './credentials/registry.js';
+
+// Register all built-in templates (side-effect imports)
+import './credentials/templates/age.js';
+import './credentials/templates/employee.js';
+import './credentials/templates/membership.js';
 
 const app = express();
 app.use(express.json());
@@ -21,6 +27,39 @@ app.use(express.urlencoded({ extended: true }));
 const config = loadConfig();
 const secrets = loadSecrets();
 const dataPath = config.dataSource.path ?? './data/holders.json';
+
+// --- Startup: fail-fast template validation ---
+{
+  let startupOk = true;
+  console.log('[startup] Validating credential template config...');
+
+  // Check configured type exists
+  let template;
+  try {
+    template = getTemplate(config.credential.type);
+  } catch (e) {
+    console.error('[startup] FATAL: ' + (e as Error).message);
+    console.error('[startup] Available types: ' + listTemplates().map(t => t.id).join(', '));
+    startupOk = false;
+  }
+
+  // Check field mappings cover required fields
+  if (template) {
+    const mappingErrors = template.validateMappings(config.fieldMappings);
+    if (mappingErrors.length > 0) {
+      console.error('[startup] FATAL: Field mapping errors for ' + config.credential.type + ':');
+      for (const err of mappingErrors) console.error('  - ' + err);
+      startupOk = false;
+    } else {
+      console.log('[startup] Template "' + config.credential.type + '" OK');
+    }
+  }
+
+  if (!startupOk) {
+    console.error('[startup] Configuration errors found. Refusing to start.');
+    process.exit(1);
+  }
+}
 
 // Startup
 markProcessStart();

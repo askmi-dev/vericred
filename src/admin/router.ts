@@ -7,6 +7,11 @@ import { loadSecrets } from '../config/secrets.js';
 import { createSession, destroySession, createCsrfToken, requireCsrf, cookieFlags } from '../middleware/auth.js';
 import { setHolderPassword, formatInTimezone, readHolders, REGIONS, REGION_TIMEZONE } from '../connectors/generator.js';
 import type { HolderRecord } from '../connectors/generator.js';
+import { listTemplates } from '../credentials/registry.js';
+// Register templates so they appear in listTemplates()
+import '../credentials/templates/age.js';
+import '../credentials/templates/employee.js';
+import '../credentials/templates/membership.js';
 
 const DATA_PATH = './data/holders.json';
 
@@ -275,6 +280,11 @@ export function createAdminRouter(): Router {
       regions: groupByRegion(readHolders(DATA_PATH)),
       credentials: { total: creds.length, active: creds.filter(c => !c.revoked).length, revoked: creds.filter(c => c.revoked).length },
     });
+  });
+
+  // Read-only: list available credential templates
+  router.get('/admin/templates', requireAdmin, (_req, res) => {
+    res.json({ templates: listTemplates() });
   });
 
   return router;
