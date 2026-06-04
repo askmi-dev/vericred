@@ -27,6 +27,7 @@ export function createMetadataRouter(): Router {
   router.get('/.well-known/openid-credential-issuer', (_req, res) => {
     const config = loadConfig();
     const base = config.issuer.url;
+    const fmt = config.credential.format ?? 'dc+sd-jwt';
 
     // Build one credential_configuration per registered template.
     // Only the configured type is "active" (i.e. actually issuable right now),
@@ -40,7 +41,7 @@ export function createMetadataRouter(): Router {
          * "dc+sd-jwt" = SD-JWT-based Verifiable Credential (draft-ietf-oauth-sd-jwt-vc).
          * Some wallets may still expect "vc+sd-jwt" (older drafts) — check your target wallet.
          */
-        format: 'dc+sd-jwt',
+        format: fmt,
 
         /**
          * Scope value a wallet can request at /token.
