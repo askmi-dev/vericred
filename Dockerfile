@@ -31,7 +31,6 @@ COPY --from=builder --chown=vericred:vericred /app/package.json ./
 #   - secrets.json (generated on first start, survives redeploys)
 #   - holders.json (your holder data, uploaded once via Admin UI or volume)
 RUN mkdir -p /data && chown vericred:vericred /data
-VOLUME ["/data"]
 
 USER vericred
 
