@@ -1,13 +1,21 @@
 import { readFileSync, existsSync, writeFileSync } from 'fs';
 import type { VeriCredConfig } from './types.js';
 
-const CONFIG_PATH = './vericred.config.json';
+// Config lives in DATA_DIR (volume) so it persists across redeploys.
+// Falls back to cwd for local development.
+const DATA_DIR = process.env.DATA_DIR ?? '.';
+const CONFIG_PATH = `${DATA_DIR}/vericred.config.json`;
+
+// ISSUER_URL env var overrides the config file -- set this in Railway dashboard.
+const ISSUER_URL = process.env.ISSUER_URL;
 
 export const DEFAULT_CONFIG: VeriCredConfig = {
   issuer: {
     name: 'VeriCred Issuer',
-    url: 'http://localhost:3100',
-    did: 'did:web:localhost%3A3100',
+    url: ISSUER_URL ?? 'http://localhost:3100',
+    did: ISSUER_URL
+      ? `did:web:${new URL(ISSUER_URL).host}`
+      : 'did:web:localhost%3A3100',
   },
   credential: {
     type: 'AgeCredential',
@@ -19,7 +27,7 @@ export const DEFAULT_CONFIG: VeriCredConfig = {
   },
   dataSource: {
     type: 'json',
-    path: './data/holders.json',
+    path: `${DATA_DIR}/holders.json`,
   },
   fieldMappings: {
     dateOfBirth: 'dateOfBirth',
@@ -31,5 +39,13 @@ export function loadConfig(): VeriCredConfig {
     writeFileSync(CONFIG_PATH, JSON.stringify(DEFAULT_CONFIG, null, 2));
     console.log(`[config] Created default config at ${CONFIG_PATH}`);
   }
-  return JSON.parse(readFileSync(CONFIG_PATH, 'utf-8')) as VeriCredConfig;
+  const cfg = JSON.parse(readFileSync(CONFIG_PATH, 'utf-8')) as VeriCredConfig;
+
+  // Always override issuer.url/did from env var if set -- survives config file edits.
+  if (ISSUER_URL) {
+    cfg.issuer.url = ISSUER_URL;
+    cfg.issuer.did = `did:web:${new URL(ISSUER_URL).host}`;
+  }
+
+  return cfg;
 }

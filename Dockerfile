@@ -30,7 +30,7 @@ COPY --from=builder --chown=vericred:vericred /app/package.json ./
 # /data is the persistent volume mount point:
 #   - secrets.json (generated on first start, survives redeploys)
 #   - holders.json (your holder data, uploaded once via Admin UI or volume)
-RUN mkdir -p /data && chown vericred:vericred /data
+RUN mkdir -p /data && chown vericred:vericred /data && chown vericred:vericred /app
 
 USER vericred
 
