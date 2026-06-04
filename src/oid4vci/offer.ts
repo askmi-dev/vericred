@@ -19,10 +19,19 @@ export function createOfferRouter(lookup: Lookup): Router {
 
     const offer = {
       credential_issuer: config.issuer.url,
+      /**
+       * credential_configuration_ids per OID4VCI draft-13+.
+       * Older wallets may expect credential_type[] — adjust if wallet rejects this field.
+       */
       credential_configuration_ids: [config.credential.type],
       grants: {
         'urn:ietf:params:oauth:grant-type:pre-authorized_code': {
           'pre-authorized_code': code,
+          /**
+           * user_pin_required: false per OID4VCI draft-11 and earlier.
+           * Draft-13+ uses tx_code instead. Keep for maximum compatibility;
+           * remove if wallet rejects the field.
+           */
           user_pin_required: false,
         },
       },

@@ -19,11 +19,23 @@ const DOB_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
  * Rejects: non-string, wrong format, invalid calendar date, future dates, unrealistic dates (>130y).
  */
 function parseDob(dob: unknown): Date {
+  if (dob === undefined || dob === null) {
+    throw new Error('AgeCredential requires dateOfBirth');
+  }
   if (typeof dob !== 'string' || !DOB_PATTERN.test(dob)) {
     throw new Error(`Invalid dateOfBirth format: "${dob}" — expected YYYY-MM-DD`);
   }
   const birth = new Date(dob + 'T00:00:00Z');
   if (isNaN(birth.getTime())) {
+    throw new Error(`Invalid dateOfBirth value: "${dob}" — not a valid calendar date`);
+  }
+  // Detect JS date overflow (e.g. Feb 30 → Mar 1): re-check parsed date parts
+  const [year, month, day] = dob.split('-').map(Number) as [number, number, number];
+  if (
+    birth.getUTCFullYear() !== year ||
+    birth.getUTCMonth() + 1 !== month ||
+    birth.getUTCDate() !== day
+  ) {
     throw new Error(`Invalid dateOfBirth value: "${dob}" — not a valid calendar date`);
   }
   const now = new Date();

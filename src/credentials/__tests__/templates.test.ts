@@ -56,9 +56,10 @@ describe('AgeCredential', () => {
       expect(typeof c['age_attested_at']).toBe('string');
       expect(c['age_attested_at'] as string).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     });
-    it('claim count is exactly 2 (no jurisdiction)', () => {
+    it('claim count is exactly 3 (age_over_18, age_over_21, age_attested_at)', () => {
       const c = template.buildClaims({ dateOfBirth: dob });
-      expect(Object.keys(c)).toHaveLength(2);
+      // Default thresholds [18,21] → age_over_18, age_over_21, age_attested_at
+      expect(Object.keys(c)).toHaveLength(3);
     });
   });
 

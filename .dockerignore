@@ -1,0 +1,8 @@
+node_modules
+dist
+keys
+data
+.env
+*.local
+docs
+README.md

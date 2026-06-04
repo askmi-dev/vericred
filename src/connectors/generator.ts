@@ -1,8 +1,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync } from 'fs';
 import { randomUUID } from 'crypto';
 import { deriveHolderPassword } from '../config/secrets.js';
-import { tmpdir } from 'os';
-import { join } from 'path';
+import { dirname, join } from 'path';
 
 export const REGION_TIMEZONE: Record<string, string> = {
   'Tirol': 'Europe/Vienna',
@@ -44,9 +43,10 @@ export interface HolderRecord {
 
 function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
 
-/** Atomic write: write to temp file, then rename — prevents truncation on crash */
+/** Atomic write: write to temp file in same directory, then rename — prevents truncation on crash.
+ * Temp file must be on the same filesystem as target to allow atomic rename. */
 function atomicWrite(filePath: string, data: string): void {
-  const tmp = join(tmpdir(), `vc-${randomUUID()}.tmp`);
+  const tmp = join(dirname(filePath), `.vc-${randomUUID()}.tmp`);
   writeFileSync(tmp, data, 'utf-8');
   renameSync(tmp, filePath);
 }

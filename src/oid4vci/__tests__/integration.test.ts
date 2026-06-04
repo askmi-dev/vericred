@@ -180,10 +180,10 @@ describe('OID4VCI pre-authorized code flow — AgeCredential', () => {
 
 describe('Metadata structure', () => {
   it('listTemplates includes all three templates', () => {
-    const { listTemplates } = require('../../credentials/registry.js');
-    const ids = listTemplates().map((t: { id: string }) => t.id);
-    expect(ids).toContain('AgeCredential');
-    expect(ids).toContain('EmployeeCredential');
-    expect(ids).toContain('MembershipCredential');
+    // getTemplate is imported at top; registry is populated via side-effect imports
+    // Verify all three are present by calling getTemplate for each
+    expect(() => getTemplate('AgeCredential')).not.toThrow();
+    expect(() => getTemplate('EmployeeCredential')).not.toThrow();
+    expect(() => getTemplate('MembershipCredential')).not.toThrow();
   });
 });

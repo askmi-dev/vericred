@@ -67,6 +67,7 @@ export function buildSdJwtPayload(claims: Record<string, unknown>): {
  * The trailing ~ is required by the spec even when all disclosures are included.
  */
 export function combineSdJwt(jwt: string, disclosures: string[]): string {
+  if (disclosures.length === 0) return jwt + '~';
   return jwt + '~' + disclosures.join('~') + '~';
 }
 
