@@ -6,7 +6,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { generateKeyPair, exportJWK, importJWK } from 'jose';
 import type { KeyLike, JWK } from 'jose';
 
-const KEY_DIR = './keys';
+const KEY_DIR = `${process.env.DATA_DIR ?? './keys'}`;
 const KEY_PATH = `${KEY_DIR}/issuer-key.json`;
 
 interface StoredKeyPair {

@@ -13,7 +13,8 @@ import '../credentials/templates/age.js';
 import '../credentials/templates/employee.js';
 import '../credentials/templates/membership.js';
 
-const DATA_PATH = './data/holders.json';
+const DATA_DIR = process.env.DATA_DIR ?? '.';
+const DATA_PATH = `${DATA_DIR}/holders.json`;
 
 function groupByRegion(holders: HolderRecord[]) {
   return holders.reduce<Record<string, number>>((acc, h) => {

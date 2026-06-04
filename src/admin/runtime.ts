@@ -4,7 +4,8 @@
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { randomUUID } from 'crypto';
 
-const RUNTIME_PATH = './data/runtime.json';
+const DATA_DIR = process.env.DATA_DIR ?? '.';
+const RUNTIME_PATH = `${DATA_DIR}/runtime.json`;
 
 export interface RuntimeEntry {
   sessionId: string;
