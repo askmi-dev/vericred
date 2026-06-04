@@ -3,5 +3,8 @@ dist/
 /keys/
 *.local
 .env
+.astro/
+*.log
 
 data/
+

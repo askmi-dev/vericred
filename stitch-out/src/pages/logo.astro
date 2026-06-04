@@ -1,0 +1,182 @@
+---
+import AdminLayout from '../layouts/AdminLayout.astro';
+---
+
+<AdminLayout title="Brand Identity">
+    <!-- Page Header -->
+    <div class="mb-8">
+        <h2 class="text-2xl md:text-3xl font-bold text-white tracking-tight">Brand Identity Canvas</h2>
+        <p class="text-slate-400 text-sm md:text-base mt-1">Export high-fidelity design system tokens and vector assets representing the VeriCred identity.</p>
+    </div>
+
+    <!-- Layout Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+        <!-- Logo Asset Showcase (Left) -->
+        <div class="lg:col-span-7 bg-slate-900/60 border border-slate-800/80 rounded-2xl p-8 flex flex-col items-center justify-center backdrop-blur-md relative overflow-hidden text-center min-h-[450px]">
+            <div class="absolute inset-0 opacity-5" style="background-image: radial-gradient(#10b981 1.5px, transparent 1.5px); background-size: 24px 24px;"></div>
+            
+            <!-- Logo Wrapper with custom glow -->
+            <div class="mb-10 p-10 bg-slate-950/80 rounded-3xl border border-slate-800/80 shadow-[0_15px_40px_rgba(0,0,0,0.4)] relative group transition-all duration-300 hover:border-emerald-500/20">
+                <svg width="180" height="180" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" class="mx-auto drop-shadow-[0_0_20px_rgba(16,185,129,0.25)] group-hover:scale-[1.03] transition-transform duration-300">
+                    <rect width="200" height="200" rx="40" fill="#0F172A" />
+                    <path d="M60 70L100 140L140 70" stroke="#10B981" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M100 140L160 50" stroke="#10B981" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" />
+                    <circle cx="100" cy="100" r="10" fill="#F8FAFC" />
+                </svg>
+            </div>
+
+            <!-- Metadata Badge -->
+            <div class="mb-4 inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full font-mono text-xs text-emerald-400 font-semibold uppercase tracking-wider">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Primary Identity Vector SVG</span>
+            </div>
+
+            <h3 class="text-xl font-bold tracking-tight text-white mb-2">VeriCred Anchor Vector</h3>
+            <p class="text-slate-400 text-sm max-w-md mb-8 leading-relaxed">
+                A clean cryptographic trust anchor vector featuring dual interlocking checklines and a central stable verification key coordinate.
+            </p>
+
+            <!-- Vector Export Actions -->
+            <div class="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
+                <button id="btn-copy-svg" class="flex-1 bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 rounded-xl font-semibold py-2.5 px-4 text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined text-sm">content_copy</span>
+                    <span>Copy Raw SVG</span>
+                </button>
+                <button id="btn-download-svg" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-semibold py-2.5 px-4 text-xs uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(16,185,129,0.2)] flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined text-sm">download</span>
+                    <span>Download Vector</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Design System Tokens (Right) -->
+        <div class="lg:col-span-5 bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-md flex flex-col justify-between">
+            <div>
+                <h3 class="text-base font-bold text-white tracking-tight flex items-center gap-2 mb-6">
+                    <span class="material-symbols-outlined text-emerald-400 text-lg">palette</span>
+                    <span>Brand Tokens & Styles</span>
+                </h3>
+
+                <!-- Color Palette -->
+                <div class="space-y-4 mb-8">
+                    <h4 class="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider pl-1">Primary Color Palette</h4>
+                    
+                    <!-- Color row 1 (Emerald Accent) -->
+                    <div class="flex items-center justify-between p-3 bg-slate-950/40 rounded-xl border border-slate-800/60 group hover:border-emerald-500/20 transition-all">
+                        <div class="flex items-center gap-3">
+                            <span class="w-8 h-8 rounded-lg bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]"></span>
+                            <div>
+                                <p class="text-xs font-mono font-bold text-white">EMERALD ACCENT</p>
+                                <p class="text-[10px] font-mono text-slate-500 mt-0.5">Hex: #10B981</p>
+                            </div>
+                        </div>
+                        <button class="btn-copy-hex text-slate-500 hover:text-emerald-400 transition-all p-1" data-hex="#10B981">
+                            <span class="material-symbols-outlined text-base">content_copy</span>
+                        </button>
+                    </div>
+
+                    <!-- Color row 2 (Dark Slate background) -->
+                    <div class="flex items-center justify-between p-3 bg-slate-950/40 rounded-xl border border-slate-800/60 group hover:border-slate-700 transition-all">
+                        <div class="flex items-center gap-3">
+                            <span class="w-8 h-8 rounded-lg bg-slate-950 border border-slate-800"></span>
+                            <div>
+                                <p class="text-xs font-mono font-bold text-white">SLATE CORE BACKGROUND</p>
+                                <p class="text-[10px] font-mono text-slate-500 mt-0.5">Hex: #020617</p>
+                            </div>
+                        </div>
+                        <button class="btn-copy-hex text-slate-500 hover:text-white transition-all p-1" data-hex="#020617">
+                            <span class="material-symbols-outlined text-base">content_copy</span>
+                        </button>
+                    </div>
+
+                    <!-- Color row 3 (Slate surface) -->
+                    <div class="flex items-center justify-between p-3 bg-slate-950/40 rounded-xl border border-slate-800/60 group hover:border-slate-700 transition-all">
+                        <div class="flex items-center gap-3">
+                            <span class="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800"></span>
+                            <div>
+                                <p class="text-xs font-mono font-bold text-white">SLATE SURFACE</p>
+                                <p class="text-[10px] font-mono text-slate-500 mt-0.5">Hex: #0F172A</p>
+                            </div>
+                        </div>
+                        <button class="btn-copy-hex text-slate-500 hover:text-white transition-all p-1" data-hex="#0F172A">
+                            <span class="material-symbols-outlined text-base">content_copy</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Typography Showcases -->
+                <div class="space-y-4">
+                    <h4 class="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider pl-1">Typography System</h4>
+
+                    <div class="p-4 bg-slate-950/40 rounded-xl border border-slate-800/60">
+                        <div class="mb-3">
+                            <span class="text-[9px] font-mono font-bold text-slate-500 uppercase">Outfit (Interface & Headers)</span>
+                            <p class="text-lg font-bold text-white font-sans mt-0.5">Decentralized Credentials</p>
+                        </div>
+                        <div>
+                            <span class="text-[9px] font-mono font-bold text-slate-500 uppercase">JetBrains Mono (Technical Systems)</span>
+                            <p class="text-xs font-mono text-emerald-400 mt-0.5">"did:web:vericred.dev"</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visual standard verification -->
+            <div class="mt-6 pt-4 border-t border-slate-800/60 text-[10px] font-mono text-slate-500 leading-relaxed">
+                VeriCred's identity standard guarantees responsive layout vector rendering across standard Chrome, WebKit, and Gecko browser nodes.
+            </div>
+        </div>
+    </div>
+
+    <!-- Brand Script handlers -->
+    <script is:inline>
+        const copySvgBtn = document.getElementById('btn-copy-svg');
+        const downloadSvgBtn = document.getElementById('btn-download-svg');
+        const hexCopyButtons = document.querySelectorAll('.btn-copy-hex');
+
+        const rawSvg = `<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="200" height="200" rx="40" fill="#0F172A" />
+    <path d="M60 70L100 140L140 70" stroke="#10B981" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M100 140L160 50" stroke="#10B981" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" />
+    <circle cx="100" cy="100" r="10" fill="#F8FAFC" />
+</svg>`;
+
+        if (copySvgBtn) {
+            copySvgBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(rawSvg).then(() => {
+                    if (window.triggerToast) {
+                        window.triggerToast('Raw SVG vector code copied to clipboard!');
+                    }
+                });
+            });
+        }
+
+        if (downloadSvgBtn) {
+            downloadSvgBtn.addEventListener('click', () => {
+                const blob = new Blob([rawSvg], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'vericred_logo.svg';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                if (window.triggerToast) {
+                    window.triggerToast('Downloading vericred_logo.svg high-fidelity vector file...');
+                }
+            });
+        }
+
+        hexCopyButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const hex = e.currentTarget.getAttribute('data-hex');
+                navigator.clipboard.writeText(hex).then(() => {
+                    if (window.triggerToast) {
+                        window.triggerToast(`Hex color code ${hex} copied to clipboard!`);
+                    }
+                });
+            });
+        });
+    </script>
+</AdminLayout>

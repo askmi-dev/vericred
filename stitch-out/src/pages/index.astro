@@ -1,0 +1,226 @@
+---
+// VeriCred Public Landingpage
+---
+
+<html class="dark" lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>VeriCred | Verifiable Credentials schnell aus bestehenden Datenquellen ausstellen</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <!-- Material Symbols -->
+    <link href="/assets/a39f5c6fcbb87b419667ec984d2e579a.css" rel="stylesheet" />
+    <!-- Tailwind Runtime Compiler -->
+    <script src="/assets/03ba5d9f9e95fc3599acebcbe7e5fb9a.js" is:inline></script>
+    <script id="tailwind-config" is:inline>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: "#ecfdf5",
+                            500: "#10b981",
+                            600: "#059669",
+                            900: "#064e3b"
+                        },
+                        slate: {
+                            900: "#0F172A",
+                            950: "#020617"
+                        }
+                    },
+                    fontFamily: {
+                        sans: ["Outfit", "sans-serif"],
+                        mono: ["JetBrains Mono", "monospace"]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #020617;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.08) 0px, transparent 50%);
+        }
+        .grid-bg {
+            background-size: 40px 40px;
+            background-image: linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px);
+        }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card:hover {
+            border-color: rgba(16, 185, 129, 0.25);
+            box-shadow: 0 10px 30px -10px rgba(16, 185, 129, 0.15);
+        }
+        .code-block {
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(10, 15, 30, 0.85);
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-100 antialiased flex flex-col grid-bg">
+
+    <!-- Top Navigation Header -->
+    <header class="border-b border-slate-900 bg-slate-950/40 backdrop-blur-md sticky top-0 z-40">
+        <div class="flex justify-between items-center h-16 px-6 max-w-7xl mx-auto w-full">
+            <div class="flex items-center gap-3">
+                <svg width="36" height="32" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" class="drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]">
+                    <rect width="200" height="200" rx="40" fill="#0F172A" />
+                    <path d="M60 70L100 140L140 70" stroke="#10B981" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M100 140L160 50" stroke="#10B981" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" />
+                    <circle cx="100" cy="100" r="10" fill="#F8FAFC" />
+                </svg>
+                <span class="text-xl font-bold tracking-tight text-white">VeriCred</span>
+            </div>
+            
+            <nav class="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-400">
+                <a class="text-white hover:text-white transition-colors" href="#">Gateway Product</a>
+                <a class="hover:text-slate-200 transition-colors" href="/navigator">Stitch Screens</a>
+                <a class="hover:text-slate-200 transition-colors" href="https://github.com" target="_blank">GitHub</a>
+            </nav>
+
+            <div class="flex items-center gap-4">
+                <a href="/dashboard" class="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-semibold px-4 py-2 rounded-xl transition-all flex items-center gap-2 text-sm">
+                    <span>Gateway Dashboard</span>
+                    <span class="material-symbols-outlined text-sm">arrow_forward</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Hero Body -->
+    <main class="flex-grow flex flex-col items-center justify-center py-20 px-6 max-w-5xl mx-auto w-full relative">
+        
+        <!-- Hero badge -->
+        <div class="text-center mb-16 relative z-10">
+            <div class="inline-flex items-center gap-2 px-3.5 py-1 bg-emerald-950/40 border border-emerald-500/20 rounded-full text-emerald-400 font-mono text-xs font-semibold uppercase tracking-wider mb-8">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                v2.1.0 open-source production release
+            </div>
+            
+            <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight text-white mb-6 leading-tight max-w-4xl mx-auto">
+                Verifiable Credentials schnell aus bestehenden Datenquellen ausstellen.
+            </h1>
+            
+            <p class="text-slate-400 text-lg md:text-xl mb-10 max-w-3xl mx-auto leading-relaxed">
+                Verbinden Sie Ihre SQL-Datenbanken, PostgreSQL-Datastores oder REST-APIs direkt mit dem EU-Wallet-Ökosystem. 
+                Keine Blockchain, keine künstliche Komplexität. Reines OID4VCI & SD-JWT-VC Gateway-Issuance.
+            </p>
+
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <a href="/dashboard" class="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+                    <span>Get Started (Issuer Gateway)</span>
+                    <span class="material-symbols-outlined text-lg">rocket_launch</span>
+                </a>
+                <a href="https://github.com" target="_blank" class="w-full sm:w-auto bg-slate-900 border border-slate-800 text-slate-300 hover:text-white font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-800/80 transition-all">
+                    <span class="material-symbols-outlined text-lg">star</span>
+                    <span>Star on GitHub</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Bento Grid Visualization Area -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full mb-12 relative z-10">
+            <!-- Code Block (Spans 8 columns) -->
+            <div class="lg:col-span-8 glass-card rounded-2xl p-6 flex flex-col shadow-2xl relative overflow-hidden">
+                <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-emerald-500 text-sm">integration_instructions</span>
+                        <span class="font-mono text-xs text-slate-400">credential_issuance_spec.json</span>
+                    </div>
+                    <div class="flex gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-slate-800" />
+                        <span class="w-2.5 h-2.5 rounded-full bg-slate-800" />
+                        <span class="w-2.5 h-2.5 rounded-full bg-slate-800" />
+                    </div>
+                </div>
+                <div class="code-block rounded-xl p-4 font-mono text-xs text-slate-300 leading-relaxed overflow-x-auto custom-scrollbar border border-slate-900">
+                    <pre class="text-slate-400"><code><span class="text-emerald-400">{</span>
+  <span class="text-purple-400">"@context"</span>: [
+    <span class="text-yellow-500">"https://www.w3.org/2018/credentials/v1"</span>,
+    <span class="text-yellow-500">"https://w3id.org/security/suites/jws-2020/v1"</span>
+  ],
+  <span class="text-purple-400">"type"</span>: [<span class="text-yellow-500">"VerifiableCredential"</span>, <span class="text-yellow-500">"UniversityDegreeCredential"</span>],
+  <span class="text-purple-400">"issuer"</span>: <span class="text-emerald-400">"did:web:vericred.dev"</span>,
+  <span class="text-purple-400">"credentialSubject"</span>: {
+    <span class="text-purple-400">"id"</span>: <span class="text-yellow-500">"did:key:z6MkuSccD1L..."</span>,
+    <span class="text-purple-400">"familyName"</span>: <span class="text-yellow-500">"Mustermann"</span>,
+    <span class="text-purple-400">"givenName"</span>: <span class="text-yellow-500">"Max"</span>,
+    <span class="text-purple-400">"degree"</span>: <span class="text-yellow-500">"Bachelor of Science (Computer Science)"</span>,
+    <span class="text-purple-400">"gpa"</span>: <span class="text-yellow-500">"1.3"</span>
+  },
+  <span class="text-purple-400">"proof"</span>: {
+    <span class="text-purple-400">"type"</span>: <span class="text-yellow-500">"JsonWebSignature2020"</span>,
+    <span class="text-purple-400">"proofPurpose"</span>: <span class="text-yellow-500">"assertionMethod"</span>,
+    <span class="text-purple-400">"verificationMethod"</span>: <span class="text-yellow-500">"did:web:vericred.dev#key-1"</span>
+  }
+<span class="text-emerald-400">}</span></code></pre>
+                </div>
+            </div>
+
+            <!-- Side Value Props (Spans 4 columns) -->
+            <div class="lg:col-span-4 flex flex-col gap-6">
+                <!-- Prop 1 -->
+                <div class="glass-card rounded-2xl p-6 flex flex-col justify-between flex-1">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-950/40 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-4">
+                        <span class="material-symbols-outlined text-xl">language</span>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white mb-1.5">did:web Native</h3>
+                        <p class="text-slate-400 text-sm leading-relaxed">
+                            Verankern Sie Ihre Identität direkt auf Ihrer Domain. Keine Blockchain-Gebühren, maximale Kontrolle über Ihren DNS.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Prop 2 -->
+                <div class="glass-card rounded-2xl p-6 flex flex-col justify-between flex-1">
+                    <div class="w-10 h-10 rounded-xl bg-purple-950/40 border border-purple-500/20 flex items-center justify-center text-purple-400 mb-4">
+                        <span class="material-symbols-outlined text-xl">hub</span>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white mb-1.5">miTch / EU-Wallet Ready</h3>
+                        <p class="text-slate-400 text-sm leading-relaxed">
+                            Vollständig kompatibel mit europäischen Wallet-Spezifikationen, W3C-Standards, OID4VCI und SD-JWT-VC.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-900 bg-slate-950/40 py-10 px-6 mt-auto">
+        <div class="flex flex-col md:flex-row justify-between items-center max-w-7xl mx-auto w-full gap-6">
+            <div class="flex items-center gap-3">
+                <svg width="24" height="24" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="200" height="200" rx="40" fill="#0F172A" />
+                    <path d="M60 70L100 140L140 70" stroke="#10B981" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M100 140L160 50" stroke="#10B981" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" />
+                    <circle cx="100" cy="100" r="10" fill="#F8FAFC" />
+                </svg>
+                <span class="font-bold text-white text-sm">VeriCred Gateway Platform</span>
+            </div>
+            <div class="flex gap-6 text-xs font-mono text-slate-500">
+                <a href="/navigator" class="hover:text-slate-300">Stitch Screens</a>
+                <a href="#" class="hover:text-slate-300">Privacy Policy</a>
+                <a href="#" class="hover:text-slate-300">Terms of Service</a>
+            </div>
+            <span class="text-xs font-mono text-slate-500">© 2026 VeriCred open source gateway platform.</span>
+        </div>
+    </footer>
+
+</body>
+</html>

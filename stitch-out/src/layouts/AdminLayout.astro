@@ -1,0 +1,296 @@
+---
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+const currentPath = Astro.url.pathname;
+
+// Helper to determine if a route is active
+const isPathActive = (path: string) => {
+  return currentPath === path || currentPath === `${path}/` || (path === '/dashboard' && currentPath === '/');
+};
+---
+
+<html class="dark" lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>{title} | VeriCred Admin</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <!-- Material Symbols -->
+    <link href="/assets/a39f5c6fcbb87b419667ec984d2e579a.css" rel="stylesheet" />
+    <!-- Tailwind Runtime Compiler -->
+    <script src="/assets/03ba5d9f9e95fc3599acebcbe7e5fb9a.js" is:inline></script>
+    <script id="tailwind-config" is:inline>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: "#ecfdf5",
+                            500: "#10b981",
+                            600: "#059669",
+                            900: "#064e3b"
+                        },
+                        slate: {
+                            800: "#1e293b",
+                            900: "#0f172a",
+                            950: "#020617"
+                        }
+                    },
+                    fontFamily: {
+                        sans: ["Outfit", "sans-serif"],
+                        mono: ["JetBrains Mono", "monospace"]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #020617;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.05) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.05) 0px, transparent 50%);
+        }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-100 antialiased flex flex-col md:flex-row">
+
+    <!-- Responsive Mobile Header -->
+    <header class="md:hidden w-full bg-slate-900 border-b border-slate-800/80 px-4 py-4 flex items-center justify-between sticky top-0 z-50">
+        <div class="flex items-center gap-3">
+            <svg width="32" height="32" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="200" height="200" rx="40" fill="#0F172A" />
+                <path d="M60 70L100 140L140 70" stroke="#10B981" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M100 140L160 50" stroke="#10B981" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" />
+                <circle cx="100" cy="100" r="10" fill="#F8FAFC" />
+            </svg>
+            <div>
+                <h1 class="text-lg font-bold text-white tracking-tight">VeriCred</h1>
+                <p class="text-[10px] font-mono text-slate-500 uppercase tracking-wider">Issuer Gateway</p>
+            </div>
+        </div>
+        <button id="mobile-menu-btn" class="text-slate-400 hover:text-white p-1 focus:outline-none">
+            <span class="material-symbols-outlined text-2xl">menu</span>
+        </button>
+    </header>
+
+    <!-- Side Navigation Sidebar -->
+    <aside id="sidebar-nav" class="hidden md:flex flex-col w-64 bg-slate-900/90 border-r border-slate-800/80 h-screen fixed left-0 top-0 py-6 z-40 transition-transform duration-300 transform -translate-x-full md:translate-x-0 overflow-y-auto custom-scrollbar">
+        <!-- Brand Header -->
+        <div class="px-6 mb-8 flex items-center gap-3">
+            <svg width="40" height="40" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" class="drop-shadow-[0_0_8px_rgba(16,185,129,0.2)]">
+                <rect width="200" height="200" rx="40" fill="#0F172A" />
+                <path d="M60 70L100 140L140 70" stroke="#10B981" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M100 140L160 50" stroke="#10B981" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" />
+                <circle cx="100" cy="100" r="10" fill="#F8FAFC" />
+            </svg>
+            <div>
+                <h1 class="text-xl font-bold text-white tracking-tight">VeriCred</h1>
+                <p class="text-[10px] font-mono text-emerald-500 uppercase tracking-widest font-bold">Issuer Gateway</p>
+            </div>
+        </div>
+
+        <!-- Identity Identifier Section (DID Widget) -->
+        <div class="px-4 mb-6">
+            <div class="bg-slate-950/80 rounded-xl p-3 border border-slate-800 flex flex-col gap-1.5 relative overflow-hidden group">
+                <div class="flex items-center justify-between text-[10px] font-mono text-slate-500">
+                    <span>ISSUER DID</span>
+                    <span class="flex items-center gap-1 text-emerald-500">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        ACTIVE
+                    </span>
+                </div>
+                <div class="flex items-center justify-between gap-1.5 bg-slate-900 px-2 py-1.5 rounded border border-slate-800">
+                    <code id="issuer-did-code" class="text-xs font-mono text-slate-300 overflow-x-hidden text-ellipsis whitespace-nowrap select-all max-w-[130px]">did:web:vericred.dev</code>
+                    <button id="copy-did-btn" class="text-slate-400 hover:text-emerald-400 transition-colors p-0.5" title="Copy DID to Clipboard">
+                        <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Menu Links -->
+        <ul class="flex flex-col gap-1 px-3 flex-grow">
+            <li>
+                <a class={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all duration-200 ${
+                    isPathActive('/dashboard') 
+                    ? 'bg-emerald-500/10 text-emerald-400 border-r-2 border-emerald-500 font-semibold' 
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                }`} href="/dashboard">
+                    <span class="material-symbols-outlined text-lg">dashboard</span>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li>
+                <a class={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all duration-200 ${
+                    isPathActive('/schema') 
+                    ? 'bg-emerald-500/10 text-emerald-400 border-r-2 border-emerald-500 font-semibold' 
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                }`} href="/schema">
+                    <span class="material-symbols-outlined text-lg">schema</span>
+                    <span>Schema Mapping</span>
+                </a>
+            </li>
+            <li>
+                <a class={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all duration-200 ${
+                    isPathActive('/monitor') 
+                    ? 'bg-emerald-500/10 text-emerald-400 border-r-2 border-emerald-500 font-semibold' 
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                }`} href="/monitor">
+                    <span class="material-symbols-outlined text-lg">monitor_heart</span>
+                    <span>Issuance Monitor</span>
+                </a>
+            </li>
+            <li>
+                <a class={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all duration-200 ${
+                    isPathActive('/logo') 
+                    ? 'bg-emerald-500/10 text-emerald-400 border-r-2 border-emerald-500 font-semibold' 
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                }`} href="/logo">
+                    <span class="material-symbols-outlined text-lg">draw</span>
+                    <span>Brand Vector Logo</span>
+                </a>
+            </li>
+        </ul>
+
+        <!-- Bottom Action Back to Landing -->
+        <div class="px-4 mt-auto border-t border-slate-800/60 pt-4">
+            <a class="flex items-center justify-center gap-2 w-full py-2 bg-slate-950 text-slate-300 hover:text-white rounded-xl border border-slate-800 hover:border-slate-700 font-mono text-xs uppercase tracking-wider transition-all duration-300" href="/">
+                <span class="material-symbols-outlined text-sm">arrow_back</span>
+                <span>Public Landingpage</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content Panel Area -->
+    <div class="flex-1 md:ml-64 flex flex-col min-h-screen min-w-0">
+        <!-- Top Status / Navigation Bar -->
+        <header class="bg-slate-950/40 border-b border-slate-800/60 flex items-center justify-between h-16 px-6 sticky top-0 z-30 backdrop-blur-md">
+            <div>
+                <span class="text-xs font-mono text-slate-500 hidden md:inline">ORGANIZATION ID: <span class="text-slate-300">vericred-core-nodes</span></span>
+            </div>
+            
+            <div class="flex items-center gap-6">
+                <!-- Status Indicators -->
+                <div class="flex items-center gap-2">
+                    <span class="flex h-2 w-2 relative">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span class="text-xs font-mono text-emerald-400 font-semibold tracking-wider uppercase">Gateway Active (Port 3100)</span>
+                </div>
+
+                <div class="h-4 w-px bg-slate-800"></div>
+
+                <!-- Admin Session Controls -->
+                <div class="flex items-center gap-4 text-slate-400">
+                    <span class="text-xs font-mono text-slate-400 hidden lg:inline">API KEY: <span class="text-emerald-500">••••••••••</span></span>
+                    <button class="hover:text-white transition-colors" title="Notifications">
+                        <span class="material-symbols-outlined text-xl">notifications</span>
+                    </button>
+                    <a href="/navigator" class="hover:text-white transition-colors flex items-center" title="Stitch Screen Navigator">
+                        <span class="material-symbols-outlined text-xl">layers</span>
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Workspace canvas slot -->
+        <main class="flex-1 p-6 md:p-8">
+            <slot />
+        </main>
+
+        <!-- Consistent Footer -->
+        <footer class="border-t border-slate-900/60 py-4 px-6 text-center text-slate-600 text-xs font-mono bg-slate-950/20">
+            <p>© 2026 VeriCred open source gateway platform. Built with Google Stitch design layers.</p>
+        </footer>
+    </div>
+
+    <!-- Reusable Premium Toast Notification -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 border border-emerald-500/30 text-white text-xs py-2.5 px-4 rounded-full shadow-[0_10px_30px_rgba(16,185,129,0.15)] backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300 transform translate-y-2 flex items-center gap-2 z-[9999]">
+        <span class="material-symbols-outlined text-emerald-500 text-sm">check_circle</span>
+        <span id="toast-message">Copied key to clipboard successfully!</span>
+    </div>
+
+    <!-- Core Layout Scripts -->
+    <script is:inline>
+        // Copy-to-clipboard Logic
+        const copyBtn = document.getElementById('copy-did-btn');
+        const codeEl = document.getElementById('issuer-did-code');
+        const toastEl = document.getElementById('toast');
+        const toastMsg = document.getElementById('toast-message');
+
+        function triggerToast(message) {
+            toastMsg.textContent = message;
+            toastEl.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-2');
+            toastEl.classList.add('opacity-100', 'translate-y-0');
+            setTimeout(() => {
+                toastEl.classList.remove('opacity-100', 'translate-y-0');
+                toastEl.classList.add('opacity-0', 'pointer-events-none', 'translate-y-2');
+            }, 3000);
+        }
+        window.triggerToast = triggerToast;
+
+        if (copyBtn && codeEl) {
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(codeEl.textContent).then(() => {
+                    triggerToast('Issuer DID copied to clipboard!');
+                }).catch(() => {
+                    // Fallback select
+                    const range = document.createRange();
+                    range.selectNodeContents(codeEl);
+                    const sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                    document.execCommand('copy');
+                    triggerToast('Issuer DID copied to clipboard!');
+                });
+            });
+        }
+
+        // Mobile responsive sidebar toggle
+        const menuBtn = document.getElementById('mobile-menu-btn');
+        const sidebar = document.getElementById('sidebar-nav');
+        if (menuBtn && sidebar) {
+            menuBtn.addEventListener('click', () => {
+                const isOpen = !sidebar.classList.contains('-translate-x-full');
+                if (isOpen) {
+                    sidebar.classList.add('-translate-x-full');
+                    menuBtn.querySelector('.material-symbols-outlined').textContent = 'menu';
+                } else {
+                    sidebar.classList.remove('-translate-x-full');
+                    menuBtn.querySelector('.material-symbols-outlined').textContent = 'close';
+                }
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,224 @@
+---
+// Original Stitch Project Navigator preserved
+---
+
+<html class="dark" lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Stitch Project Navigator | VeriCred</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <!-- Material Symbols -->
+    <link href="/assets/a39f5c6fcbb87b419667ec984d2e579a.css" rel="stylesheet" />
+    <!-- Tailwind Runtime Compiler -->
+    <script src="/assets/03ba5d9f9e95fc3599acebcbe7e5fb9a.js" is:inline></script>
+    <script id="tailwind-config" is:inline>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: "#ecfdf5",
+                            500: "#10b981",
+                            600: "#059669",
+                            900: "#064e3b"
+                        },
+                        slate: {
+                            900: "#0F172A",
+                            950: "#020617"
+                        }
+                    },
+                    fontFamily: {
+                        sans: ["Outfit", "sans-serif"],
+                        mono: ["JetBrains Mono", "monospace"]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #020617;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.07) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.07) 0px, transparent 50%);
+        }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card:hover {
+            border-color: rgba(16, 185, 129, 0.3);
+            box-shadow: 0 10px 30px -10px rgba(16, 185, 129, 0.15);
+            transform: translateY(-4px);
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-100 antialiased flex flex-col">
+    <!-- Main Navigator Body -->
+    <main class="flex-grow flex flex-col justify-center items-center py-16 px-6 max-w-6xl mx-auto w-full">
+        <!-- Brand Header -->
+        <div class="text-center mb-16 max-w-3xl">
+            <div class="inline-flex items-center gap-2 px-3 py-1 bg-brand-900/40 border border-brand-500/30 rounded-full text-brand-500 font-mono text-xs font-semibold uppercase tracking-wider mb-6 animate-pulse">
+                <span class="w-2 h-2 rounded-full bg-brand-500" />
+                Google Stitch MCP Connected
+            </div>
+            <h1 class="text-5xl font-extrabold tracking-tight text-white mb-4 bg-clip-text bg-gradient-to-r from-white via-slate-100 to-brand-500">
+                Stitch Project Navigator
+            </h1>
+            <p class="text-slate-400 text-lg">
+                Your visual design system converted into a production-ready Astro site. Select any screen below to preview the responsive implementation.
+            </p>
+            <div class="mt-4 text-xs font-mono text-slate-500">
+                Project ID: <span class="text-brand-500 font-semibold">13662531941251796950</span>
+            </div>
+        </div>
+
+        <!-- Bento Layout Screens Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full mb-16">
+            <!-- Screen 1 Card -->
+            <a href="/" class="glass-card rounded-2xl p-6 flex flex-col justify-between group">
+                <div>
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="w-12 h-12 rounded-xl bg-brand-900/30 border border-brand-500/20 flex items-center justify-center text-brand-500">
+                            <span class="material-symbols-outlined text-2xl">rocket_launch</span>
+                        </div>
+                        <span class="px-2.5 py-0.5 bg-slate-800 border border-slate-700 rounded-full text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                            Landing Page
+                        </span>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-2 group-hover:text-brand-500 transition-colors">
+                        VeriCred Hero Landing
+                    </h3>
+                    <p class="text-slate-400 text-sm leading-relaxed mb-6">
+                        Premium landing page featuring bento layouts, code-block visualization, and active did:web native credentials indicators.
+                    </p>
+                </div>
+                <div class="flex items-center justify-between text-xs font-mono text-slate-500 pt-4 border-t border-slate-800/60">
+                    <span>Route: <span class="text-brand-500">/</span></span>
+                    <span class="flex items-center gap-1 text-slate-400 group-hover:translate-x-1 transition-transform">
+                        Preview <span class="material-symbols-outlined text-sm">arrow_forward</span>
+                    </span>
+                </div>
+            </a>
+
+            <!-- Screen 2 Card -->
+            <a href="/monitor" class="glass-card rounded-2xl p-6 flex flex-col justify-between group">
+                <div>
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                            <span class="material-symbols-outlined text-2xl">monitor_heart</span>
+                        </div>
+                        <span class="px-2.5 py-0.5 bg-slate-800 border border-slate-700 rounded-full text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                            Monitor
+                        </span>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition-colors">
+                        Issuance Monitor
+                    </h3>
+                    <p class="text-slate-400 text-sm leading-relaxed mb-6">
+                        Real-time transaction queue and request logs monitoring OID4VCI credentials and StatusList2021 registry usage.
+                    </p>
+                </div>
+                <div class="flex items-center justify-between text-xs font-mono text-slate-500 pt-4 border-t border-slate-800/60">
+                    <span>Route: <span class="text-blue-400">/monitor</span></span>
+                    <span class="flex items-center gap-1 text-slate-400 group-hover:translate-x-1 transition-transform">
+                        Preview <span class="material-symbols-outlined text-sm">arrow_forward</span>
+                    </span>
+                </div>
+            </a>
+
+            <!-- Screen 3 Card -->
+            <a href="/dashboard" class="glass-card rounded-2xl p-6 flex flex-col justify-between group">
+                <div>
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                            <span class="material-symbols-outlined text-2xl">dashboard</span>
+                        </div>
+                        <span class="px-2.5 py-0.5 bg-slate-800 border border-slate-700 rounded-full text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                            Dashboard
+                        </span>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-2 group-hover:text-purple-400 transition-colors">
+                        Connections Dashboard
+                    </h3>
+                    <p class="text-slate-400 text-sm leading-relaxed mb-6">
+                        Management console displaying total issued credentials, active PostgreSQL connector statuses, and issuer DIDs.
+                    </p>
+                </div>
+                <div class="flex items-center justify-between text-xs font-mono text-slate-500 pt-4 border-t border-slate-800/60">
+                    <span>Route: <span class="text-purple-400">/dashboard</span></span>
+                    <span class="flex items-center gap-1 text-slate-400 group-hover:translate-x-1 transition-transform">
+                        Preview <span class="material-symbols-outlined text-sm">arrow_forward</span>
+                    </span>
+                </div>
+            </a>
+
+            <!-- Screen 4 Card -->
+            <a href="/schema" class="glass-card rounded-2xl p-6 flex flex-col justify-between group">
+                <div>
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                            <span class="material-symbols-outlined text-2xl">schema</span>
+                        </div>
+                        <span class="px-2.5 py-0.5 bg-slate-800 border border-slate-700 rounded-full text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                            Schema Workspace
+                        </span>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-2 group-hover:text-amber-400 transition-colors">
+                        Schema Mapping Workspace
+                    </h3>
+                    <p class="text-slate-400 text-sm leading-relaxed mb-6">
+                        Interactive connector interface visually linking database source fields directly to W3C Verifiable Credential claims.
+                    </p>
+                </div>
+                <div class="flex items-center justify-between text-xs font-mono text-slate-500 pt-4 border-t border-slate-800/60">
+                    <span>Route: <span class="text-amber-400">/schema</span></span>
+                    <span class="flex items-center gap-1 text-slate-400 group-hover:translate-x-1 transition-transform">
+                        Preview <span class="material-symbols-outlined text-sm">arrow_forward</span>
+                    </span>
+                </div>
+            </a>
+
+            <!-- Screen 5 Card -->
+            <a href="/logo" class="glass-card rounded-2xl p-6 flex flex-col justify-between group">
+                <div>
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="w-12 h-12 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400">
+                            <span class="material-symbols-outlined text-2xl">draw</span>
+                        </div>
+                        <span class="px-2.5 py-0.5 bg-slate-800 border border-slate-700 rounded-full text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                            Logo
+                        </span>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-2 group-hover:text-teal-400 transition-colors">
+                        Brand Logo Vector Asset
+                    </h3>
+                    <p class="text-slate-400 text-sm leading-relaxed mb-6">
+                        The raw vector SVG logo asset designed inside Google Stitch representing the VeriCred identity system.
+                    </p>
+                </div>
+                <div class="flex items-center justify-between text-xs font-mono text-slate-500 pt-4 border-t border-slate-800/60">
+                    <span>Route: <span class="text-teal-400">/logo</span></span>
+                    <span class="flex items-center gap-1 text-slate-400 group-hover:translate-x-1 transition-transform">
+                        Preview <span class="material-symbols-outlined text-sm">arrow_forward</span>
+                    </span>
+                </div>
+            </a>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-900 py-8 px-6 bg-slate-950/40 text-center text-slate-500 text-sm font-mono mt-auto">
+        <p>© 2026 VeriCred & Google Stitch Integration • Built with Advanced Agentic Coding</p>
+    </footer>
+</body>
+</html>
