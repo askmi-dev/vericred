@@ -1,0 +1,427 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+---
+
+<AdminLayout title="Issuance Monitor">
+    <!-- Header Section -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
+        <div>
+            <h2 class="text-2xl md:text-3xl font-bold text-white tracking-tight">Issuance Monitor</h2>
+            <p class="text-slate-400 text-sm md:text-base mt-1">Real-time cryptographic audit log of OID4VCI requests and active credential statuses.</p>
+        </div>
+        <div class="flex gap-3 w-full md:w-auto">
+            <button id="btn-filter" class="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 rounded-xl font-semibold text-xs uppercase tracking-wider transition-all">
+                <span class="material-symbols-outlined text-sm">filter_list</span>
+                <span>Filter</span>
+            </button>
+            <button id="btn-export-csv" class="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 rounded-xl font-semibold text-xs uppercase tracking-wider transition-all">
+                <span class="material-symbols-outlined text-sm">download</span>
+                <span>Export CSV</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        <!-- Real-Time Log Table (Spans 8 columns) -->
+        <div class="lg:col-span-8 bg-slate-900/60 border border-slate-800/80 rounded-2xl flex flex-col overflow-hidden backdrop-blur-md">
+            <div class="px-6 py-4 border-b border-slate-800 bg-slate-950/40 flex justify-between items-center">
+                <h3 class="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+                    <span class="material-symbols-outlined text-emerald-500 text-base">receipt_long</span>
+                    <span>Active Request Queue</span>
+                </h3>
+                <span class="text-[10px] font-mono font-bold text-emerald-400 flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Live Logs Active
+                </span>
+            </div>
+            
+            <div class="overflow-x-auto custom-scrollbar flex-grow">
+                <table class="w-full text-left border-collapse font-mono text-xs">
+                    <thead>
+                        <tr class="border-b border-slate-800 bg-slate-950/40 text-slate-500 uppercase font-semibold text-[10px] tracking-wider">
+                            <th class="p-4 w-1/4">Timestamp</th>
+                            <th class="p-4 w-1/3">Subject</th>
+                            <th class="p-4">Credential Type</th>
+                            <th class="p-4 w-24">Status</th>
+                            <th class="p-4 text-right w-24">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="credentials-tbody" class="divide-y divide-slate-800/50 text-slate-300">
+                        <tr>
+                            <td colspan="5" class="p-4 text-center text-slate-500">Loading credentials list...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="px-6 py-4 border-t border-slate-800 bg-slate-950/40 text-center">
+                <button id="btn-load-more" class="text-xs font-mono font-bold text-slate-400 hover:text-white transition-colors uppercase tracking-wider">Load Older Logs</button>
+            </div>
+        </div>
+
+        <!-- Right Side panels (Spans 4 columns) -->
+        <div class="lg:col-span-4 flex flex-col gap-6">
+            <!-- Credential Offer Management -->
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-md flex flex-col">
+                <h3 class="text-sm font-bold text-white tracking-tight flex items-center gap-2 mb-4">
+                    <span class="material-symbols-outlined text-emerald-400 text-lg">qr_code_scanner</span>
+                    <span>Credential Offer Generator</span>
+                </h3>
+                <p class="text-slate-400 text-xs leading-relaxed mb-5">Generate standard compliant OID4VCI deep-links to share directly with holding clients.</p>
+                
+                <div class="space-y-4 flex-grow">
+                    <div>
+                        <label class="block text-[10px] font-mono font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Select Subject (Holder)</label>
+                        <select id="select-holder" class="w-full bg-slate-950 border border-slate-800 rounded-xl focus:border-emerald-500 px-3.5 py-2.5 text-xs font-mono text-slate-300 focus:outline-none cursor-pointer">
+                            <option value="">Loading holders...</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-mono font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Credential Profile</label>
+                        <select id="select-template" class="w-full bg-slate-950 border border-slate-800 rounded-xl focus:border-emerald-500 px-3.5 py-2.5 text-xs font-mono text-slate-300 focus:outline-none cursor-pointer">
+                            <option value="">Loading templates...</option>
+                        </select>
+                    </div>
+
+                    <!-- Live QR Canvas Card -->
+                    <div id="qr-offer-box" class="bg-slate-950 border border-slate-800/80 rounded-2xl p-4 flex flex-col items-center justify-center min-h-[180px] relative overflow-hidden group cursor-pointer hover:border-emerald-500/30 transition-all">
+                        <div class="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity" style="background-image: radial-gradient(#fff 1px, transparent 1px); background-size: 12px 12px;"></div>
+                        <div id="qr-container" class="relative z-10 flex flex-col items-center text-center">
+                            <span class="material-symbols-outlined text-4xl text-slate-500 mb-2 group-hover:text-emerald-400 group-hover:scale-105 transition-all">qr_code_2</span>
+                            <span class="text-xs font-mono font-bold text-white uppercase tracking-wider">Generate OID4VCI QR</span>
+                            <span class="text-[9px] font-mono text-slate-500 mt-1">Click to generate offer</span>
+                        </div>
+                    </div>
+
+                    <button id="btn-copy-uri" class="w-full bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 rounded-xl font-semibold py-2.5 px-4 text-xs uppercase tracking-wider transition-all">
+                        Copy URI Offer Link
+                    </button>
+                </div>
+            </div>
+
+            <!-- Interoperability Alerts (New) -->
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-md flex flex-col">
+                <h3 class="text-sm font-bold text-white tracking-tight flex items-center gap-2 mb-4">
+                    <span class="material-symbols-outlined text-orange-400 text-lg">broadcast_on_personal</span>
+                    <span>Interoperability Alerts</span>
+                </h3>
+                <div id="interop-logs-container" class="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                    <div class="text-[10px] text-slate-500 font-mono text-center py-4">No interoperability alerts recorded.</div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-slate-800">
+                    <a href="/docs/WALLET_INTEROP_GUIDE.md" target="_blank" class="text-[10px] font-mono font-bold text-emerald-400 hover:text-emerald-300 transition-colors uppercase flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-sm">help_outline</span>
+                        View Interop Guide
+                    </a>
+                </div>
+            </div>
+
+            <!-- StatusList2021 Registry Stats -->
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-md flex flex-col">
+                <h3 class="text-sm font-bold text-white tracking-tight flex items-center gap-2 mb-4">
+                    <span class="material-symbols-outlined text-purple-400 text-lg">view_list</span>
+                    <span>StatusList2021 Registry</span>
+                </h3>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center text-xs font-mono">
+                        <span class="text-slate-500 uppercase tracking-wider">Active Bit Lists</span>
+                        <span class="text-white font-bold">3</span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs font-mono">
+                        <span class="text-slate-500 uppercase tracking-wider">Registry Sync</span>
+                        <span class="text-emerald-400 font-bold flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Synced
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs font-mono">
+                        <span class="text-slate-500 uppercase tracking-wider">Last Sync Update</span>
+                        <span class="text-slate-300">2 mins ago</span>
+                    </div>
+                    
+                    <div class="pt-2">
+                        <div class="w-full bg-slate-950 border border-slate-800 rounded-full h-2 overflow-hidden">
+                            <div class="bg-emerald-500 w-[15%] h-full rounded-full"></div>
+                        </div>
+                        <p class="font-mono text-[9px] text-slate-500 text-right mt-1.5 font-semibold">15,000 / 100,000 Bits allocated</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripting Interactions -->
+    <script is:inline>
+        const loadMoreBtn = document.getElementById('btn-load-more');
+        const qrBox = document.getElementById('qr-offer-box');
+        const copyUriBtn = document.getElementById('btn-copy-uri');
+        const selectHolder = document.getElementById('select-holder');
+        const selectTemplate = document.getElementById('select-template');
+        const qrContainer = document.getElementById('qr-container');
+
+        let csrfToken = '';
+        let currentOfferUri = '';
+
+        // Fetch CSRF Handshake
+        fetch('/admin/api/csrf-handshake')
+            .then(res => res.json())
+            .then(data => {
+                csrfToken = data.csrfToken;
+            })
+            .catch(err => console.error('Error fetching CSRF handshake:', err));
+
+        // Load Holders
+        fetch('/admin/api/holders')
+            .then(res => res.json())
+            .then(holders => {
+                if (selectHolder && Array.isArray(holders)) {
+                    selectHolder.innerHTML = [
+                        `<option value="">-- Select Holder --</option>`,
+                        ...holders.map(h => `<option value="${h.id}">${h.firstName} ${h.lastName} (${h.email})</option>`)
+                    ].join('');
+                }
+            })
+            .catch(err => {
+                console.error('Error fetching holders:', err);
+                if (selectHolder) {
+                    selectHolder.innerHTML = `<option value="">Error loading holders</option>`;
+                }
+            });
+
+        // Load Templates
+        fetch('/admin/templates')
+            .then(res => res.json())
+            .then(data => {
+                const templates = data.templates || [];
+                if (selectTemplate) {
+                    selectTemplate.innerHTML = [
+                        `<option value="">-- Select Profile --</option>`,
+                        ...templates.map(t => `<option value="${t.id}">${t.displayName} (${t.id})</option>`)
+                    ].join('');
+                }
+            })
+            .catch(err => {
+                console.error('Error fetching templates:', err);
+                if (selectTemplate) {
+                    selectTemplate.innerHTML = `<option value="">Error loading templates</option>`;
+                }
+            });
+
+        // Load Request Queue Table
+        function reloadQueue() {
+            fetch('/admin/api/credentials')
+                .then(res => res.json())
+                .then(creds => {
+                    const tbody = document.getElementById('credentials-tbody');
+                    if (tbody && Array.isArray(creds)) {
+                        const sorted = [...creds].reverse();
+                        if (sorted.length === 0) {
+                            tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-500">No credentials issued yet</td></tr>`;
+                            return;
+                        }
+                        tbody.innerHTML = sorted.map(c => {
+                            const dateStr = new Date(c.issuedAt).toISOString().slice(0, 19).replace('T', ' ');
+                            const statusBadge = c.revoked 
+                                ? `<span class="px-2 py-0.5 bg-red-500/10 border border-red-500/20 text-red-400 rounded-full font-bold uppercase text-[9px] tracking-wider flex items-center gap-1 w-fit">
+                                      <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Revoked
+                                  </span>`
+                                : `<span class="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full font-bold uppercase text-[9px] tracking-wider flex items-center gap-1 w-fit">
+                                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Success
+                                  </span>`;
+                            
+                            const revokeBtn = c.revoked 
+                                ? `<span class="text-xs text-slate-500">Revoked</span>`
+                                : `<button class="text-red-400 hover:text-red-300 transition-colors flex items-center gap-1 ml-auto font-semibold uppercase text-[10px] btn-revoke-action" data-id="${c.credentialId}">
+                                      <span class="material-symbols-outlined text-[14px]">cancel</span> Revoke
+                                  </button>`;
+
+                            const credType = c.credentialId.includes('employee') ? 'EmployeeCredential' : 
+                                             c.credentialId.includes('membership') ? 'MembershipCredential' : 'AgeCredential';
+
+                            return `<tr class="hover:bg-slate-800/10 transition-colors group">
+                                <td class="p-4 text-slate-500">${dateStr}</td>
+                                <td class="p-4 text-emerald-400 truncate max-w-[180px]" title="${c.holderEmail}">${c.holderEmail}</td>
+                                <td class="p-4 font-semibold">${credType}</td>
+                                <td class="p-4">${statusBadge}</td>
+                                <td class="p-4 text-right">${revokeBtn}</td>
+                            </tr>`;
+                        }).join('');
+
+                        // Bind event listeners for newly rendered revoke buttons
+                        tbody.querySelectorAll('.btn-revoke-action').forEach(btn => {
+                            btn.addEventListener('click', (e) => {
+                                const credId = e.currentTarget.getAttribute('data-id');
+                                if (!credId) return;
+                                if (!confirm(`Are you sure you want to revoke credential ${credId}?`)) return;
+
+                                fetch('/admin/revoke', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'x-csrf-token': csrfToken
+                                    },
+                                    body: JSON.stringify({ credentialId: credId })
+                                })
+                                .then(async res => {
+                                    const data = await res.json();
+                                    if (!res.ok) throw new Error(data.error || 'Failed to revoke');
+                                    return data;
+                                })
+                                .then(data => {
+                                    if (window.triggerToast) {
+                                        window.triggerToast(data.message || 'Credential successfully revoked!');
+                                    }
+                                    reloadQueue();
+                                })
+                                .catch(err => {
+                                    console.error('Error revoking:', err);
+                                    if (window.triggerToast) {
+                                        window.triggerToast(`Error: ${err.message}`);
+                                    }
+                                });
+                            });
+                        });
+                    }
+                })
+                .catch(err => console.error('Error loading request queue:', err));
+        }
+
+        reloadQueue();
+
+        // Load Interop Logs
+        function reloadInteropLogs() {
+            fetch('/admin/api/interop-logs')
+                .then(res => res.json())
+                .then(logs => {
+                    const container = document.getElementById('interop-logs-container');
+                    if (!container || !Array.isArray(logs)) return;
+
+                    if (logs.length === 0) {
+                        container.innerHTML = `<div class="text-[10px] text-slate-500 font-mono text-center py-4">No interoperability alerts recorded.</div>`;
+                        return;
+                    }
+
+                    container.innerHTML = logs.map(log => {
+                        const time = log.timestamp.split('T')[1].slice(0, 8);
+                        const icon = log.type === 'error' ? 'error' : log.type === 'warning' ? 'warning' : 'info';
+                        const color = log.type === 'error' ? 'text-red-400' : log.type === 'warning' ? 'text-orange-400' : 'text-blue-400';
+                        
+                        return `
+                            <div class="p-2.5 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
+                                <div class="flex justify-between items-center">
+                                    <span class="flex items-center gap-1.5 font-bold uppercase text-[9px] ${color}">
+                                        <span class="material-symbols-outlined text-[14px]">${icon}</span>
+                                        ${log.category}
+                                    </span>
+                                    <span class="text-[8px] text-slate-600 font-mono">${time}</span>
+                                </div>
+                                <p class="text-[10px] text-slate-300 leading-tight">${log.message}</p>
+                            </div>
+                        `;
+                    }).join('');
+                })
+                .catch(err => console.error('Error loading interop logs:', err));
+        }
+
+        reloadInteropLogs();
+        setInterval(reloadInteropLogs, 10000);
+
+        // Generate Offer
+        function generateOffer() {
+            const holderId = selectHolder ? selectHolder.value : '';
+            const credentialType = selectTemplate ? selectTemplate.value : '';
+
+            if (!holderId || !credentialType) {
+                if (window.triggerToast) {
+                    window.triggerToast('Please select both a Holder and a Credential Profile.');
+                }
+                return;
+            }
+
+            if (qrContainer) {
+                qrContainer.innerHTML = `
+                    <span class="material-symbols-outlined text-4xl text-emerald-500 mb-2 animate-spin">sync</span>
+                    <span class="text-xs font-mono font-bold text-white uppercase tracking-wider">Generating Offer...</span>
+                `;
+            }
+
+            fetch('/offer', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ holderId, credentialType })
+            })
+            .then(async res => {
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed to generate offer');
+                return data;
+            })
+            .then(data => {
+                currentOfferUri = data.offer_uri;
+                if (qrContainer) {
+                    qrContainer.innerHTML = `
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(currentOfferUri)}" alt="QR Code" class="w-[150px] h-[150px] rounded-lg border border-slate-800 bg-white p-1 mb-2" />
+                        <span class="text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-wider">QR Code Ready</span>
+                    `;
+                }
+                if (window.triggerToast) {
+                    window.triggerToast('OID4VCI Pre-Authorized Credential Offer generated successfully!');
+                }
+            })
+            .catch(err => {
+                console.error('Error generating offer:', err);
+                if (qrContainer) {
+                    qrContainer.innerHTML = `
+                        <span class="material-symbols-outlined text-4xl text-red-500 mb-2">error</span>
+                        <span class="text-xs font-mono font-bold text-red-400 uppercase tracking-wider">Failed</span>
+                        <span class="text-[9px] font-mono text-slate-500 mt-1">${err.message}</span>
+                    `;
+                }
+                if (window.triggerToast) {
+                    window.triggerToast(`Error: ${err.message}`);
+                }
+            });
+        }
+
+        if (qrBox) {
+            qrBox.addEventListener('click', generateOffer);
+        }
+
+        // Auto-regenerate offer on selection changes if both are populated
+        if (selectHolder && selectTemplate) {
+            const handleChange = () => {
+                if (selectHolder.value && selectTemplate.value) {
+                    generateOffer();
+                }
+            };
+            selectHolder.addEventListener('change', handleChange);
+            selectTemplate.addEventListener('change', handleChange);
+        }
+
+        if (copyUriBtn) {
+            copyUriBtn.addEventListener('click', () => {
+                if (!currentOfferUri) {
+                    if (window.triggerToast) {
+                        window.triggerToast('Please generate an offer first.');
+                    }
+                    return;
+                }
+                navigator.clipboard.writeText(currentOfferUri).then(() => {
+                    if (window.triggerToast) {
+                        window.triggerToast('OID4VCI credential offer URI copied to clipboard!');
+                    }
+                });
+            });
+        }
+
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', () => {
+                if (window.triggerToast) {
+                    window.triggerToast('Compiling archived history logs...');
+                }
+            });
+        }
+    </script>
+</AdminLayout>

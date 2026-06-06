@@ -5,7 +5,7 @@
     "did": "did:web:localhost%3A3100"
   },
   "credential": {
-    "type": "VerifiableCredential",
+    "type": "AgeCredential",
     "expiresInDays": 365
   },
   "dataSource": {
@@ -15,6 +15,7 @@
   "fieldMappings": {
     "givenName": "firstName",
     "familyName": "lastName",
-    "email": "email"
+    "email": "email",
+    "dateOfBirth": "dateOfBirth"
   }
 }

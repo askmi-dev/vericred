@@ -6,9 +6,10 @@ import { getIssuerKeyPair } from '../keys/manager.js';
 import { loadConfig } from '../config/loader.js';
 import { lookupAccessToken, rotateNonce } from './token.js';
 import { assignStatusIndex } from '../revocation/statuslist.js';
-import { getTemplate } from '../credentials/registry.js';
+import { getTemplate, CredentialTemplate } from '../credentials/registry.js';
 import { buildSdJwtPayload, combineSdJwt } from '../sdjwt/disclosures.js';
 import { verifyHolderProofJwt, ProofVerificationError } from './proof.js';
+import { logInterop } from './interop-logger.js';
 
 // Register all built-in templates
 import '../credentials/templates/age.js';
@@ -19,6 +20,52 @@ function pairwisePseudonym(secret: string, thumbprint: string, issuer: string, t
   return 'did:askmi:pairwise:' + createHmac('sha256', secret)
     .update(thumbprint + '|' + issuer + '|' + type)
     .digest('base64url');
+}
+
+export function resolveMappedData(
+  template: CredentialTemplate,
+  fieldMappings: Record<string, string>,
+  holderData: Record<string, unknown>
+): { mappedData: Record<string, unknown>; errors: string[] } {
+  const mappedData: Record<string, unknown> = {};
+  const errors: string[] = [];
+
+  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  const templateFields = [...template.requiredFields, ...template.optionalFields];
+
+  for (const templateField of templateFields) {
+    // 1. Try explicit mapping from config
+    const explicitSourceField = fieldMappings[templateField];
+    if (explicitSourceField && holderData[explicitSourceField] !== undefined) {
+      mappedData[templateField] = holderData[explicitSourceField];
+      continue;
+    }
+
+    // 2. Fallback: try direct match (no mapping required if key matches exactly)
+    if (holderData[templateField] !== undefined) {
+      mappedData[templateField] = holderData[templateField];
+      continue;
+    }
+
+    // 3. Fallback: smart camelCase/snake_case/case-insensitive match
+    const normTemplate = normalize(templateField);
+    let matched = false;
+    for (const k of Object.keys(holderData)) {
+      if (normalize(k) === normTemplate) {
+        mappedData[templateField] = holderData[k];
+        matched = true;
+        break;
+      }
+    }
+
+    // 4. Validate if required field is still missing
+    if (!matched && template.requiredFields.includes(templateField)) {
+      errors.push(`Required field "${templateField}" could not be resolved from holder data`);
+    }
+  }
+
+  return { mappedData, errors };
 }
 
 export function createCredentialRouter(pseudonymSecret: string): Router {
@@ -57,8 +104,10 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
         holderJwk = result.jwk as unknown as Record<string, unknown>;
       } catch (e) {
         const code = e instanceof ProofVerificationError ? e.code : 'invalid_proof';
-        console.warn('[issuer] Holder proof rejected:', (e as Error).message);
-        res.status(400).json({ error: code, error_description: (e as Error).message });
+        const msg = (e as Error).message;
+        console.warn('[issuer] Holder proof rejected:', msg);
+        logInterop({ type: 'error', category: 'proof', message: msg, details: { code } });
+        res.status(400).json({ error: code, error_description: msg });
         return;
       }
     } else if (isDemoMode) {
@@ -79,24 +128,19 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
 
     // ── Template resolution ─────────────────────────────────────────────────
     let template;
+    const credentialType = tokenEntry.credentialType ?? config.credential.type;
     try {
-      template = getTemplate(config.credential.type);
+      template = getTemplate(credentialType);
     } catch (e) {
       res.status(500).json({ error: 'unsupported_credential_type', detail: (e as Error).message });
       return;
     }
 
-    const mappingErrors = template.validateMappings(config.fieldMappings);
+    const { mappedData, errors: mappingErrors } = resolveMappedData(template, config.fieldMappings ?? {}, holderData);
     if (mappingErrors.length > 0) {
-      res.status(500).json({ error: 'invalid_field_mappings', detail: mappingErrors });
+      logInterop({ type: 'warning', category: 'issuance', message: 'Field mapping failed', details: { errors: mappingErrors } });
+      res.status(400).json({ error: 'invalid_field_mappings', detail: mappingErrors });
       return;
-    }
-
-    const mappedData: Record<string, unknown> = {};
-    for (const [templateField, sourceField] of Object.entries(config.fieldMappings)) {
-      if (holderData[sourceField] !== undefined) {
-        mappedData[templateField] = holderData[sourceField];
-      }
     }
 
     let claims: Record<string, unknown>;
@@ -117,7 +161,7 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
     const { listId, statusIndex } = assignStatusIndex(credentialId, holderEmail);
 
     // ── Pairwise pseudonym — uses verified thumbprint ───────────────────────
-    const pseudonym = pairwisePseudonym(pseudonymSecret, holderThumbprint, config.issuer.did, config.credential.type);
+    const pseudonym = pairwisePseudonym(pseudonymSecret, holderThumbprint, config.issuer.did, credentialType);
 
     const now = Math.floor(Date.now() / 1000);
     const exp = now + config.credential.expiresInDays * 86400;
@@ -133,7 +177,7 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
       : {};
 
     const jwt = await new SignJWT({
-      vct: config.credential.type,
+      vct: credentialType,
       jti: credentialId,
       iss: config.issuer.did,
       sub: pseudonym,
@@ -158,11 +202,12 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
     // Rotate c_nonce after issuance (single-use; wallet can request more credentials with new nonce)
     const newNonce = rotateNonce(rawToken);
 
-    console.log('[issuer] Issued ' + config.credential.type + ' ' + credentialId
+    console.log('[issuer] Issued ' + credentialType + ' ' + credentialId
       + ' bound=' + (holderJwk ? holderThumbprint.slice(0, 12) + '...' : 'none')
       + ' status=' + statusIndex);
 
     const response: Record<string, unknown> = { credential, format: 'dc+sd-jwt' };
+    logInterop({ type: 'info', category: 'issuance', message: `Issued ${credentialType}`, details: { credentialId, holderEmail } });
     if (newNonce) {
       response['c_nonce'] = newNonce;
       response['c_nonce_expires_in'] = 300;

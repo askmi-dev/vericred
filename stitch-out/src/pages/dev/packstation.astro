@@ -1,0 +1,437 @@
+---
+// Credential Packstation: Interactive SD-JWT-VC packaging workspace
+---
+
+<html class="light" lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Credential Packstation | VeriCred</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <!-- Material Symbols -->
+    <link href="/assets/a39f5c6fcbb87b419667ec984d2e579a.css" rel="stylesheet" />
+    <!-- Tailwind Runtime Compiler -->
+    <script src="/assets/03ba5d9f9e95fc3599acebcbe7e5fb9a.js" is:inline></script>
+    <script id="tailwind-config" is:inline>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: "#ecfdf5",
+                            500: "#10b981",
+                            600: "#059669",
+                            900: "#064e3b"
+                        },
+                        slate: {
+                            800: "#1e293b",
+                            900: "#0f172a",
+                            950: "#020617"
+                        }
+                    },
+                    fontFamily: {
+                        sans: ["Outfit", "sans-serif"],
+                        mono: ["JetBrains Mono", "monospace"]
+                    }
+                }
+            }
+        }
+    </script>
+    <style is:global>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #faf9f6 !important;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.04) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(245, 158, 11, 0.03) 0px, transparent 50%) !important;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
+            border: 1px solid rgba(0, 0, 0, 0.05) !important;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.02) !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 antialiased flex flex-col justify-between">
+
+    <!-- Top Navigation Header -->
+    <header class="border-b border-slate-100 bg-white/60 backdrop-blur-md sticky top-0 z-40">
+        <div class="flex justify-between items-center h-16 px-6 max-w-7xl mx-auto w-full">
+            <div class="flex items-center gap-3">
+                <svg width="36" height="32" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="200" height="200" rx="40" fill="#0F172A" />
+                    <path d="M60 70L100 140L140 70" stroke="#10B981" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M100 140L160 50" stroke="#10B981" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" />
+                    <circle cx="100" cy="100" r="10" fill="#F8FAFC" />
+                </svg>
+                <span class="text-xl font-bold tracking-tight text-slate-900">VeriCred</span>
+                <span class="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider">DEV ENVIRONMENT</span>
+            </div>
+            
+            <nav class="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-500">
+                <a class="hover:text-slate-900 transition-colors" href="/dev/navigator">Library</a>
+                <a class="text-slate-900 font-bold hover:text-slate-900 transition-colors" href="/dev/packstation">Packstation</a>
+                <a class="hover:text-slate-900 transition-colors" href="/dev/presentation">Presentation Sandbox</a>
+            </nav>
+
+            <div class="flex items-center gap-4">
+                <a href="/console/dashboard" class="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/20 font-semibold px-4 py-2 rounded-xl transition-all flex items-center gap-2 text-sm">
+                    <span>Admin Dashboard</span>
+                    <span class="material-symbols-outlined text-sm">arrow_forward</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <main class="flex-grow max-w-7xl mx-auto w-full px-6 py-12">
+        <!-- Main Heading -->
+        <div class="text-center max-w-2xl mx-auto mb-12">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight leading-none mb-3">
+                Credential <span class="bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">Packstation</span>
+            </h1>
+            <p class="text-slate-500 text-sm md:text-base leading-relaxed">
+                Step-by-step interactive credential packaging workspace. Toggle individual claim selective disclosure, watch live cryptographic salting & hashing, and export standard SD-JWT-VC payloads.
+            </p>
+        </div>
+
+        <!-- 3-Column Layout Workspace -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- Left Workspace: Raw Claims & Holder Binding (4 columns) -->
+            <div class="lg:col-span-4 flex flex-col gap-6">
+                <!-- Raw claims editor -->
+                <div class="glass-card rounded-2xl p-6">
+                    <h3 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-emerald-500">edit_note</span>
+                        1. Raw claims JSON
+                    </h3>
+                    <p class="text-xs text-slate-500 mb-4 leading-relaxed">Enter raw attributes below. Sibling properties are structured for selective disclosure.</p>
+                    <textarea id="claims-raw-json" class="w-full h-64 bg-slate-50 border border-slate-100 rounded-xl p-4 font-mono text-xs text-slate-700 focus:outline-none focus:border-emerald-500/40 focus:ring focus:ring-emerald-500/5 shadow-inner" style="resize: none;">&#123;
+  "given_name": "Alice",
+  "family_name": "Vance",
+  "date_of_birth": "2001-05-15",
+  "degree": "Master of Science",
+  "gpa": "3.8",
+  "age_over_18": true
+&#125;</textarea>
+                    <button id="btn-parse-claims" class="w-full mt-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-semibold uppercase tracking-wider transition-all shadow-[0_4px_12px_rgba(16,185,129,0.2)]">
+                        Load Claim Schema
+                    </button>
+                </div>
+
+                <!-- Holder Binding configuration -->
+                <div class="glass-card rounded-2xl p-6">
+                    <h3 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-emerald-500">vpn_key</span>
+                        2. Holder Key Binding
+                    </h3>
+                    <p class="text-xs text-slate-500 mb-4 leading-relaxed">Secure credentials to the holder's key via Web Crypto. Private keys verifiably stay in-browser.</p>
+                    
+                    <div class="flex flex-col gap-3">
+                        <button id="btn-generate-holder-key" class="w-full py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 text-slate-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all">
+                            <span class="material-symbols-outlined text-sm text-emerald-500">lock_reset</span>
+                            <span>Generate Holder Key Pair</span>
+                        </button>
+                        
+                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <span class="text-[10px] font-mono text-slate-400 block mb-1">HOLDER THUMBPRINT (RFC 7638)</span>
+                            <code id="holder-thumbprint" class="font-mono text-xs text-slate-600 block truncate">None generated</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Middle Workspace: SD Hashing matrix (4 columns) -->
+            <div class="lg:col-span-4">
+                <div class="glass-card rounded-2xl p-6 min-h-full flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-emerald-500">grid_on</span>
+                            3. Disclosure Hashing
+                        </h3>
+                        <p class="text-xs text-slate-500 mb-6 leading-relaxed">Toggle the switches below to select claims for **Selective Disclosure** (redacting the plaintext value and replacing it with salted hash arrays).</p>
+
+                        <!-- Dynamic Toggle Fields List -->
+                        <div id="sd-matrix-list" class="flex flex-col gap-3">
+                            <!-- Populated on load -->
+                            <div class="text-center py-12 text-slate-400 text-xs">
+                                Click "Load Claim Schema" to parse raw claims above.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Compact stats footer -->
+                    <div class="border-t border-slate-100 pt-4 mt-6">
+                        <div class="flex justify-between items-center text-xs font-mono text-slate-500">
+                            <span>TOTAL CLAIMS:</span>
+                            <span id="sd-stat-total" class="font-bold text-slate-800">--</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs font-mono text-slate-500 mt-1">
+                            <span>SELECTIVE (HIDDEN):</span>
+                            <span id="sd-stat-hidden" class="font-bold text-emerald-500">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Workspace: Signed SD-JWT-VC Output (4 columns) -->
+            <div class="lg:col-span-4 flex flex-col gap-6">
+                <!-- JWT payload visualizer -->
+                <div class="glass-card rounded-2xl p-6">
+                    <h3 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-emerald-500">visibility</span>
+                        4. Live Signed Base Payload
+                    </h3>
+                    <p class="text-xs text-slate-500 mb-4 leading-relaxed">This payload is signed directly by the issuer. Note that raw claim names mapped to `_sd` array digests are strictly concealed.</p>
+                    <pre id="jwt-payload-view" class="w-full h-44 bg-slate-50 border border-slate-100 rounded-xl p-4 font-mono text-[10px] text-slate-600 overflow-y-auto custom-scrollbar leading-relaxed">&#123;"message": "Loading..."&#125;</pre>
+                </div>
+
+                <!-- Final Export token -->
+                <div class="glass-card rounded-2xl p-6">
+                    <h3 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-emerald-500">token</span>
+                        5. Final Compact SD-JWT-VC
+                    </h3>
+                    <p class="text-xs text-slate-500 mb-4 leading-relaxed">This is the final, tilde (`~`) separated token transferred to mobile wallets. Trailing disclosures are appended safely.</p>
+                    <pre id="sd-jwt-output" class="w-full h-32 bg-slate-50 border border-slate-100 rounded-xl p-4 font-mono text-[10px] text-slate-500 overflow-y-auto break-all custom-scrollbar leading-normal mb-4">Click Load Claim Schema to package...</pre>
+                    
+                    <button id="btn-copy-sd-jwt" class="w-full py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-semibold uppercase tracking-wider transition-all shadow-[0_4px_12px_rgba(16,185,129,0.2)]">
+                        Copy SD-JWT-VC to Clipboard
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="border-t border-slate-100 py-6 text-center text-xs font-mono text-slate-400 bg-slate-50/50">
+        Google Stitch Credential Packstation Workspace • VeriCred System
+    </footer>
+
+    <!-- Interactive Cryptographic Logic -->
+    <script is:inline>
+        let rawClaims = {};
+        let selectedSdKeys = new Set(["date_of_birth", "gpa"]); // Defaults
+        let holderKeys = null;
+        let holderJwkPub = null;
+        let holderThumbprint = "";
+
+        // Standard helpers
+        const base64UrlEncode = (str) => {
+            return btoa(str)
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=/g, '');
+        };
+
+        const randomSalt = () => {
+            const arr = new Uint8Array(16);
+            crypto.getRandomValues(arr);
+            return base64UrlEncode(String.fromCharCode(...arr));
+        };
+
+        const sha256Base64Url = async (str) => {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(str);
+            const hash = await crypto.subtle.digest('SHA-256', data);
+            return base64UrlEncode(String.fromCharCode(...new Uint8Array(hash)));
+        };
+
+        // DOM Elements
+        const textClaimsJson = document.getElementById('claims-raw-json');
+        const btnParse = document.getElementById('btn-parse-claims');
+        const sdMatrixList = document.getElementById('sd-matrix-list');
+        const kpiTotal = document.getElementById('sd-stat-total');
+        const kpiHidden = document.getElementById('sd-stat-hidden');
+        const jwtPayloadView = document.getElementById('jwt-payload-view');
+        const sdJwtOutput = document.getElementById('sd-jwt-output');
+        const btnCopy = document.getElementById('btn-copy-sd-jwt');
+        const btnGenHolderKey = document.getElementById('btn-generate-holder-key');
+        const lblHolderThumbprint = document.getElementById('holder-thumbprint');
+
+        // Dynamic schema loader
+        function loadSchema() {
+            try {
+                rawClaims = JSON.parse(textClaimsJson.value);
+            } catch (err) {
+                alert('Invalid JSON input: ' + err.message);
+                return;
+            }
+
+            renderMatrix();
+            recalculateTokens();
+        }
+
+        // Render selective disclosure options list
+        function renderMatrix() {
+            sdMatrixList.innerHTML = '';
+            const keys = Object.keys(rawClaims);
+            
+            kpiTotal.textContent = keys.length;
+            kpiHidden.textContent = selectedSdKeys.size;
+
+            keys.forEach(key => {
+                const isChecked = selectedSdKeys.has(key);
+                const row = document.createElement('div');
+                row.className = `flex justify-between items-center bg-white border ${isChecked ? 'border-emerald-500/10 bg-emerald-50/10' : 'border-slate-100'} px-4 py-3 rounded-2xl transition-all`;
+                
+                row.innerHTML = `
+                    <div class="flex flex-col">
+                        <span class="font-bold text-slate-800 text-sm font-mono">${key}</span>
+                        <span class="text-[10px] text-slate-400 mt-0.5">${isChecked ? 'Salted & Hashed behind _sd digest' : 'Exposed in Plaintext'}</span>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" class="sr-only peer" ${isChecked ? 'checked' : ''} data-key="${key}">
+                        <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                    </label>
+                `;
+
+                // Toggle handler
+                row.querySelector('input').addEventListener('change', (e) => {
+                    const k = e.target.getAttribute('data-key');
+                    if (e.target.checked) {
+                        selectedSdKeys.add(k);
+                    } else {
+                        selectedSdKeys.delete(k);
+                    }
+                    renderMatrix();
+                    recalculateTokens();
+                });
+
+                sdMatrixList.appendChild(row);
+            });
+        }
+
+        // Live cryptography package calculator
+        async function recalculateTokens() {
+            const sdList = [];
+            const disclosures = [];
+            const plainClaims = {};
+
+            const keys = Object.keys(rawClaims);
+
+            for (const key of keys) {
+                const val = rawClaims[key];
+
+                if (selectedSdKeys.has(key)) {
+                    // Generate disclosure array: [salt, key, val]
+                    const salt = randomSalt();
+                    const disclosureArray = [salt, key, val];
+                    const disclosureString = JSON.stringify(disclosureArray);
+                    const disclosureB64 = base64UrlEncode(disclosureString);
+                    
+                    // SHA-256 over US-ASCII string bytes
+                    const hashDigest = await sha256Base64Url(disclosureB64);
+                    
+                    sdList.push(hashDigest);
+                    disclosures.push(disclosureB64);
+                } else {
+                    plainClaims[key] = val;
+                }
+            }
+
+            // Sort digests alphabetically to prevent finger-printing
+            sdList.sort();
+
+            // Construct standard SD-JWT payload
+            const payload = {
+                "_context": "https://www.w3.org/2018/credentials/v1",
+                "type": ["VerifiableCredential", "VeriCredSDJWTCredential"],
+                "iss": "did:web:vericred.dev",
+                "iat": Math.floor(Date.now() / 1000),
+                ...plainClaims,
+            };
+
+            if (sdList.length > 0) {
+                payload["_sd"] = sdList;
+                payload["_sd_alg"] = "sha-256";
+            }
+
+            // Add holder binding if public key is generated
+            if (holderJwkPub) {
+                payload["cnf"] = {
+                    "jwk": {
+                        "kty": holderJwkPub.kty,
+                        "crv": holderJwkPub.crv,
+                        "x": holderJwkPub.x,
+                        "y": holderJwkPub.y
+                    }
+                };
+            }
+
+            jwtPayloadView.textContent = JSON.stringify(payload, null, 2);
+
+            // Mock an ECDSA signature
+            const header = { "alg": "ES256", "typ": "JWT", "kid": "key-1" };
+            const headerB64 = base64UrlEncode(JSON.stringify(header));
+            const payloadB64 = base64UrlEncode(JSON.stringify(payload));
+            const mockSignature = base64UrlEncode("mock-signature-ecdsa-p-256-verification-passes");
+
+            const signedJWT = `${headerB64}.${payloadB64}.${mockSignature}`;
+            
+            // Standard compact SD-JWT is JWT + trailing tildes
+            let finalToken = signedJWT;
+            disclosures.forEach(disc => {
+                finalToken += `~${disc}`;
+            });
+            if (disclosures.length > 0) finalToken += `~`;
+
+            sdJwtOutput.textContent = finalToken;
+        }
+
+        // Holder public key gen via Web Crypto
+        async function generateHolderKeys() {
+            try {
+                holderKeys = await crypto.subtle.generateKey(
+                    { name: "ECDSA", namedCurve: "P-256" },
+                    false, // Private key stays non-extractable (Enclave emulated)
+                    ["sign", "verify"]
+                );
+
+                // Export public JWK
+                const jwk = await crypto.subtle.exportKey("jwk", holderKeys.publicKey);
+                holderJwkPub = jwk;
+
+                // RFC 7638 thumbprint sorting
+                const jwkSorted = {
+                    crv: jwk.crv,
+                    kty: jwk.kty,
+                    x: jwk.x,
+                    y: jwk.y
+                };
+                const thumbprintStr = JSON.stringify(jwkSorted);
+                const thumbprintB64 = await sha256Base64Url(thumbprintStr);
+                
+                holderThumbprint = thumbprintB64;
+                lblHolderThumbprint.textContent = `did:holder:thumbprint:${thumbprintB64}`;
+
+                recalculateTokens();
+            } catch (err) {
+                alert('Web Crypto P-256 generation failed: ' + err.message);
+            }
+        }
+
+        // Copy Clipboard Helper
+        function copyOutput() {
+            navigator.clipboard.writeText(sdJwtOutput.textContent).then(() => {
+                alert('Copied SD-JWT-VC to clipboard successfully!');
+            }).catch(() => {
+                alert('Failed to copy. Please manually highlight and copy.');
+            });
+        }
+
+        // Event listeners
+        btnParse.addEventListener('click', loadSchema);
+        btnGenHolderKey.addEventListener('click', generateHolderKeys);
+        btnCopy.addEventListener('click', copyOutput);
+
+        // Initial setup
+        loadSchema();
+    </script>
+</body>
+</html>

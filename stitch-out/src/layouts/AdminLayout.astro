@@ -8,11 +8,11 @@ const currentPath = Astro.url.pathname;
 
 // Helper to determine if a route is active
 const isPathActive = (path: string) => {
-  return currentPath === path || currentPath === `${path}/` || (path === '/dashboard' && currentPath === '/');
+  return currentPath === path || currentPath === `${path}/` || (path === '/console/dashboard' && currentPath === '/');
 };
 ---
 
-<html class="dark" lang="en">
+<html class="light" lang="en">
 <head>
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
@@ -51,37 +51,154 @@ const isPathActive = (path: string) => {
             }
         }
     </script>
-    <style>
+    <style is:global>
+        /* Warm Light Glassmorphic Globals (Apple + Claude style) */
+        :root {
+            --bg-glass-overlay: rgba(255, 255, 255, 0.7);
+            --border-light: rgba(0, 0, 0, 0.05);
+        }
+        html.light {
+            background-color: #faf9f6 !important;
+        }
         body {
             font-family: 'Outfit', sans-serif;
-            background-color: #020617;
+            background-color: #faf9f6 !important;
             background-image: 
                 radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.05) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.05) 0px, transparent 50%);
+                radial-gradient(at 100% 100%, rgba(245, 158, 11, 0.04) 0px, transparent 50%) !important;
+            color: #1e293b !important;
         }
-        .glass-card {
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.06);
+        
+        /* Glass card overrides */
+        .glass-card,
+        .bg-slate-900,
+        .bg-slate-900\/60,
+        .bg-slate-950,
+        .bg-slate-950\/80,
+        .bg-slate-950\/40,
+        .bg-slate-900\/90,
+        .bg-slate-950\/20,
+        aside,
+        header {
+            background: rgba(255, 255, 255, 0.75) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
+            border-color: rgba(0, 0, 0, 0.06) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.02), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
         }
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
+
+        /* Border overrides */
+        .border-slate-800,
+        .border-slate-800\/80,
+        .border-slate-800\/60,
+        .border-slate-900,
+        .border-slate-900\/60,
+        .divide-slate-800\/50 > *,
+        .divide-slate-800\/60 > * {
+            border-color: rgba(0, 0, 0, 0.06) !important;
         }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: transparent;
+
+        /* Text overrides */
+        h1, h2, h3, h4, h5, h6,
+        .text-white,
+        .text-slate-100,
+        .text-slate-200 {
+            color: #0f172a !important;
         }
+
+        .text-slate-300,
+        .text-slate-400,
+        .text-slate-500 {
+            color: #475569 !important;
+        }
+
+        /* Sidebar overrides */
+        aside a.text-slate-400 {
+            color: #475569 !important;
+        }
+        aside a.text-slate-400:hover {
+            color: #0f172a !important;
+            background: rgba(0, 0, 0, 0.03) !important;
+        }
+        
+        /* Active nav item */
+        aside a.bg-emerald-500\/10 {
+            background: rgba(16, 185, 129, 0.08) !important;
+            color: #047857 !important;
+            border-right-color: #10b981 !important;
+        }
+
+        /* Inner blocks (e.g. code snippets, terminal logs, interactive widgets) */
+        code, pre,
+        .bg-slate-950,
+        textarea {
+            background: rgba(248, 250, 252, 0.8) !important;
+            border: 1px solid rgba(0, 0, 0, 0.05) !important;
+            color: #334155 !important;
+        }
+
+        /* Input fields and select controls */
+        input[type="text"],
+        input[type="password"],
+        input[type="email"],
+        select,
+        textarea {
+            background: #ffffff !important;
+            border: 1px solid rgba(0, 0, 0, 0.1) !important;
+            color: #0f172a !important;
+        }
+        input[type="text"]:focus,
+        input[type="password"]:focus,
+        select:focus,
+        textarea:focus {
+            border-color: #10b981 !important;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
+            outline: none !important;
+        }
+
+        /* Scrollbar light adjustments */
         .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #1e293b;
-            border-radius: 9999px;
+            background: rgba(0, 0, 0, 0.1) !important;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #334155;
+            background: rgba(0, 0, 0, 0.2) !important;
+        }
+
+        /* Buttons adjustments */
+        button, .btn {
+            border-radius: 12px !important;
+        }
+
+        /* Specific text mappings */
+        .text-emerald-500,
+        .text-emerald-400 {
+            color: #059669 !important;
+        }
+        .text-blue-500,
+        .text-blue-400 {
+            color: #2563eb !important;
+        }
+        .text-red-500,
+        .text-red-400 {
+            color: #dc2626 !important;
+        }
+
+        /* Background highlights mapping */
+        .bg-slate-950\/80 {
+            background: rgba(255, 255, 255, 0.6) !important;
+        }
+        .bg-emerald-500\/10 {
+            background: rgba(16, 185, 129, 0.08) !important;
+        }
+        .bg-red-500\/10 {
+            background: rgba(239, 68, 68, 0.08) !important;
+        }
+        .bg-blue-500\/10 {
+            background: rgba(59, 130, 246, 0.08) !important;
         }
     </style>
 </head>
-<body class="min-h-screen text-slate-100 antialiased flex flex-col md:flex-row">
+<body class="min-h-screen text-slate-800 antialiased flex flex-col md:flex-row">
 
     <!-- Responsive Mobile Header -->
     <header class="md:hidden w-full bg-slate-900 border-b border-slate-800/80 px-4 py-4 flex items-center justify-between sticky top-0 z-50">
@@ -141,42 +258,62 @@ const isPathActive = (path: string) => {
         <ul class="flex flex-col gap-1 px-3 flex-grow">
             <li>
                 <a class={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all duration-200 ${
-                    isPathActive('/dashboard') 
+                    isPathActive('/console/dashboard') 
                     ? 'bg-emerald-500/10 text-emerald-400 border-r-2 border-emerald-500 font-semibold' 
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
-                }`} href="/dashboard">
+                }`} href="/console/dashboard">
                     <span class="material-symbols-outlined text-lg">dashboard</span>
                     <span>Dashboard</span>
                 </a>
             </li>
             <li>
                 <a class={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all duration-200 ${
-                    isPathActive('/schema') 
+                    isPathActive('/console/schema') 
                     ? 'bg-emerald-500/10 text-emerald-400 border-r-2 border-emerald-500 font-semibold' 
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
-                }`} href="/schema">
+                }`} href="/console/schema">
                     <span class="material-symbols-outlined text-lg">schema</span>
                     <span>Schema Mapping</span>
                 </a>
             </li>
             <li>
                 <a class={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all duration-200 ${
-                    isPathActive('/monitor') 
+                    isPathActive('/console/monitor') 
                     ? 'bg-emerald-500/10 text-emerald-400 border-r-2 border-emerald-500 font-semibold' 
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
-                }`} href="/monitor">
+                }`} href="/console/monitor">
                     <span class="material-symbols-outlined text-lg">monitor_heart</span>
                     <span>Issuance Monitor</span>
                 </a>
             </li>
             <li>
                 <a class={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all duration-200 ${
-                    isPathActive('/logo') 
+                    isPathActive('/console/security') 
                     ? 'bg-emerald-500/10 text-emerald-400 border-r-2 border-emerald-500 font-semibold' 
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
-                }`} href="/logo">
+                }`} href="/console/security">
+                    <span class="material-symbols-outlined text-lg">security</span>
+                    <span>Security & Keys</span>
+                </a>
+            </li>
+            <li>
+                <a class={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all duration-200 ${
+                    isPathActive('/console/logo') 
+                    ? 'bg-emerald-500/10 text-emerald-400 border-r-2 border-emerald-500 font-semibold' 
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                }`} href="/console/logo">
                     <span class="material-symbols-outlined text-lg">draw</span>
                     <span>Brand Vector Logo</span>
+                </a>
+            </li>
+            <li>
+                <a class={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all duration-200 ${
+                    isPathActive('/console/legacy/blockchain') 
+                    ? 'bg-emerald-500/10 text-emerald-400 border-r-2 border-emerald-500 font-semibold' 
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                }`} href="/console/legacy/blockchain">
+                    <span class="material-symbols-outlined text-lg">hive</span>
+                    <span>Legacy Blockchain Lab</span>
                 </a>
             </li>
         </ul>

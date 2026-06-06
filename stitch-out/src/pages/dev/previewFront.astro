@@ -1,0 +1,289 @@
+---
+// Google Stitch Conceptual Presentation & Slides Preview Area
+---
+
+<html class="light" lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Stitch Slide Preview | VeriCred</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <!-- Material Symbols -->
+    <link href="/assets/a39f5c6fcbb87b419667ec984d2e579a.css" rel="stylesheet" />
+    <!-- Tailwind Runtime Compiler -->
+    <script src="/assets/03ba5d9f9e95fc3599acebcbe7e5fb9a.js" is:inline></script>
+    <script id="tailwind-config" is:inline>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: "#ecfdf5",
+                            500: "#10b981",
+                            600: "#059669",
+                            900: "#064e3b"
+                        },
+                        slate: {
+                            800: "#1e293b",
+                            900: "#0f172a",
+                            950: "#020617"
+                        }
+                    },
+                    fontFamily: {
+                        sans: ["Outfit", "sans-serif"],
+                        mono: ["JetBrains Mono", "monospace"]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #faf9f6; /* Warm Ivory background like Claude */
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.04) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(245, 158, 11, 0.03) 0px, transparent 50%);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.02);
+        }
+        .slide-node {
+            display: none;
+        }
+        .slide-node.active {
+            display: block;
+            animation: slideIn 0.5s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 antialiased flex flex-col justify-between">
+
+    <!-- Top Navigation Header -->
+    <header class="border-b border-slate-100 bg-white/60 backdrop-blur-md sticky top-0 z-40">
+        <div class="flex justify-between items-center h-16 px-6 max-w-7xl mx-auto w-full">
+            <div class="flex items-center gap-3">
+                <svg width="36" height="32" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="200" height="200" rx="40" fill="#0F172A" />
+                    <path d="M60 70L100 140L140 70" stroke="#10B981" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M100 140L160 50" stroke="#10B981" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" />
+                    <circle cx="100" cy="100" r="10" fill="#F8FAFC" />
+                </svg>
+                <span class="text-xl font-bold tracking-tight text-slate-900">VeriCred</span>
+            </div>
+            
+            <nav class="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-500">
+                <a class="text-slate-900 hover:text-slate-900 transition-colors" href="/dev/navigator">Library</a>
+                <a class="hover:text-slate-800 transition-colors" href="/">Public Landing</a>
+            </nav>
+
+            <div class="flex items-center gap-4">
+                <a href="/console/dashboard" class="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/20 font-semibold px-4 py-2 rounded-xl transition-all flex items-center gap-2 text-sm">
+                    <span>Admin Dashboard</span>
+                    <span class="material-symbols-outlined text-sm">arrow_forward</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <main class="flex-grow max-w-4xl mx-auto w-full px-6 py-12 flex flex-col justify-center">
+        <!-- Main Panel -->
+        <div class="glass-card rounded-3xl p-8 md:p-12 min-h-[500px] flex flex-col justify-between relative overflow-hidden">
+            <!-- Ambient top glow -->
+            <div class="absolute top-0 left-1/2 -translate-x-1/2 w-72 h-1 bg-emerald-500/20 blur-md"></div>
+
+            <!-- Slides Stream -->
+            <div>
+                <!-- Slide 1 -->
+                <div class="slide-node active" id="slide-1">
+                    <div class="flex items-center gap-2 mb-6">
+                        <span class="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full uppercase tracking-wider">Slide 1 of 4</span>
+                        <span class="text-slate-400">•</span>
+                        <span class="text-xs font-mono text-slate-500">Core Architecture</span>
+                    </div>
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight leading-none mb-6">
+                        What is <span class="text-emerald-500">VeriCred</span>?
+                    </h2>
+                    <p class="text-slate-600 text-base md:text-lg leading-relaxed mb-8">
+                        VeriCred is a lightweight, open-source eIDAS 2.0 / DSGVO credential issuer gateway. It connects directly to existing databases (SQL, REST, CSV) and lets you issue W3C-compliant, secure **SD-JWT Verifiable Credentials** into compliant mobile wallets.
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50/50 rounded-2xl p-6 border border-slate-100">
+                        <div class="flex flex-col gap-2">
+                            <span class="material-symbols-outlined text-emerald-500 text-3xl">database</span>
+                            <h4 class="font-bold text-slate-900 text-sm">Database Agnostic</h4>
+                            <p class="text-xs text-slate-500 leading-relaxed">Direct SQL row lookup mapped automatically to verifiable claim values.</p>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <span class="material-symbols-outlined text-emerald-500 text-3xl">key</span>
+                            <h4 class="font-bold text-slate-900 text-sm">did:web Keys</h4>
+                            <p class="text-xs text-slate-500 leading-relaxed">Issuer credentials signed via standard P-256 did:web DID documents.</p>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <span class="material-symbols-outlined text-emerald-500 text-3xl">privacy_tip</span>
+                            <h4 class="font-bold text-slate-900 text-sm">Holder Binding</h4>
+                            <p class="text-xs text-slate-500 leading-relaxed">Credentials are bound to the holder's key via standard cnf.jwk proofs.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 2 -->
+                <div class="slide-node" id="slide-2">
+                    <div class="flex items-center gap-2 mb-6">
+                        <span class="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full uppercase tracking-wider">Slide 2 of 4</span>
+                        <span class="text-slate-400">•</span>
+                        <span class="text-xs font-mono text-slate-500">Selective Disclosure</span>
+                    </div>
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight leading-none mb-6">
+                        The Power of <span class="text-emerald-500">SD-JWT-VC</span>
+                    </h2>
+                    <p class="text-slate-600 text-base md:text-lg leading-relaxed mb-6">
+                        Traditional VCs leak the entire credential payload. With Selective Disclosure (SD-JWT), every individual claim is salted and hashed separately by the issuer. The holder can choose to reveal *only* what is necessary.
+                    </p>
+                    <div class="bg-slate-50/50 rounded-2xl p-6 border border-slate-100 font-mono text-xs text-slate-600 flex flex-col gap-3">
+                        <div class="flex justify-between items-center bg-white px-4 py-2 rounded-xl border border-slate-100">
+                            <span>"given_name": "Alice"</span>
+                            <span class="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded">Salted Hashed -> _sd[0]</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-white px-4 py-2 rounded-xl border border-slate-100">
+                            <span>"date_of_birth": "2001-05-15"</span>
+                            <span class="text-[10px] text-amber-600 font-semibold bg-amber-50 px-2 py-0.5 rounded">Concealed from Verifier</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-white px-4 py-2 rounded-xl border border-slate-100">
+                            <span>"degree": "Master of Science"</span>
+                            <span class="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded">Disclosed dynamically</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 3 -->
+                <div class="slide-node" id="slide-3">
+                    <div class="flex items-center gap-2 mb-6">
+                        <span class="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full uppercase tracking-wider">Slide 3 of 4</span>
+                        <span class="text-slate-400">•</span>
+                        <span class="text-xs font-mono text-slate-500">Revocation</span>
+                    </div>
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight leading-none mb-6">
+                        W3C <span class="text-emerald-500">StatusList2021</span>
+                    </h2>
+                    <p class="text-slate-600 text-base md:text-lg leading-relaxed mb-8">
+                        VeriCred uses StatusList2021 for secure, real-time revocation. Issued credentials hold a specific index on a signed status bitstring. Verifiers read this signed list to check revocation status instantly, without leaking holder query data.
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-5 flex flex-col gap-2">
+                            <span class="material-symbols-outlined text-emerald-500">check_circle</span>
+                            <h4 class="font-bold text-slate-900 text-sm">High Capacity</h4>
+                            <p class="text-xs text-slate-500">A single status list houses 131,072 indices (16KB) allowing extremely fast and standard-compliant re-signing.</p>
+                        </div>
+                        <div class="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-5 flex flex-col gap-2">
+                            <span class="material-symbols-outlined text-amber-500">privacy_tip</span>
+                            <h4 class="font-bold text-slate-900 text-sm">Privacy-Preserving</h4>
+                            <p class="text-xs text-slate-500">The verifier downloads the entire bitstring. They cannot know *which* index is being requested, preventing user tracking.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 4 -->
+                <div class="slide-node" id="slide-4">
+                    <div class="flex items-center gap-2 mb-6">
+                        <span class="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full uppercase tracking-wider">Slide 4 of 4</span>
+                        <span class="text-slate-400">•</span>
+                        <span class="text-xs font-mono text-slate-500">eIDAS 2.0 Ready</span>
+                    </div>
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight leading-none mb-6">
+                        Deploying with <span class="text-emerald-500">VeriCred</span>
+                    </h2>
+                    <p class="text-slate-600 text-base md:text-lg leading-relaxed mb-8">
+                        Our gateway bridges the gap between old-school organizational database columns and cutting-edge decentralized identity. Scale quickly, rotate cryptokeys without breaking historical signatures, and secure your users' digital sovereignty.
+                    </p>
+                    <div class="bg-slate-50/50 rounded-2xl p-6 border border-slate-100 flex items-center justify-between">
+                        <div>
+                            <h4 class="font-bold text-slate-900 text-sm">Setup Complete</h4>
+                            <p class="text-xs text-slate-500 mt-1">Gateway in "Active Mode". Verified with 132 tests.</p>
+                        </div>
+                        <a href="/console/dashboard" class="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-semibold uppercase tracking-wider transition-all shadow-[0_4px_12px_rgba(16,185,129,0.2)]">Launch Admin Console</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls Footer -->
+            <div class="flex justify-between items-center border-t border-slate-100 pt-6 mt-8">
+                <button id="prev-slide-btn" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all">
+                    <span class="material-symbols-outlined text-sm">arrow_back</span>
+                    <span>Previous</span>
+                </button>
+                <div class="flex gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500" id="dot-1"></span>
+                    <span class="w-2 h-2 rounded-full bg-slate-200" id="dot-2"></span>
+                    <span class="w-2 h-2 rounded-full bg-slate-200" id="dot-3"></span>
+                    <span class="w-2 h-2 rounded-full bg-slate-200" id="dot-4"></span>
+                </div>
+                <button id="next-slide-btn" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all">
+                    <span>Next</span>
+                    <span class="material-symbols-outlined text-sm">arrow_forward</span>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <footer class="border-t border-slate-100 py-6 text-center text-xs font-mono text-slate-400 bg-slate-50/50">
+        Google Stitch Slide Deck Preview • VeriCred System
+    </footer>
+
+    <!-- Interactive Navigation Logic -->
+    <script is:inline>
+        let currentSlide = 1;
+        const totalSlides = 4;
+
+        const prevBtn = document.getElementById('prev-slide-btn');
+        const nextBtn = document.getElementById('next-slide-btn');
+
+        function updateSlides() {
+            // Hide all
+            for (let i = 1; i <= totalSlides; i++) {
+                document.getElementById(`slide-${i}`).classList.remove('active');
+                document.getElementById(`dot-${i}`).classList.remove('bg-emerald-500');
+                document.getElementById(`dot-${i}`).classList.add('bg-slate-200');
+            }
+            // Show current
+            document.getElementById(`slide-${currentSlide}`).classList.add('active');
+            document.getElementById(`dot-${currentSlide}`).classList.remove('bg-slate-200');
+            document.getElementById(`dot-${currentSlide}`).classList.add('bg-emerald-500');
+
+            // Disable buttons
+            prevBtn.disabled = currentSlide === 1;
+            nextBtn.disabled = currentSlide === totalSlides;
+            prevBtn.style.opacity = currentSlide === 1 ? '0.4' : '1';
+            nextBtn.style.opacity = currentSlide === totalSlides ? '0.4' : '1';
+        }
+
+        prevBtn.addEventListener('click', () => {
+            if (currentSlide > 1) {
+                currentSlide--;
+                updateSlides();
+            }
+        });
+
+        nextBtn.addEventListener('click', () => {
+            if (currentSlide < totalSlides) {
+                currentSlide++;
+                updateSlides();
+            }
+        });
+
+        updateSlides();
+    </script>
+</body>
+</html>

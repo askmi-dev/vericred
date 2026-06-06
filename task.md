@@ -1,96 +1,131 @@
-# Task Checklist: VeriCred (miTch Evidence-Bridge & Gateway)
+# Task Checklist: VeriCred Phase 1 (Astro + Express Gateway MVP)
 
-- [x] **Sprint 0: Architecture Freeze & Defensive Startup (UI Routing Fix)**
-  - [x] Wrap `store.initialize()` and `auditAndSyncLedgerUI()` in try/catch blocks on DOMContentLoaded to guarantee routing bindings execute
-  - [x] Implement preservative ledger self-repair: isolate/quarantine a corrupt ledger while leaving worker and employer keys intact
-  - [x] Set up persistent gateway secrets (`localGatewaySecret`) on first initialization
+- [x] **Task 1: Secure Route Partitioning & Guard Registration**
+  - [x] Intercept all `/console/*` routes in Express before registering any static folders (`express.static`)
+  - [x] Bind `requireAdmin` session-checking middleware to all intercepted `/console/*` endpoints
+  - [x] Create route-specific handlers to serve protected static files directly via `res.sendFile()` from `stitch-out/dist/console/`
+  - [x] Add robust automated tests attempting unauthorized fetches to `/console/dashboard`, `/console/schema`, and `/console/monitor` to verify they block and redirect cleanly
+  - [x] Verify that accessing files under direct paths like `/console/dashboard/index.html` is strictly intercepted and blocked if unauthorized
 
-- [x] **Sprint 1: Proof Intake Contract (`MitchPresentationEnvelope`)**
-  - [x] Define standard-aligned `MitchPresentationEnvelope` schema combining an issuer-signed base credential and holder key binding
-  - [x] Implement RFC 7638 JWK public key thumbprint calculation (`calculateJWKThumbprint`) using alphabetical EC sorting and Base64URL encoding
-  - [x] Add a visual "miTch Wallet Sync Area" to the Worker tab with mock eID and academic certificates
-  - [x] Add challenge-terminal for real-time Gateway Nonce generation (short TTL, mapped in-memory)
-  - [x] Implement client-side signed presentation generation using the worker's private key (Key Binding Proof-of-Possession)
+- [x] **Task 2: Session-Bound CSRF Handshake Integration**
+  - [x] Refactor the CSRF token store to bind active tokens strictly to the `admin_session` cookie (or Express session store) rather than global token mappings
+  - [x] Create the authenticated, session-bound `GET /admin/api/csrf-handshake` endpoint protected by `requireAdmin`
+  - [x] Configure `Cache-Control: no-store, no-cache, must-revalidate, max-age=0` headers on the handshake endpoint
+  - [x] Integrate subsequent state-changing APIs (e.g. revoke, save mapping) to fetch this token and submit it in the `x-csrf-token` header
+  - [x] Add tests validating that mutating calls fail closed with `403 Forbidden` if the session-bound token is missing or mismatched
 
-- [x] **Sprint 2: Verification Policy (Fail-Closed Gates)**
-  - [x] Implement `verifyMitchPresentationSequential()` executing the sequential validation: Parse -> Version -> Nonce/Aud/Expiry -> Issuer Trust -> Issuer Signature -> Holder Binding -> Revocation
-  - [x] Implement atomic nonce consumption (pop and invalidate the nonce on first structurally valid verification attempt)
-  - [x] Wire the gatekeeper verification into the Employer Panel, locking professional claim forms until a miTch presentation is verified successfully
+- [x] **Task 3: Default PII-Masking for Admin JSON APIs**
+  - [x] Refactor `/admin/api/holders` endpoint to mask names and emails (e.g. `al***@gmail.com`) in default responses
+  - [x] Refactor `/admin/api/credentials` endpoint to mask user names, emails, and credentials-associated claims by default
+  - [x] Bind the unmasking behavior strictly to the environment override `PII_ADMIN_MODE === 'true'`
+  - [x] Update relevant backend test assertions to ensure default output remains masked and safe from accidental leaks
 
-- [x] **Sprint 3: VeriCred Credential Issuance (SD-JWT VC & Metadata Budget)**
-  - [x] Implement the pairwise scoped DID generator using Web Crypto HMAC-SHA256: `did:vericred:pairwise:<hmacBase64url>`
-  - [x] Refactor transaction schema in `blockchain.js` to store only: `holderPseudonym`, `mitchProofHash`, `credentialHash`, `claimCommitments` (salted hashes), `issuerId`, and `statusListIndex` (no plain text claims!)
-  - [x] Implement exporting the complete, off-chain credential JSON to the worker (including raw claims and salts)
-  - [x] Update `isChainValid()` to audit blocks for PII leaks (flagging block index if raw names, keys, or stable addresses are found)
-  - [x] Rewrite standard ledger seed generation using the anonymized format referencing mock miTch proof hashes
+- [x] **Task 4: Offer API Contract Expansion & Validation**
+  - [x] Refactor the payload parser for `POST /offer` in the Express router
+  - [x] Support both `{ "identifier": "..." }` and the expanded `{ "holderId": "...", "credentialType": "..." }` payload structure
+  - [x] Implement strict validation on the backend to verify that the Holder exists, the Template exists, and the Template Mapping is valid (no DID-prefix requirement for internal UUIDs)
+  - [x] Bind the selected `credentialType` and `holderId` to the generated offer/token state (either in-memory or in the database store) upon generating the offer
+  - [x] Refactor the `/credentials` endpoint logic to retrieve the bound `credentialType` and `holderId` from the active token state during issuance, ensuring dynamic consistency even if the global configuration varies
+  - [x] Write integration test cases verifying the correct creation of credential offers under the expanded contract and dynamic, consistent token-bound issuance
 
-- [x] **Sprint 4: Evidence UI & Universal Verifier Expansion**
-  - [x] Redesign the Universal Verifier in `index.html` into a premium 5-stage horizontal visual checklist
-  - [x] Implement live visual audit flows for:
-    - Stage 1: miTch Wallet Presentation Verification (Issuer signature + Holder binding)
-    - Stage 2: VeriCred Issuer Signature Audit
-    - Stage 3: Ledger Anchor Validation
-    - Stage 4: Revocation Status Audit
-    - Stage 5: Metadata Budget Compliance Audit
-  - [x] Wire up audit results displaying precise validation details, showing how off-chain claims match on-chain commitment hashes using salts
+- [x] **Task 5: Dynamic Console Pages & Multi-Template UI**
+  - [x] Integrate real-time stats fetching (`GET /admin/api/stats`) into `/console/dashboard` and bind metrics dynamically
+  - [x] Connect `/console/schema` to fetch available templates from `GET /admin/templates` (AgeCredential, EmployeeCredential, MembershipCredential)
+  - [x] Implement dynamic layout mapping of template schemas instead of static mock inputs
+  - [x] Build the dynamic OID4VCI Offer Flow on `/console/monitor`: select a holder, select a template, trigger generation, and render live QR code with the standard offer URI
+  - [x] Implement defensive Dry-Run and syntax checks on schema mapping configurations before executing atomic storage updates
 
-- [x] **Sprint 5: Attacks & Abuse Sandbox (Audit Cases)**
-  - [x] Build a "Security Attack & Abuse Sandbox" UI panel with 5 interactive simulators:
-    - Replay Attack (resubmitting an envelope with an old or invalid nonce)
-    - Fake EUDI Trust Anchor (signing miTch envelopes with an rogue key not in EUDI list)
-    - Credential Revocation (revoking base or extension credentials in the StatusList)
-    - Metadata Budget Leak (writing plain-text names or raw worker keys on-chain)
-    - Block Link Corruption (corrupting previous-hash block linkages in memory)
-  - [x] Attach UI event handlers to trigger each attack, forcing the verifier to raise correct alert flags
-  - [x] Verify all test cases and perform a complete walkthrough verification
+- [x] **Task 6: Legacy Lab Relocation & Cleanup**
+  - [x] Relocate the Web3 Proof-of-Work/mining simulation widget and related client assets to `/console/legacy/blockchain`
+  - [x] Strip any blockchain or mining terminology from the main administration pages and dashboards to keep the focus strictly on modern REST APIs and OID4VCI standards
 
-- [x] **Sprint 6: Security Verification Harness & Browser QA**
-  - [x] Add a 5th navigation tab (`nav-qa` / `#qa-harness`) inside `index.html` with a premium glassmorphic dashboard design
-  - [x] Implement Visual Test Suite Panel with category tags (`Cryptographic`, `Protocol`, `Ledger Leak`, `Reseed`)
-  - [x] Add a pulsing trigger button (`btn-run-qa-tests`) displaying test timings and pass/fail states
-  - [x] Add live inspection nodes (collapsible accordion details) showing exact mathematical inputs, hashes, signatures, and error traces
-  - [x] Add Operational Truth Pass Status diagnostic card reflecting live `localStorage` and challenge nonce cache states
-  - [x] Implement 8 precise browser-executable cryptographic test assertions in `app.js` using real system functions:
-    - [x] Test 1: RFC 7638 Thumbprint Determinism (asserts alphabetical sorting and stable Base64URL encoding)
-    - [x] Test 2: HMAC Pairwise Pseudonym Stability & Scoping (asserts stable output, but secure divergence if any parameter varies)
-    - [x] Test 3: Atomic Nonce Lifecycle (non-consumption on malformed structure, instant consumption on structural validity even with invalid signature)
-    - [x] Test 4: Strict Replay Rejection (asserts same-envelope consecutive submissions fail)
-    - [x] Test 5: Fake EUDI Trust Anchor Rejection (asserts signatures with rogue keys fail-closed)
-    - [x] Test 6: Holder Key Mismatch Rejection (asserts transient key tampering fails-closed)
-    - [x] Test 7: Zero-PII Ledger Compliance Audit (asserts block validation fails if plaintext metadata leaks)
-    - [x] Test 8: Preservative Ledger Reseed & Quarantine (asserts database corruption isolates broken chains but preserves user identity keypairs)
-  - [x] Embed visual Standards Gap Panel highlighting differences vs. production-grade deployments (compact SD-JWT-VC, distributed DIDs, signature EUTLs, verifiable registries)
-  - [x] Embed high-contrast security warnings/disclaimers about educational prototype nature
+- [x] **Task 7: Regression Tests & Build Verification**
+  - [x] Build the Astro frontend project via `npm run build` inside `stitch-out/` to verify compiler integrity
+  - [x] Run the complete backend test suite (`npm run test`) to ensure all 81 cryptographic and routing unit tests remain 100% green
+  - [x] Perform a manual auth-bypass and security audit in the browser to prove that the MVP is robustly secured
 
-- [x] **Sprint 7: Standards-Gap & Security Hardening (Pre-Production Transition)**
-  - [x] Implement RFC 9901-compliant compact SD-JWT-VC serialization:
-    - [x] Encode individual disclosures as standard `[salt, claim_name, claim_value]` JSON arrays
-    - [x] Calculate the SHA-256 digest over the US-ASCII bytes of the Base64URL-encoded disclosure string, and Base64URL-encode the digest
-    - [x] Structure Signed JWS payload with `_sd` array and `_sd_alg: "sha-256"`
-    - [x] Export both decoded JSON and compact tilde (`~`)-separated SD-JWT-VC string in download bundles
-  - [x] Implement compact SD-JWT-VC parsing and decoding in the Universal Verifier:
-    - [x] Automatically detect compact tilde-separated inputs or JSON wrappers
-    - [x] Split, parse, and decode Base64URL disclosures back into claims/salts
-    - [x] Recompute and match Base64URL-encoded SHA-256 hashes against `_sd` array to verify disclosure integrity
-    - [x] Perform standard JWS ECDSA signature verification
-  - [x] Inject Pragmatic Compatibility CSP `<meta>` tag into `index.html` and document how to achieve strict CSP
-  - [x] Build interactive visual **Threat Modeling & Safeguards Matrix** on the Security Harness tab:
-    - [x] Design a gorgeous CSS-grid and glassmorphic threat cards layout
-    - [x] Connect clicks to an inspector displaying precise code references
-  - [x] Implement **Test 9: Compact SD-JWT-VC Serialization Integrity** inside the automated QA Harness
+# Task Checklist: VeriCred Phase 2 (Sprint 2 & EUDI Interoperability)
 
-- [x] **Sprint 8: Production Readiness Boundary (Engineering Hardening & CSP Transition)**
-  - [x] Harden CSP meta tag in `index.html`: set script-src strictly to `'self'` and worker-src to `'self' blob:`
-  - [x] Implement robust schema validation for JSON Envelopes and compact SD-JWT-VC strings on file import/paste in `app.js`
-  - [x] Update UI with polished, non-crashing alert states in Universal Verifier for malformed inputs
-  - [x] Embed the interactive "Production vs. Simulation" Boundary Matrix grid in the Security Harness tab of `index.html`
-  - [x] Implement **Test 10: Strict CSP & Robust Import Validation** in the automated QA Harness
-  - [x] Run and verify that all 10 system assertions pass with a green state
+- [x] **Task 8: DB Connector Layer Mock-Based Unit Tests**
+  - [x] Write mock-based tests for `loadPostgresConnector` querying and row matching
+  - [x] Write mock-based tests for `loadMySQLConnector` querying and row matching
+  - [x] Write mock-based tests for `loadRestConnector` querying, URL replacement, and auth headers
 
-- [x] **Sprint 9: Evidence Export & Interop Polish (Visual Conformance)**
-  - [x] Implement explicit version tags (`"formatVersion": "1.1.0"`) and epoch timestamps (`"issuedAt"`) in dual-format wrappers, payloads, and parsed outputs
-  - [x] Integrate `validateCredentialSchema(parsed)` in `app.js` performing strict structural checks prior to cryptographic validation
-  - [x] Build `#verifier-examples` interactive row with 4 dynamic one-click example pills (Valid, Revoked, Tampered, Malformed) that compile session-valid signatures in real time
-  - [x] Append beautiful, glassmorphic `#conformance-report-card` below the Universal Verifier outlining RFC 9901 compliant items, simulation layers, and production roadmap
-  - [x] Implement **Test 11: Export Format Versioning & Strictest Schema Verification** in the automated QA Harness
-  - [x] Run and verify that all 11 system assertions pass with a bright green state
+- [x] **Task 9: CSV & Manual Entry Connectors**
+  - [x] Create `src/connectors/csv.ts` implementing standard file-based lookups
+  - [x] Create `src/connectors/manual.ts` implementing a structured in-memory lookup
+  - [x] Update `src/connectors/index.ts` factory to support `csv` and `manual` types
+  - [x] Write unit tests verifying CSV parsing and query lookups
+  - [x] Write unit tests verifying Manual entry storage, search, and retrieval
+
+- [x] **Task 10: EUDI-Wallet Interoperability Validation Test Suite**
+  - [x] Create `src/oid4vci/__tests__/eudi-interop.test.ts`
+  - [x] Retrieve issued SD-JWT-VC from VeriCred `/credentials` using pre-authorized code flow
+  - [x] Verify Issuer's P-256 signature mathematically
+  - [x] Validate selective disclosure arrays and SHA-256 disclosure hashes
+  - [x] Simulate selective disclosure and sign a Holder Key Binding proof using holder's P-256 private key
+  - [x] Validate presentation: verify JWS signature, decoded disclosures, hidden claims, and holder's proof-of-possession signature
+  - [x] Confirm all tests compile and pass cleanly as part of the main `npm run test` suite
+
+# Task Checklist: VeriCred Phase 3 (Sprint 3 — StatusList & Revocation)
+
+- [x] **Task 11: StatusList2021 Cryptographic Implementation**
+  - [x] Verify `src/revocation/statuslist.ts` implementation of bitstring generation
+  - [x] Implement robust error handling for full lists (128k limit)
+  - [x] Write unit tests for `buildBitstring` with sparse and dense revocation maps
+  - [x] Write integration test verifying `/status/:listId` returns a valid, signed JWT VC
+
+- [x] **Task 12: Revocation Workflow & Admin Integration**
+  - [x] Verify `POST /admin/revoke` consumes the CSRF token and correctly updates the `statuslist.json` store
+  - [x] Add audit logging for revocation events (who, when, why)
+  - [x] Update Admin UI to show real-time "Revoked" status in the credentials list without page refresh (AJAX update)
+  - [x] Write integration test simulating: Issue VC -> Verify Active -> Revoke -> Verify Revoked via StatusList fetch
+
+- [x] **Task 13: SD-JWT-VC Status Embedding Validation**
+  - [x] Ensure all issued credentials (Age, Employee, Membership) correctly embed the `credentialStatus` block
+  - [x] Verify the fragment reference (`#index`) in the status ID matches the assigned bitstring position
+  - [x] Add a regression test to `eudi-interop.test.ts` that specifically checks the `credentialStatus` field format
+
+# Task Checklist: VeriCred Phase 4 (Sprint 4 — Admin UX & Production Hardening)
+
+- [x] **Task 14: Dynamic Connector & Schema Introspection**
+  - [x] Implement `getSchema()` for all connectors (JSON, SQL, REST, CSV, Manual) to return available columns/fields
+  - [x] Add `GET /admin/api/source-schema` endpoint to expose active connector's fields
+  - [x] Update `schema.astro` to fetch and render real source fields instead of mocks
+  - [x] Update `dashboard.astro` to display the actual active connector and its health status
+
+- [x] **Task 15: Setup Wizard & Guided Onboarding**
+  - [x] Create `/console/setup` page in Astro for first-time configuration
+  - [x] Implement backend check to redirect to setup if critical config (Issuer Name/URL) is default/missing
+  - [x] Build wizard steps: Organization Identity -> Data Source Connection -> Field Mapping Preview
+  - [x] Add atomic "Save & Go Live" action that updates `vericred.config.json` and restarts services if needed
+
+- [x] **Task 16: Key Management & Rotation UI**
+  - [x] Create `src/admin/__tests__/key-rotation.test.ts` verifying that rotating keys updates `did.json` correctly
+  - [x] Add "Security" panel to Admin Console showing current P-256 public key thumbprint (RFC 7638)
+  - [x] Implement "Rotate Keys" action with a confirmation modal and safety checks
+  - [x] Ensure `did:web` document supports multiple keys if needed for transition periods
+
+- [x] **Task 17: Production Hardening & Packaging**
+  - [x] Refactor all file paths to be strictly relative to `DATA_DIR` for Docker/SaaS portability
+  - [x] Implement robust error boundaries for the Admin API to prevent system crashes on invalid user input
+  - [x] Final audit of all `express.static` guards to ensure zero-bypass for admin assets
+
+# Task Checklist: VeriCred Phase 5 (Developer Playground & Aesthetic Realignment)
+
+- [x] **Task 18: Warm-Light Aesthetic Realignment**
+  - [x] Realign Admin Console (`AdminLayout.astro`) to a soft warm-light theme (light glassmorphism) with warm-ivory backgrounds, soft shadows, and translucent white overlays
+  - [x] Refactor public landing page (`index.astro`) to remove dark styling, converting it to a stunning warm-light Claude/Apple glassmorphism experience
+  - [x] Harmonize all highlights using organic green, slate, and amber tones instead of stark, cold dark modes
+- [x] **Task 19: Developer Sandbox Environment (`devFront`)**
+  - [x] Relocate Google Stitch slides to `/dev/previewFront` with a clean, light presentation style
+  - [x] Implement **Credential Packstation** (`/dev/packstation`) for selective disclosure toggles, live salting & hashing, and compact token previews
+  - [x] Implement **Presentation Sandbox** (`/dev/presentation`) demonstrating "Who Knows What" user-centric disclosures and P-256 validation pipelines
+- [x] **Task 20: Astro Compiler Troubleshooting & Verification**
+  - [x] Resolve unescaped curly brace syntax failures inside raw claims `<textarea>` of `packstation.astro`
+  - [x] Resolve unescaped curly brace syntax failures inside mock JSON preview `<pre>` of `packstation.astro`
+  - [x] Resolve unescaped curly brace syntax failures inside code sample `index.astro`
+  - [x] Confirm that `npm run build` compiles 100% cleanly without errors
+
+
+

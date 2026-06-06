@@ -1,0 +1,428 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+---
+
+<AdminLayout title="Schema Mapping">
+    <!-- Page Header -->
+    <div class="mb-8">
+        <h2 class="text-2xl md:text-3xl font-bold text-white tracking-tight">Schema Mapping Workspace</h2>
+        <p class="text-slate-400 text-sm md:text-base mt-1">Bind your connected data source columns to standard W3C Verifiable Credential claim fields with selective disclosure constraints.</p>
+    </div>
+
+    <!-- Action & Status Bar -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 mb-8 backdrop-blur-md gap-4">
+        <div class="flex flex-col sm:flex-row gap-6 items-start sm:items-center">
+            <div class="flex flex-col">
+                <span class="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider">Select Schema Template</span>
+                <select id="select-schema-template" class="bg-slate-950 border border-slate-800 text-slate-200 rounded-xl px-3 py-2 text-sm mt-1 focus:outline-none focus:border-emerald-500 cursor-pointer min-w-[200px]">
+                    <option value="">Loading templates...</option>
+                </select>
+            </div>
+            <div class="flex flex-col">
+                <span class="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider">Mapping Status</span>
+                <div class="flex items-center gap-2 mt-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span id="mapping-status-text" class="text-sm font-semibold text-emerald-400">All Required Claims Fully Mapped</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-3 w-full sm:w-auto">
+            <button id="btn-test-mapping" class="w-full sm:w-auto px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl border border-slate-700/80 transition-all flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-wider">
+                <span class="material-symbols-outlined text-sm">bug_report</span>
+                <span>Test Mapping</span>
+            </button>
+            <button id="btn-save-schema" class="w-full sm:w-auto px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl transition-all flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-wider shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+                <span class="material-symbols-outlined text-sm">save</span>
+                <span>Save Schema</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Mapping Workspace Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[550px] items-stretch">
+        <!-- Source Fields (Left) -->
+        <div class="lg:col-span-4 bg-slate-900/60 border border-slate-800/80 rounded-2xl flex flex-col overflow-hidden">
+            <div class="p-4 border-b border-slate-800 bg-slate-950/40">
+                <h3 class="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+                    <span class="material-symbols-outlined text-emerald-500 text-base">database</span>
+                    <span>Connected Source Schema</span>
+                </h3>
+                <p class="text-[10px] font-mono text-slate-500 mt-1 uppercase tracking-wider">DataSource: <span class="text-slate-300">Local JSON/SQL Connector</span></p>
+            </div>
+            
+            <div id="source-fields-container" class="flex-grow p-4 space-y-3 overflow-y-auto custom-scrollbar">
+                <!-- Populated Dynamically -->
+            </div>
+        </div>
+
+        <!-- Middle Connecting Lines SVG Canvas (Large Screens only) -->
+        <div class="hidden lg:block lg:col-span-1 relative pointer-events-none">
+            <svg class="absolute inset-0 w-full h-full" style="z-index: 10;">
+                <path d="M 0 74 C 40 74, 10 74, 100% 74" fill="none" stroke="#10B981" stroke-width="2" class="drop-shadow-[0_0_4px_rgba(16,185,129,0.4)] opacity-40" />
+                <path d="M 0 142 C 40 142, 10 142, 100% 142" fill="none" stroke="#10B981" stroke-width="2" class="drop-shadow-[0_0_4px_rgba(16,185,129,0.4)] opacity-40" />
+                <path d="M 0 210 C 40 210, 10 210, 100% 210" fill="none" stroke="#10B981" stroke-width="2" class="drop-shadow-[0_0_4px_rgba(16,185,129,0.4)] opacity-40" />
+            </svg>
+        </div>
+
+        <!-- Target claims (Middle-Right) -->
+        <div class="lg:col-span-4 bg-slate-900/60 border border-slate-800/80 rounded-2xl flex flex-col overflow-hidden">
+            <div class="p-4 border-b border-slate-800 bg-slate-950/40">
+                <h3 class="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+                    <span class="material-symbols-outlined text-emerald-400 text-base">assignment_turned_in</span>
+                    <span>Target VC claims Schema</span>
+                </h3>
+                <p class="text-[10px] font-mono text-slate-500 mt-1 uppercase tracking-wider">Format: <span id="target-format-label" class="text-emerald-500">SD-JWT-VC</span></p>
+            </div>
+            
+            <div id="target-claims-container" class="flex-grow p-4 space-y-4 overflow-y-auto custom-scrollbar">
+                <!-- Populated Dynamically -->
+            </div>
+        </div>
+
+        <!-- Live Preview (Right Panel) -->
+        <div class="lg:col-span-3 bg-slate-900/60 border border-slate-800/80 rounded-2xl flex flex-col overflow-hidden">
+            <div class="p-4 border-b border-slate-800 bg-slate-950/40 flex justify-between items-center">
+                <h3 class="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+                    <span class="material-symbols-outlined text-purple-400 text-base">code</span>
+                    <span>Live SD-JWT Preview</span>
+                </h3>
+                <button id="btn-copy-preview" class="text-slate-400 hover:text-white transition-colors p-1" title="Copy JSON payload">
+                    <span class="material-symbols-outlined text-lg">content_copy</span>
+                </button>
+            </div>
+            
+            <div class="flex-grow p-4 bg-slate-950/80 overflow-y-auto overflow-x-auto font-mono text-[11px] leading-relaxed text-slate-300 custom-scrollbar max-h-[420px]">
+                <pre><code id="live-json-preview" class="text-slate-400">Loading preview...</code></pre>
+            </div>
+
+            <!-- Preview Bottom Status Bar -->
+            <div class="p-3 bg-slate-950 border-t border-slate-800/80 flex flex-col sm:flex-row justify-between items-start sm:items-center text-[10px] font-mono gap-1">
+                <span class="flex items-center gap-1 text-emerald-400">
+                    <span class="material-symbols-outlined text-xs">verified</span>
+                    <span>Validation Passed</span>
+                </span>
+                <span class="text-slate-500 font-semibold tracking-wider">FORMAT: SD-JWT-VC</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client Handlers -->
+    <script is:inline>
+        const selectTemplate = document.getElementById('select-schema-template');
+        const statusText = document.getElementById('mapping-status-text');
+        const sourceFieldsContainer = document.getElementById('source-fields-container');
+        const targetClaimsContainer = document.getElementById('target-claims-container');
+        const liveJsonPreview = document.getElementById('live-json-preview');
+        const targetFormatLabel = document.getElementById('target-format-label');
+
+        const testBtn = document.getElementById('btn-test-mapping');
+        const saveBtn = document.getElementById('btn-save-schema');
+        const copyPreviewBtn = document.getElementById('btn-copy-preview');
+
+        let templates = [];
+        let activeDID = 'did:web:vericred.dev';
+        let csrfToken = '';
+        let currentMappings = {};
+        let activeTemplateId = '';
+        let sourceColumns = [];
+
+        // Fetch CSRF Handshake
+        fetch('/admin/api/csrf-handshake')
+            .then(res => res.json())
+            .then(data => {
+                csrfToken = data.csrfToken;
+            })
+            .catch(err => console.error('Error fetching CSRF handshake:', err));
+
+        // Fetch Source Schema
+        fetch('/admin/api/source-schema')
+            .then(res => res.json())
+            .then(data => {
+                sourceColumns = (data.columns || []).map(name => ({
+                    name,
+                    desc: 'Database Field'
+                }));
+            })
+            .catch(err => console.error('Error fetching source schema:', err));
+
+        // Fetch DID to populate in preview
+        fetch('/.well-known/did.json')
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.id) activeDID = data.id;
+            })
+            .catch(() => {});
+
+        // Fetch current active config
+        fetch('/admin/api/config')
+            .then(res => res.json())
+            .then(config => {
+                currentMappings = config.fieldMappings || {};
+                activeTemplateId = config.type;
+                
+                // Fetch templates and render
+                return fetch('/admin/templates');
+            })
+            .then(res => res.json())
+            .then(data => {
+                templates = data.templates || [];
+                if (selectTemplate) {
+                    selectTemplate.innerHTML = templates.map(t => `<option value="${t.id}" ${t.id === activeTemplateId ? 'selected' : ''}>${t.displayName} (${t.id})</option>`).join('');
+                    
+                    // Wait slightly for sourceColumns if it hasn't arrived
+                    if (sourceColumns.length === 0) {
+                        setTimeout(() => renderWorkspace(selectTemplate.value), 200);
+                    } else {
+                        renderWorkspace(selectTemplate.value);
+                    }
+                }
+            })
+            .catch(err => {
+                console.error('Error loading config/templates:', err);
+                if (selectTemplate) {
+                    selectTemplate.innerHTML = `<option value="">Error loading workspace</option>`;
+                }
+            });
+
+        if (selectTemplate) {
+            selectTemplate.addEventListener('change', (e) => {
+                renderWorkspace(e.target.value);
+            });
+        }
+
+        function renderWorkspace(templateId) {
+            const template = templates.find(t => t.id === templateId);
+            if (!template) return;
+
+            if (targetFormatLabel) {
+                targetFormatLabel.textContent = `SD-JWT-VC (${template.displayName})`;
+            }
+
+            const activeColumns = sourceColumns.length > 0 ? sourceColumns : [
+                { name: 'id', desc: 'Fallback Identifier' },
+                { name: 'email', desc: 'Fallback Email' }
+            ];
+
+            // Render source database columns on left
+            sourceFieldsContainer.innerHTML = activeColumns.map(col => {
+                // Highlight if mapped
+                const isMapped = Object.values(currentMappings).includes(col.name) || col.name === 'id';
+                const cardClass = isMapped 
+                    ? 'border-emerald-500/20 bg-emerald-500/5 hover:border-emerald-500/40' 
+                    : 'border-slate-800 bg-slate-950/40 hover:border-slate-700';
+                const badgeColor = isMapped ? 'text-emerald-500/60' : 'text-slate-600';
+                const connectorDot = isMapped 
+                    ? `<div class="absolute -right-[6px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-slate-950 z-10"></div>`
+                    : '';
+
+                return `<div class="p-3.5 border rounded-xl transition-all flex justify-between items-center group relative ${cardClass}">
+                    <div>
+                        <div class="font-mono text-xs font-semibold text-slate-200">${col.name}</div>
+                        <div class="font-mono text-[9px] text-slate-500 mt-0.5">${col.desc}</div>
+                    </div>
+                    <span class="material-symbols-outlined ${badgeColor} text-lg">drag_indicator</span>
+                    ${connectorDot}
+                </div>`;
+            }).join('');
+
+            // Render required targets in middle-right
+            let targetHtml = `<div class="text-[9px] font-mono font-bold text-slate-500 uppercase tracking-widest pl-1 mb-2">Required Claims</div>`;
+            
+            // Map ID first (always standard)
+            targetHtml += `<div class="p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl relative mb-3">
+                <div class="absolute -left-[6px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-slate-950 z-10"></div>
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="font-mono text-xs font-bold text-white">credentialSubject.id</div>
+                        <div class="font-mono text-[9px] text-slate-400 mt-0.5">Holder Pairwise Pseudonym</div>
+                    </div>
+                    <span class="material-symbols-outlined text-emerald-400 text-base">check_circle</span>
+                </div>
+                <div class="mt-2 text-[10px] font-mono bg-slate-950 border border-emerald-500/20 px-2.5 py-1 rounded text-emerald-400 flex items-center gap-1.5 w-fit">
+                    <span class="material-symbols-outlined text-xs">link</span>
+                    <span>id</span>
+                </div>
+            </div>`;
+
+            // Mapped template fields
+            template.requiredFields.forEach(field => {
+                const currentMapped = currentMappings[field] || '';
+                
+                const optionsHtml = [
+                    `<option value="">-- Unmapped --</option>`,
+                    ...activeColumns.map(col => {
+                        const selected = col.name === currentMapped ? 'selected' : '';
+                        return `<option value="${col.name}" ${selected}>${col.name}</option>`;
+                    })
+                ].join('');
+
+                const isFieldMapped = !!currentMapped;
+                const statusIcon = isFieldMapped ? 'check_circle' : 'pending';
+                const statusColor = isFieldMapped ? 'text-emerald-400' : 'text-slate-600';
+
+                targetHtml += `<div class="p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl relative mb-3">
+                    <div class="absolute -left-[6px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-slate-950 z-10"></div>
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="font-mono text-xs font-bold text-white">credentialSubject.${field}</div>
+                            <div class="font-mono text-[9px] text-slate-400 mt-0.5">SD Claim Field</div>
+                        </div>
+                        <span class="material-symbols-outlined ${statusColor} text-base">${statusIcon}</span>
+                    </div>
+                    <div class="mt-2 flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-xs text-emerald-400">link</span>
+                        <select class="field-mapping-select bg-slate-950 border border-emerald-500/20 rounded px-2.5 py-1 text-[11px] font-mono text-emerald-400 focus:outline-none focus:border-emerald-500 cursor-pointer" data-field="${field}">
+                            ${optionsHtml}
+                        </select>
+                    </div>
+                </div>`;
+            });
+
+            targetClaimsContainer.innerHTML = targetHtml;
+
+            // Bind change handlers on selects
+            const selects = targetClaimsContainer.querySelectorAll('.field-mapping-select');
+            selects.forEach(sel => {
+                sel.addEventListener('change', (e) => {
+                    const field = e.target.getAttribute('data-field');
+                    const val = e.target.value;
+                    if (val) {
+                        currentMappings[field] = val;
+                    } else {
+                        delete currentMappings[field];
+                    }
+                    // Re-render only structural state items to preserve dropdown focus if needed, or simply update preview & stats
+                    updateStatusAndPreview(template);
+                });
+            });
+
+            updateStatusAndPreview(template);
+        }
+
+        function updateStatusAndPreview(template) {
+            // Count mapped required claims
+            const totalRequired = template.requiredFields.length;
+            let mappedCount = 0;
+            template.requiredFields.forEach(f => {
+                if (currentMappings[f]) mappedCount++;
+            });
+
+            if (statusText) {
+                statusText.textContent = `${mappedCount} / ${totalRequired} Claims Successfully Mapped`;
+                if (mappedCount === totalRequired) {
+                    statusText.className = "text-sm font-semibold text-emerald-400";
+                } else {
+                    statusText.className = "text-sm font-semibold text-amber-400";
+                }
+            }
+
+            // Generate live JSON preview
+            const fakeSubject = { id: "did:key:z6MkuSccD1L..." };
+            template.requiredFields.forEach(field => {
+                const sourceField = currentMappings[field];
+                if (sourceField) {
+                    if (field === 'dateOfBirth') fakeSubject[field] = '1990-01-01';
+                    else if (field === 'email') fakeSubject[field] = 'emma@example.com';
+                    else if (field === 'firstName') fakeSubject[field] = 'Emma';
+                    else if (field === 'lastName') fakeSubject[field] = 'Schulz';
+                    else if (field === 'region') fakeSubject[field] = 'Oberösterreich';
+                    else fakeSubject[field] = `[Value from ${sourceField}]`;
+                } else {
+                    fakeSubject[field] = '[UNMAPPED]';
+                }
+            });
+
+            const previewObj = {
+                issuer: activeDID,
+                type: ["VerifiableCredential", template.id],
+                issuanceDate: new Date().toISOString(),
+                credentialSubject: fakeSubject
+            };
+
+            if (liveJsonPreview) {
+                liveJsonPreview.textContent = JSON.stringify(previewObj, null, 2);
+            }
+        }
+
+        if (testBtn) {
+            testBtn.addEventListener('click', () => {
+                const templateId = selectTemplate.value;
+                const template = templates.find(t => t.id === templateId);
+                if (!template) return;
+
+                const missing = [];
+                template.requiredFields.forEach(f => {
+                    if (!currentMappings[f]) missing.push(f);
+                });
+
+                if (missing.length > 0) {
+                    if (window.triggerToast) {
+                        window.triggerToast(`Dry-run validation failed! Missing mappings for: ${missing.join(', ')}`);
+                    }
+                } else {
+                    if (window.triggerToast) {
+                        window.triggerToast(`Dry-run validation successful! All ${template.requiredFields.length} required fields are properly mapped.`);
+                    }
+                }
+            });
+        }
+
+        if (saveBtn) {
+            saveBtn.addEventListener('click', () => {
+                const templateId = selectTemplate.value;
+                
+                // Construct clean mappings for only the active template
+                const template = templates.find(t => t.id === templateId);
+                if (!template) return;
+
+                const payloadMappings = {};
+                template.requiredFields.forEach(f => {
+                    payloadMappings[f] = currentMappings[f] || '';
+                });
+
+                fetch('/admin/api/save-mapping', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-csrf-token': csrfToken
+                    },
+                    body: JSON.stringify({
+                        templateId,
+                        fieldMappings: payloadMappings
+                    })
+                })
+                .then(async res => {
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Failed to save mapping');
+                    return data;
+                })
+                .then(data => {
+                    if (window.triggerToast) {
+                        window.triggerToast(data.message || `Mappings successfully persisted to vericred.config.json!`);
+                    }
+                    // Refresh left indicator sync status
+                    renderWorkspace(templateId);
+                })
+                .catch(err => {
+                    console.error('Error saving mapping:', err);
+                    if (window.triggerToast) {
+                        window.triggerToast(`Error: ${err.message}`);
+                    }
+                });
+            });
+        }
+
+        if (copyPreviewBtn) {
+            copyPreviewBtn.addEventListener('click', () => {
+                if (liveJsonPreview) {
+                    navigator.clipboard.writeText(liveJsonPreview.textContent).then(() => {
+                        if (window.triggerToast) {
+                            window.triggerToast('JSON preview payload copied to clipboard!');
+                        }
+                    });
+                }
+            });
+        }
+    </script>
+</AdminLayout>

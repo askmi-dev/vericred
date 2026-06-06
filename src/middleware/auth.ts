@@ -13,7 +13,12 @@ import { loadSecrets } from '../config/secrets.js';
 
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 const sessions = new Map<string, number>();
-const csrfTokens = new Map<string, number>(); // token -> expiry
+
+interface CsrfTokenEntry {
+  sessionId: string;
+  expiry: number;
+}
+const csrfTokens = new Map<string, CsrfTokenEntry>(); // token -> entry
 
 const isProduction = process.env['NODE_ENV'] === 'production';
 const COOKIE_FLAGS = '; HttpOnly; Path=/; SameSite=Strict; Max-Age=28800'
@@ -29,18 +34,23 @@ export function destroySession(token: string): void {
   sessions.delete(token);
 }
 
+export function getSessionId(req: Request): string | undefined {
+  return parseCookies(req.headers.cookie ?? '')['admin_session'];
+}
+
 /** Generate a CSRF token bound to a session. Embed in forms as hidden field "csrf". */
-export function createCsrfToken(): string {
+export function createCsrfToken(sessionId: string): string {
   const token = randomBytes(24).toString('hex');
-  csrfTokens.set(token, Date.now() + 60 * 60 * 1000); // 1h
+  csrfTokens.set(token, { sessionId, expiry: Date.now() + 60 * 60 * 1000 }); // 1h
   return token;
 }
 
 /** Validate and consume a CSRF token (single-use). */
-export function validateCsrf(token: string | undefined): boolean {
-  if (!token) return false;
-  const exp = csrfTokens.get(token);
-  if (!exp || exp < Date.now()) return false;
+export function validateCsrf(token: string | undefined, sessionId: string | undefined): boolean {
+  if (!token || !sessionId) return false;
+  const entry = csrfTokens.get(token);
+  if (!entry || entry.expiry < Date.now()) return false;
+  if (entry.sessionId !== sessionId) return false;
   csrfTokens.delete(token); // single-use
   return true;
 }
@@ -48,7 +58,7 @@ export function validateCsrf(token: string | undefined): boolean {
 function pruneExpired(): void {
   const now = Date.now();
   for (const [k, exp] of sessions) if (exp < now) sessions.delete(k);
-  for (const [k, exp] of csrfTokens) if (exp < now) csrfTokens.delete(k);
+  for (const [k, entry] of csrfTokens) if (entry.expiry < now) csrfTokens.delete(k);
 }
 
 function isValidSession(token: string): boolean {
@@ -66,7 +76,7 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
     return;
   }
 
-  const cookie = parseCookies(req.headers.cookie ?? '')['admin_session'];
+  const cookie = getSessionId(req);
   if (cookie && isValidSession(cookie)) {
     next();
     return;
@@ -83,9 +93,17 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
 /** Middleware: reject POST/PUT/DELETE without valid CSRF token in body. */
 export function requireCsrf(req: Request, res: Response, next: NextFunction): void {
   if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
+    const secrets = loadSecrets();
+    const bearer = req.headers.authorization?.replace('Bearer ', '').trim();
+    if (bearer && bearer === secrets.adminApiKey) {
+      next();
+      return;
+    }
+
     const token = (req.body as Record<string, string>)['csrf']
       ?? req.headers['x-csrf-token'] as string;
-    if (!validateCsrf(token)) {
+    const cookie = getSessionId(req);
+    if (!validateCsrf(token, cookie)) {
       res.status(403).json({ error: 'invalid csrf token' });
       return;
     }

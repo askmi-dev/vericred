@@ -12,8 +12,13 @@ import { SignJWT } from 'jose';
 import { getIssuerKeyPair } from '../keys/manager.js';
 import { loadConfig } from '../config/loader.js';
 
-const DATA_DIR = './data';
-const STATUS_PATH = `${DATA_DIR}/statuslist.json`;
+function getPaths() {
+  const dataDir = process.env.DATA_DIR ?? './data';
+  return {
+    dataDir,
+    statusPath: `${dataDir}/statuslist.json`,
+  };
+}
 const LIST_SIZE = 131072; // 16KB bitstring = 131072 credential slots
 
 interface StatusListStore {
@@ -31,9 +36,10 @@ interface StatusListStore {
 }
 
 function loadStore(): StatusListStore {
-  if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
-  if (existsSync(STATUS_PATH)) {
-    return JSON.parse(readFileSync(STATUS_PATH, 'utf-8')) as StatusListStore;
+  const { dataDir, statusPath } = getPaths();
+  if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true });
+  if (existsSync(statusPath)) {
+    return JSON.parse(readFileSync(statusPath, 'utf-8')) as StatusListStore;
   }
   const store: StatusListStore = {
     listId: randomUUID(),
@@ -41,12 +47,13 @@ function loadStore(): StatusListStore {
     revokedIndices: [],
     issuedCredentials: [],
   };
-  writeFileSync(STATUS_PATH, JSON.stringify(store, null, 2));
+  writeFileSync(statusPath, JSON.stringify(store, null, 2));
   return store;
 }
 
 function saveStore(store: StatusListStore): void {
-  writeFileSync(STATUS_PATH, JSON.stringify(store, null, 2));
+  const { statusPath } = getPaths();
+  writeFileSync(statusPath, JSON.stringify(store, null, 2));
 }
 
 function buildBitstring(revokedIndices: number[]): string {
@@ -77,16 +84,20 @@ export function assignStatusIndex(credentialId: string, holderEmail: string): { 
 }
 
 /** Revoke a credential by ID. Returns true if found and revoked. */
-export function revokeCredential(credentialId: string): boolean {
+export function revokeCredential(credentialId: string, reason: string = 'Administrative Revocation'): boolean {
   const store = loadStore();
   const entry = store.issuedCredentials.find(c => c.credentialId === credentialId);
   if (!entry || entry.revoked) return false;
 
+  const revokedAt = new Date().toISOString();
   entry.revoked = true;
-  entry.revokedAt = new Date().toISOString();
+  entry.revokedAt = revokedAt;
   store.revokedIndices.push(entry.statusIndex);
   saveStore(store);
-  console.log(`[revocation] Revoked credential ${credentialId} at index ${entry.statusIndex}`);
+
+  // Audit logging (simulated as console log, could be a separate file/DB)
+  console.log(`[audit] REVOKE: Credential ${credentialId} (Index ${entry.statusIndex}) revoked at ${revokedAt}. Reason: ${reason}`);
+
   return true;
 }
 

@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'path';
 import { loadConfig } from './config/loader.js';
 import { loadSecrets } from './config/secrets.js';
 import { getIssuerKeyPair } from './keys/manager.js';
@@ -19,6 +20,12 @@ import { getTemplate, listTemplates } from './credentials/registry.js';
 import './credentials/templates/age.js';
 import './credentials/templates/employee.js';
 import './credentials/templates/membership.js';
+
+try {
+  process.loadEnvFile();
+} catch {
+  // Ignore error if .env file is missing
+}
 
 const app = express();
 app.use(express.json());
@@ -67,9 +74,13 @@ const dataPath = config.dataSource.path ?? './data/holders.json';
     }
   }
 
-  if (!startupOk) {
+  const isUnconfigured = config.issuer.name === 'VeriCred Issuer' || config.issuer.url.includes('localhost');
+
+  if (!startupOk && !isUnconfigured) {
     console.error('[startup] Configuration errors found. Refusing to start.');
     process.exit(1);
+  } else if (!startupOk && isUnconfigured) {
+    console.warn('[startup] WARNING: Gateway is unconfigured. Redirecting to setup wizard.');
   }
 }
 
@@ -86,7 +97,8 @@ if (process.env['DEMO_MODE'] === 'true') {
 }
 
 // Data connector
-const lookup = buildConnector(config);
+const connector = buildConnector(config);
+const lookup = (id: string) => connector.lookup(id);
 
 // Public routes (wallet-facing)
 app.use(createDidRouter());
@@ -94,11 +106,67 @@ app.use(createMetadataRouter());
 app.use(createTokenRouter());
 app.use(createCredentialRouter(secrets.pseudonymSecret));
 
+// Console routes (Admin only)
+app.use('/console', requireAdmin);
+
+app.get('/console', (_req, res) => {
+  res.redirect('/console/dashboard');
+});
+
+app.get('/console/:page(dashboard|schema|monitor|logo|security|legacy/blockchain|setup)', (req, res) => {
+  const page = req.params.page;
+  
+  // Check if setup is needed
+  if (page !== 'setup') {
+    const config = loadConfig();
+    if (config.issuer.name === 'VeriCred Issuer' || config.issuer.url.includes('localhost')) {
+      res.redirect('/console/setup');
+      return;
+    }
+  }
+
+  res.sendFile(path.resolve(`stitch-out/dist/console/${page}/index.html`));
+});
+
+app.get('/console/:page(dashboard|schema|monitor|logo|legacy/blockchain|setup)/index.html', (req, res) => {
+  const page = req.params.page;
+  
+  if (page !== 'setup') {
+    const config = loadConfig();
+    if (config.issuer.name === 'VeriCred Issuer' || config.issuer.url.includes('localhost')) {
+      res.redirect('/console/setup');
+      return;
+    }
+  }
+
+  res.sendFile(path.resolve(`stitch-out/dist/console/${page}/index.html`));
+});
+
+// Dev routes (Development only)
+if (process.env['NODE_ENV'] === 'development') {
+  app.get('/dev', (_req, res) => {
+    res.redirect('/dev/navigator');
+  });
+  app.get('/dev/navigator', (_req, res) => {
+    res.sendFile(path.resolve('stitch-out/dist/dev/navigator/index.html'));
+  });
+  app.get('/dev/navigator/index.html', (_req, res) => {
+    res.sendFile(path.resolve('stitch-out/dist/dev/navigator/index.html'));
+  });
+} else {
+  app.use('/dev', (_req, res) => {
+    res.status(404).send('Not Found');
+  });
+}
+
 // Protected routes (admin only)
 app.use('/offer', requireAdmin);
 app.use(createOfferRouter(lookup));
 app.use(createRevocationRouter());
-app.use(createAdminRouter());
+app.use(createAdminRouter(connector));
+
+// Public static files fallback (serves index.html at root, assets under /assets, favicon, etc.)
+app.use(express.static(path.resolve('stitch-out/dist')));
 
 // Health (public, no PII)
 app.get('/health', (_req, res) => res.json({ status: 'ok', issuer: config.issuer.did }));

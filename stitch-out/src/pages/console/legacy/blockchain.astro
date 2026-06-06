@@ -1,0 +1,630 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+---
+
+<AdminLayout title="Legacy Blockchain Lab">
+    <!-- Page Header -->
+    <div class="mb-8">
+        <h2 class="text-2xl md:text-3xl font-bold text-white tracking-tight">Legacy Blockchain & PoW Mining Lab</h2>
+        <p class="text-slate-400 text-sm md:text-base mt-1">Explore VeriCred's original cryptographic off-chain/on-chain split architecture and live browser-based CPU Proof-of-Work mining simulator.</p>
+    </div>
+
+    <!-- Info Banner: Architecture Explanation -->
+    <div class="bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-500/20 rounded-2xl p-6 mb-8 backdrop-blur-md">
+        <h3 class="text-sm font-bold text-blue-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+            <span class="material-symbols-outlined text-base">info</span>
+            <span>How the Split-Ledger Principle Works</span>
+        </h3>
+        <p class="text-slate-300 text-xs md:text-sm leading-relaxed mb-3">
+            In compliance-first decentralized environments, storing personal identifiable information (PII) like names or corporate titles directly on a public blockchain violates GDPR's Right to be Forgotten. 
+            VeriCred solves this by issuing complete credentials **off-chain** (as standard-conforming SD-JWT-VCs) while anchoring only salted **cryptographic claim commitments** on-chain.
+        </p>
+        <div class="text-[11px] font-mono text-blue-400 flex flex-wrap gap-x-6 gap-y-1">
+            <span>• Off-Chain: Name, Title, Salts, Signature</span>
+            <span>• On-Chain: did:pairwise:pseudonym, SHA-256(Claim + Salt), block hashes</span>
+        </div>
+    </div>
+
+    <!-- Main Workspace Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+        
+        <!-- Left Column: Transaction Generator & Mempool (Spans 5 columns) -->
+        <div class="lg:col-span-5 flex flex-col gap-6">
+            
+            <!-- Card 1: Mock Transaction Generator -->
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-md">
+                <h3 class="text-sm font-bold text-white tracking-tight flex items-center gap-2 mb-4">
+                    <span class="material-symbols-outlined text-emerald-400 text-lg">post_add</span>
+                    <span>Mock Transaction Generator</span>
+                </h3>
+                <p class="text-slate-400 text-xs leading-relaxed mb-4">
+                    Create a new professional qualification transaction. This will generate randomized cryptographic salts, calculate on-chain commitments, sign the transaction payload, and queue it to the network's mempool.
+                </p>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-[10px] font-mono font-semibold text-slate-500 uppercase tracking-wider mb-1">Subject (Holder Pseudonym)</label>
+                        <input id="tx-pseudonym" type="text" readonly class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-400 select-all focus:outline-none" value="did:vericred:pairwise:loading..." />
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-mono font-semibold text-slate-500 uppercase tracking-wider mb-1">Job Title Claim</label>
+                            <input id="tx-job-title" type="text" class="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none" value="Principal Cryptographer" />
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-mono font-semibold text-slate-500 uppercase tracking-wider mb-1">Duration Claim</label>
+                            <input id="tx-duration" type="text" class="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none" value="2026 - 2028" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-mono font-semibold text-slate-500 uppercase tracking-wider mb-1">Skills Claim (Comma-separated)</label>
+                        <input id="tx-skills" type="text" class="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none" value="Zero-Knowledge Proofs, Rust, ECDSA, SD-JWT" />
+                    </div>
+
+                    <button id="btn-queue-tx" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 hover:text-white text-slate-200 rounded-xl border border-slate-700/80 font-semibold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined text-sm">assignment_turned_in</span>
+                        <span>Sign & Queue Transaction</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card 2: Mempool (Pending Pool) & Mining Trigger -->
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-md flex flex-col flex-grow">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+                        <span class="material-symbols-outlined text-emerald-400 text-lg">pending_actions</span>
+                        <span>Mempool Transaction Queue</span>
+                    </h3>
+                    <span id="mempool-count-badge" class="text-xs font-mono font-bold bg-slate-950 border border-slate-800 text-emerald-400 px-2 py-0.5 rounded-full">0 Pending</span>
+                </div>
+
+                <div class="flex-grow bg-slate-950/60 rounded-xl p-3 border border-slate-800/60 font-mono text-[10px] text-slate-400 min-h-[120px] max-h-[160px] overflow-y-auto custom-scrollbar mb-4" id="mempool-list">
+                    <p class="text-center text-slate-600 mt-8">No pending transaction commitments in mempool. Queue a transaction above.</p>
+                </div>
+
+                <!-- Mining Control Panel -->
+                <div class="border-t border-slate-800/80 pt-4">
+                    <div class="flex justify-between items-center text-xs font-mono text-slate-400 mb-3">
+                        <span>PoW Difficulty Level:</span>
+                        <span id="difficulty-display" class="font-bold text-emerald-400">Difficulty: 2</span>
+                    </div>
+                    <input id="mining-difficulty" type="range" min="1" max="4" value="2" class="w-full accent-emerald-500 h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer mb-5" />
+
+                    <button id="btn-mine-block" disabled class="w-full py-3 bg-slate-800 text-slate-500 cursor-not-allowed rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0)]">
+                        <span class="material-symbols-outlined text-sm font-bold">wifi_tethering</span>
+                        <span>Mine Block & Secure Chain</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Column: Ledger Chain Explorer & Live Auditor (Spans 7 columns) -->
+        <div class="lg:col-span-7 flex flex-col gap-6">
+            
+            <!-- Card 3: Blockchain Explorer -->
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-md">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+                        <span class="material-symbols-outlined text-emerald-400 text-lg">dns</span>
+                        <span>VeriCred Ledger Explorer</span>
+                    </h3>
+                    <button id="btn-ledger-audit" class="text-xs font-mono font-bold text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1">
+                        <span class="material-symbols-outlined text-sm">verified_user</span>
+                        <span>Audit Ledger</span>
+                    </button>
+                </div>
+
+                <!-- Live Ledger Flow (Blocks render here dynamically) -->
+                <div id="ledger-explorer-container" class="space-y-4 max-h-[380px] overflow-y-auto custom-scrollbar pr-2">
+                    <!-- Loaded dynamically -->
+                    <div class="text-center text-slate-500 py-10 font-mono text-xs">Loading local ledger chain...</div>
+                </div>
+            </div>
+
+            <!-- Card 4: Ledger Audit Status & Self-Repair -->
+            <div id="audit-results-card" class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-md hidden transition-all duration-300">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+                        <span class="material-symbols-outlined text-purple-400 text-lg">gavel</span>
+                        <span>Cryptographic Ledger Integrity Audit</span>
+                    </h3>
+                    <button id="btn-close-audit" class="text-slate-500 hover:text-white transition-colors">
+                        <span class="material-symbols-outlined text-sm">close</span>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span class="text-[9px] font-mono text-slate-500 block uppercase">Linkage Integrity</span>
+                        <div class="flex items-center gap-1.5 mt-1" id="audit-linkage-status">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            <span class="text-xs font-bold text-white">SECURE</span>
+                        </div>
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span class="text-[9px] font-mono text-slate-500 block uppercase">PoW Difficulty</span>
+                        <div class="flex items-center gap-1.5 mt-1" id="audit-difficulty-status">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            <span class="text-xs font-bold text-white">MATCHING</span>
+                        </div>
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span class="text-[9px] font-mono text-slate-500 block uppercase">Zero PII Leakage Check</span>
+                        <div class="flex items-center gap-1.5 mt-1" id="audit-pii-status">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            <span class="text-xs font-bold text-white">COMPLIANT</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800/80 text-xs font-mono text-slate-400 mb-4" id="audit-message-box">
+                    Audit reports ledger chain is 100% cryptographically consistent.
+                </div>
+
+                <button id="btn-self-repair" class="hidden w-full py-2.5 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
+                    <span class="material-symbols-outlined text-sm">build_circle</span>
+                    <span>Execute Preservative Self-Repair</span>
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Active Mining Overlay terminal (Full Screen Dialog) -->
+    <div id="mining-panel" class="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center pointer-events-none opacity-0 scale-95 transition-all duration-300">
+        <div class="bg-slate-900 border border-emerald-500/20 rounded-3xl p-8 max-w-md w-full mx-4 shadow-[0_0_50px_rgba(16,185,129,0.15)] flex flex-col items-center">
+            <!-- Spinner Animation -->
+            <div class="relative w-24 h-24 mb-6">
+                <div class="absolute inset-0 rounded-full border-4 border-emerald-500/10"></div>
+                <div class="absolute inset-0 rounded-full border-4 border-t-emerald-500 animate-spin"></div>
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-4xl text-emerald-400 animate-pulse">wifi_tethering</span>
+                </div>
+            </div>
+
+            <h3 id="mining-status-text" class="text-lg font-bold text-white mb-1">Mining Block #2...</h3>
+            <p class="text-slate-500 text-xs font-mono mb-6 uppercase tracking-wider">Background CPU Thread Active</p>
+
+            <!-- Mining Stats -->
+            <div class="w-full bg-slate-950 rounded-2xl p-4 border border-slate-800 flex flex-col gap-3 font-mono text-xs">
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-500 uppercase text-[10px]">Time Elapsed</span>
+                    <span id="mining-timer" class="text-white font-bold">0.0s</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-500 uppercase text-[10px]">CPU Hashrate</span>
+                    <span id="mining-hashrate" class="text-emerald-400 font-bold">0 H/s</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-500 uppercase text-[10px]">Tested Nonce</span>
+                    <span id="mining-nonce" class="text-white font-bold">0</span>
+                </div>
+                <div class="border-t border-slate-800/80 pt-2 flex flex-col gap-1">
+                    <span class="text-slate-500 uppercase text-[10px]">Current Attempt Hash</span>
+                    <code id="mining-current-hash" class="text-[10px] text-slate-400 break-all bg-slate-900 px-2 py-1 rounded select-all">e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</code>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client-Side Modules Script -->
+    <script is:inline type="module">
+        import { store } from '/store.js';
+        import { isChainValid } from '/blockchain.js';
+        import { sha256, calculateHMAC, calculateJWKThumbprint, signPayload } from '/crypto-service.js';
+
+        // DOM mapping
+        const elPseudonym = document.getElementById('tx-pseudonym');
+        const elJobTitle = document.getElementById('tx-job-title');
+        const elDuration = document.getElementById('tx-duration');
+        const elSkills = document.getElementById('tx-skills');
+        const btnQueue = document.getElementById('btn-queue-tx');
+        const btnMine = document.getElementById('btn-mine-block');
+        const elMempoolList = document.getElementById('mempool-list');
+        const elMempoolBadge = document.getElementById('mempool-count-badge');
+        const elDifficulty = document.getElementById('mining-difficulty');
+        const elDifficultyDisplay = document.getElementById('difficulty-display');
+
+        // Mining overlay DOM
+        const elMiningPanel = document.getElementById('mining-panel');
+        const elMiningStatus = document.getElementById('mining-status-text');
+        const elMiningTimer = document.getElementById('mining-timer');
+        const elMiningHashrate = document.getElementById('mining-hashrate');
+        const elMiningNonce = document.getElementById('mining-nonce');
+        const elMiningCurrentHash = document.getElementById('mining-current-hash');
+
+        // Audit DOM
+        const elAuditCard = document.getElementById('audit-results-card');
+        const btnCloseAudit = document.getElementById('btn-close-audit');
+        const btnAudit = document.getElementById('btn-ledger-audit');
+        const btnSelfRepair = document.getElementById('btn-self-repair');
+        const elAuditLinkage = document.getElementById('audit-linkage-status');
+        const elAuditDifficulty = document.getElementById('audit-difficulty-status');
+        const elAuditPII = document.getElementById('audit-pii-status');
+        const elAuditMessage = document.getElementById('audit-message-box');
+
+        const ledgerContainer = document.getElementById('ledger-explorer-container');
+
+        // Initializer
+        async function runInit() {
+            await store.initialize();
+            
+            // Generate a nice worker thumbprint for the pseudonym
+            const workerThumb = await calculateJWKThumbprint(store.workerKeys.publicKey);
+            // pairwise pseudonyms are computed with HMAC-SHA256
+            const msg = `vericred-holder-v1|${workerThumb}|did:vericred:issuer-gateway|WorkCertificate|mock_presentation_hash`;
+            const hmac = await calculateHMAC(store.localGatewaySecret, msg);
+            elPseudonym.value = `did:vericred:pairwise:${hmac.slice(0, 24)}...`;
+
+            renderMempool();
+            renderLedger();
+        }
+
+        // Render Mempool
+        function renderMempool() {
+            const count = store.pendingTransactions.length;
+            elMempoolBadge.textContent = `${count} Pending`;
+            
+            if (count === 0) {
+                elMempoolList.innerHTML = `<p class="text-center text-slate-600 mt-8">No pending transaction commitments in mempool. Queue a transaction above.</p>`;
+                btnMine.disabled = true;
+                btnMine.className = "w-full py-3 bg-slate-800 text-slate-500 cursor-not-allowed rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2";
+            } else {
+                btnMine.disabled = false;
+                btnMine.className = "w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:shadow-[0_0_20px_rgba(16,185,129,0.3)] cursor-pointer";
+                
+                elMempoolList.innerHTML = store.pendingTransactions.map(tx => {
+                    const commitmentKeys = Object.keys(tx.payload.claimCommitments || {});
+                    return `<div class="p-2.5 bg-slate-900 border border-slate-800/80 rounded-lg mb-2 relative hover:border-slate-700 transition-colors">
+                        <div class="flex justify-between items-center text-[9px] font-bold text-emerald-400 mb-1">
+                            <span>TX ID: ${tx.id.substring(0, 15)}...</span>
+                            <span>TYPE: ${tx.type}</span>
+                        </div>
+                        <div class="text-[8px] text-slate-500">
+                            <span class="block">Holder: ${tx.payload.holderPseudonym.substring(0, 36)}...</span>
+                            <span class="block mt-0.5">Commitment Anchors: ${commitmentKeys.join(', ')}</span>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+        }
+
+        // Render Ledger blocks
+        function renderLedger() {
+            if (!store.chain || store.chain.length === 0) {
+                ledgerContainer.innerHTML = `<div class="text-center text-slate-500 py-10 font-mono text-xs">No blocks found</div>`;
+                return;
+            }
+
+            ledgerContainer.innerHTML = store.chain.map((block, i) => {
+                const prevHashTrunc = block.previousHash.slice(0, 16) + '...';
+                const hashTrunc = block.hash.slice(0, 16) + '...';
+                const dateStr = new Date(block.timestamp * (block.timestamp > 9999999999 ? 1 : 1000)).toISOString().slice(0, 19).substring(11, 19);
+                const transactionsCount = block.transactions.length;
+
+                // Color header differently if genesis or normal
+                const headerBg = block.index === 0 
+                    ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' 
+                    : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400';
+                
+                const titleText = block.index === 0 ? 'GENESIS BLOCK #0' : `BLOCK #${block.index}`;
+
+                return `
+                <div class="relative">
+                    ${i > 0 ? `
+                    <div class="flex items-center justify-center my-1">
+                        <span class="material-symbols-outlined text-slate-600 text-lg rotate-180">arrow_upward</span>
+                    </div>
+                    ` : ''}
+                    <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex flex-col group hover:border-slate-700 transition-all">
+                        <div class="flex justify-between items-center border-b border-slate-800/60 pb-2 mb-3">
+                            <span class="text-xs font-mono font-extrabold flex items-center gap-1.5">
+                                <span class="w-1.5 h-1.5 rounded-full ${block.index === 0 ? 'bg-blue-400' : 'bg-emerald-400'}"></span>
+                                ${titleText}
+                            </span>
+                            <span class="text-[9px] font-mono text-slate-500">Mined at: ${dateStr} • Nonce: ${block.nonce}</span>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 font-mono text-[9px] text-slate-400 mb-3">
+                            <div>
+                                <span class="text-slate-600 block uppercase text-[8px] font-bold">Previous Block Hash</span>
+                                <code class="text-slate-300 break-all font-semibold">${prevHashTrunc}</code>
+                            </div>
+                            <div>
+                                <span class="text-slate-600 block uppercase text-[8px] font-bold">Block Header Hash</span>
+                                <code class="text-slate-300 break-all font-semibold select-all">${hashTrunc}</code>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900/60 rounded-xl p-2.5 border border-slate-800/40 text-[9px] font-mono flex flex-col gap-1">
+                            <div class="flex justify-between items-center text-slate-500 text-[8px] font-bold border-b border-slate-800/30 pb-1 mb-1.5">
+                                <span>RECORDED TRANSACTIONS</span>
+                                <span>${transactionsCount} Payload(s)</span>
+                            </div>
+                            ${block.transactions.map(tx => {
+                                return `<div class="flex flex-col gap-0.5 text-slate-400">
+                                    <div class="flex justify-between text-[8px] font-bold text-slate-500">
+                                        <span>TX ID: ${tx.id.substring(0, 12)}...</span>
+                                        <span class="text-blue-400">${tx.type}</span>
+                                    </div>
+                                    <span class="block text-slate-400 truncate">Pseudonym: ${tx.payload.holderPseudonym || 'N/A'}</span>
+                                    ${tx.payload.claimCommitments ? `
+                                    <span class="block text-[8px] text-purple-400 mt-1">Claim Commitments:</span>
+                                    <div class="grid grid-cols-2 gap-1 bg-slate-950 p-1.5 rounded mt-0.5 border border-slate-900 text-[7px] text-slate-500">
+                                        <div>jobTitle: ${tx.payload.claimCommitments.jobTitle?.substring(0, 10)}...</div>
+                                        <div>duration: ${tx.payload.claimCommitments.duration?.substring(0, 10)}...</div>
+                                    </div>
+                                    ` : ''}
+                                </div>`;
+                            }).join('')}
+                        </div>
+
+                        ${block.index > 0 ? `
+                        <div class="mt-3 flex justify-end border-t border-slate-800/30 pt-2">
+                            <button class="btn-tamper text-[9px] font-mono text-slate-500 hover:text-red-400 transition-colors flex items-center gap-1" data-index="${block.index}">
+                                <span class="material-symbols-outlined text-xs">running_with_errors</span>
+                                <span>Simulate Attack (Tamper)</span>
+                            </button>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+
+            // Bind tamper buttons
+            const tamperBtns = ledgerContainer.querySelectorAll('.btn-tamper');
+            tamperBtns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const idx = parseInt(e.currentTarget.getAttribute('data-index'));
+                    store.tamperWithPayload(idx, 0, 'jobTitle', 'INVALID_TAMPERED_HASH_991823');
+                    renderLedger();
+                    if (window.triggerToast) {
+                        window.triggerToast(`Payload of Block #${idx} was intentionally tampered with! Run Audit to inspect integrity.`);
+                    }
+                });
+            });
+        }
+
+        // Slider Difficulty
+        elDifficulty.addEventListener('input', (e) => {
+            elDifficultyDisplay.textContent = `Difficulty: ${e.target.value}`;
+        });
+
+        // Queue Transaction
+        btnQueue.addEventListener('click', async () => {
+            const jobTitle = elJobTitle.value.trim();
+            const duration = elDuration.value.trim();
+            const skillsStr = elSkills.value.trim();
+
+            if (!jobTitle || !duration || !skillsStr) return;
+
+            btnQueue.disabled = true;
+
+            const workerThumb = await calculateJWKThumbprint(store.workerKeys.publicKey);
+            const msg = `vericred-holder-v1|${workerThumb}|did:vericred:issuer-gateway|WorkCertificate|mock_presentation_hash`;
+            const holderPseudonym = 'did:vericred:pairwise:' + await calculateHMAC(store.localGatewaySecret, msg);
+
+            // Generate salts
+            const salt1 = 'salt_' + Math.random().toString(36).substring(2, 8);
+            const salt2 = 'salt_' + Math.random().toString(36).substring(2, 8);
+            const salt3 = 'salt_' + Math.random().toString(36).substring(2, 8);
+
+            // Compute claim commitments: SHA256(Value + Salt)
+            const jobTitleCommitment = await sha256(jobTitle + salt1);
+            const durationCommitment = await sha256(duration + salt2);
+            const skillsCommitment = await sha256(skillsStr + salt3);
+
+            const txPayload = {
+                holderPseudonym,
+                mitchProofHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+                credentialHash: await sha256(jobTitle + duration + skillsStr),
+                claimCommitments: {
+                    jobTitle: jobTitleCommitment,
+                    duration: durationCommitment,
+                    skills: skillsCommitment
+                },
+                issuerId: 'did:vericred:issuer-gateway',
+                statusListIndex: store.chain.length
+            };
+
+            // Sign payload using Gateway/Employer Key
+            const employerPrivateKeyObj = await crypto.subtle.importKey(
+                'jwk', store.employerKeys.privateKey, { name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign']
+            );
+            const txSignature = await signPayload(employerPrivateKeyObj, txPayload);
+
+            // Create Transaction object
+            const tx = {
+                id: `tx_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`,
+                type: 'ISSUE_CREDENTIAL',
+                timestamp: Date.now(),
+                payload: txPayload,
+                signature: txSignature,
+                issuerPublicKey: store.employerKeys.publicKey
+            };
+
+            store.addPendingTransaction(tx);
+            renderMempool();
+            btnQueue.disabled = false;
+
+            if (window.triggerToast) {
+                window.triggerToast(`Certificate queued into Ledger Mempool successfully!`);
+            }
+        });
+
+        // Mine Block Event
+        btnMine.addEventListener('click', async () => {
+            if (store.pendingTransactions.length === 0) return;
+
+            const difficulty = parseInt(elDifficulty.value);
+            const latestBlock = store.chain[store.chain.length - 1];
+            const index = latestBlock.index + 1;
+            const previousHash = latestBlock.hash;
+            const transactions = [...store.pendingTransactions];
+            const timestamp = Date.now();
+
+            // Set UI mining state
+            store.isMining = true;
+            elMiningPanel.className = 'fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center opacity-100 scale-100 pointer-events-auto transition-all duration-300';
+            elMiningStatus.innerText = `Mining Block #${index}...`;
+            elMiningNonce.innerText = '0';
+            elMiningHashrate.innerText = '0 H/s';
+            elMiningTimer.innerText = '0.0s';
+
+            const startTime = performance.now();
+            let timerInterval = setInterval(() => {
+                elMiningTimer.innerText = `${((performance.now() - startTime) / 1000).toFixed(1)}s`;
+            }, 100);
+
+            // Compute block template transactions hash
+            const serialized = JSON.stringify(transactions);
+            const transactionsHash = await sha256(serialized);
+
+            const blockData = { index, previousHash, transactionsHash, timestamp, difficulty };
+
+            async function handleMiningSuccess(nonce, hash, elapsedMs) {
+                clearInterval(timerInterval);
+                
+                const finishedBlock = {
+                    index,
+                    timestamp,
+                    transactions,
+                    previousHash,
+                    transactionsHash,
+                    hash,
+                    nonce
+                };
+                
+                store.chain.push(finishedBlock);
+                store.pendingTransactions = [];
+                store.persistChain();
+                
+                store.isMining = false;
+                elMiningPanel.className = 'fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center opacity-0 scale-95 pointer-events-none transition-all duration-300';
+                
+                renderMempool();
+                renderLedger();
+                
+                if (window.triggerToast) {
+                    window.triggerToast(`🎉 Block #${index} mined successfully!\nHash: ${hash.substring(0, 16)}...`);
+                }
+            }
+
+            function handleMiningProgress(nonce, hash, hashRate) {
+                elMiningNonce.innerText = nonce.toLocaleString();
+                elMiningHashrate.innerText = `${hashRate.toLocaleString()} H/s`;
+                elMiningCurrentHash.innerText = hash;
+            }
+
+            try {
+                // Instantiate local Web Worker
+                const worker = new Worker('/miner.worker.js');
+                
+                worker.onmessage = function(e) {
+                    const { type, data } = e.data;
+                    if (type === 'success') {
+                        handleMiningSuccess(data.nonce, data.hash, data.elapsedMs);
+                        worker.terminate();
+                    } else if (type === 'progress') {
+                        handleMiningProgress(data.nonce, data.hash, data.hashRate);
+                    } else if (type === 'error') {
+                        console.error(data.message);
+                        worker.terminate();
+                        alert('Worker crashed. Falling back to main-thread processing.');
+                    }
+                };
+                
+                worker.postMessage(blockData);
+                
+            } catch (workerLoadError) {
+                console.warn('Local Web Worker loading failed. Triggering chunked non-blocking main-thread fallback...', workerLoadError);
+                
+                // Fallback direct loop
+                const targetPrefix = '0'.repeat(difficulty);
+                const headerString = `${index}${previousHash}${transactionsHash}${timestamp}`;
+                const encoder = new TextEncoder();
+                
+                let nonce = 0;
+                let lastReportTime = performance.now();
+                let hashesCount = 0;
+                
+                async function mineBatch() {
+                    if (!store.isMining) return;
+                    
+                    const batchSize = 150;
+                    for (let i = 0; i < batchSize; i++) {
+                        const dataString = headerString + nonce;
+                        const dataBuffer = encoder.encode(dataString);
+                        const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+                        const hashHex = Array.prototype.map.call(new Uint8Array(hashBuffer), x => ('00' + x.toString(16)).slice(-2)).join('');
+                        
+                        hashesCount++;
+                        
+                        if (hashHex.substring(0, difficulty) === targetPrefix) {
+                            handleMiningSuccess(nonce, hashHex, performance.now() - startTime);
+                            return;
+                        }
+                        nonce++;
+                    }
+                    
+                    const now = performance.now();
+                    const intervalMs = now - lastReportTime;
+                    if (intervalMs >= 250) {
+                        const hashRate = Math.round((hashesCount / intervalMs) * 1000);
+                        handleMiningProgress(nonce, 'FallbackHash_' + nonce.toString(16), hashRate);
+                        hashesCount = 0;
+                        lastReportTime = now;
+                    }
+                    
+                    requestAnimationFrame(mineBatch);
+                }
+                requestAnimationFrame(mineBatch);
+            }
+        });
+
+        // Audit Ledger Chain
+        btnAudit.addEventListener('click', async () => {
+            elAuditCard.classList.remove('hidden');
+            elAuditCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+            const result = await isChainValid(store.chain);
+
+            if (result.isValid) {
+                // Mark success in indicators
+                elAuditLinkage.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span><span class="text-xs font-bold text-emerald-400">SECURE</span>`;
+                elAuditDifficulty.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span><span class="text-xs font-bold text-emerald-400">MATCHING</span>`;
+                elAuditPII.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span><span class="text-xs font-bold text-emerald-400">COMPLIANT</span>`;
+                elAuditMessage.innerHTML = `<span class="text-emerald-400">Audit Successful!</span> All cryptographic signatures, previous-hash backlinks, and mining difficulties are consistent. No plain-text PII claims are leaked.`;
+                btnSelfRepair.classList.add('hidden');
+            } else {
+                // Failure details
+                elAuditLinkage.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span><span class="text-xs font-bold text-red-500">CORRUPT</span>`;
+                elAuditDifficulty.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-slate-700"></span><span class="text-xs font-bold text-slate-500">UNRESOLVED</span>`;
+                elAuditPII.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-slate-700"></span><span class="text-xs font-bold text-slate-500">UNRESOLVED</span>`;
+                elAuditMessage.innerHTML = `<span class="text-red-400 font-bold">Audit Failed: ${result.reason}</span><br/>Payload structure at block index <span class="text-white underline">#${result.blockIndex ?? 'N/A'}</span> has been altered or signatures do not align. Hash chaining is broken.`;
+                btnSelfRepair.classList.remove('hidden');
+            }
+        });
+
+        // Close audit card
+        btnCloseAudit.addEventListener('click', () => {
+            elAuditCard.classList.add('hidden');
+        });
+
+        // Self-repair event
+        btnSelfRepair.addEventListener('click', async () => {
+            await store.initialize();
+            renderLedger();
+            elAuditCard.classList.add('hidden');
+            if (window.triggerToast) {
+                window.triggerToast(`preservative ledger self-repair complete! Restored consistent blocks while preserving local identities.`);
+            }
+        });
+
+        runInit();
+    </script>
+</AdminLayout>

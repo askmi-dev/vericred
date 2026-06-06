@@ -3,6 +3,7 @@
  * Install: npm install pg @types/pg
  */
 import { deriveHolderPassword } from '../config/secrets.js';
+import type { Connector } from './index.js';
 
 export interface PostgresConfig {
   connectionString: string;
@@ -19,7 +20,7 @@ async function getPool(connectionString: string) {
 export function loadPostgresConnector(
   config: PostgresConfig,
   pseudonymSecret: string
-): (identifier: string) => Promise<Record<string, unknown> | null> {
+): Connector {
   let poolPromise: ReturnType<typeof getPool> | null = null;
 
   const getConn = () => {
@@ -27,27 +28,42 @@ export function loadPostgresConnector(
     return poolPromise;
   };
 
-  return async (identifier: string) => {
-    try {
-      const pool = await getConn();
-      const result = await pool.query(
-        `SELECT * FROM ${config.table} WHERE ${config.identifierColumn} = $1 LIMIT 1`,
-        [identifier]
-      );
-      if (result.rows.length === 0) return null;
+  return {
+    lookup: async (identifier: string) => {
+      try {
+        const pool = await getConn();
+        const result = await pool.query(
+          `SELECT * FROM ${config.table} WHERE ${config.identifierColumn} = $1 LIMIT 1`,
+          [identifier]
+        );
+        if (result.rows.length === 0) return null;
 
-      const row = result.rows[0];
-      const id = String(row['id'] ?? identifier);
+        const row = result.rows[0];
+        const id = String(row['id'] ?? identifier);
 
-      return {
-        ...row,
-        id,
-        defaultPassword: deriveHolderPassword(id, pseudonymSecret),
-        _source: 'postgres',
-      };
-    } catch (err) {
-      console.error('[connector:postgres] Query failed:', err);
-      return null;
+        return {
+          ...row,
+          id,
+          defaultPassword: deriveHolderPassword(id, pseudonymSecret),
+          _source: 'postgres',
+        };
+      } catch (err) {
+        console.error('[connector:postgres] Query failed:', err);
+        return null;
+      }
+    },
+    getSchema: async () => {
+      try {
+        const pool = await getConn();
+        const result = await pool.query(
+          `SELECT column_name FROM information_schema.columns WHERE table_name = $1 ORDER BY ordinal_position`,
+          [config.table]
+        );
+        return result.rows.map(r => String(r['column_name']));
+      } catch (err) {
+        console.error('[connector:postgres] getSchema failed:', err);
+        return ['id', 'email', 'firstName', 'lastName']; // fallback
+      }
     }
   };
 }

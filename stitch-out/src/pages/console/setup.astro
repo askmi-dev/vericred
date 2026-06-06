@@ -1,0 +1,302 @@
+---
+// Setup Wizard for VeriCred
+---
+
+<html class="dark" lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Setup Wizard | VeriCred</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link href="/assets/a39f5c6fcbb87b419667ec984d2e579a.css" rel="stylesheet" />
+    <script src="/assets/03ba5d9f9e95fc3599acebcbe7e5fb9a.js" is:inline></script>
+    <script id="tailwind-config" is:inline>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 50: "#ecfdf5", 500: "#10b981", 600: "#059669", 900: "#064e3b" },
+                        slate: { 800: "#1e293b", 900: "#0f172a", 950: "#020617" }
+                    },
+                    fontFamily: { sans: ["Outfit", "sans-serif"], mono: ["JetBrains Mono", "monospace"] }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #020617;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.08) 0px, transparent 50%);
+        }
+        .step-inactive { opacity: 0.3; filter: grayscale(1); pointer-events: none; }
+    </style>
+</head>
+<body class="min-h-screen text-slate-100 flex items-center justify-center p-4">
+
+    <div class="max-w-2xl w-full bg-slate-900/60 border border-slate-800 rounded-3xl p-8 backdrop-blur-xl shadow-2xl">
+        <!-- Progress Bar -->
+        <div class="flex justify-between items-center mb-10 px-2">
+            <div id="progress-1" class="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold shadow-[0_0_15px_rgba(16,185,129,0.4)]">1</div>
+            <div class="flex-grow h-px bg-slate-800 mx-4"></div>
+            <div id="progress-2" class="w-10 h-10 rounded-full bg-slate-800 text-slate-500 flex items-center justify-center font-bold">2</div>
+            <div class="flex-grow h-px bg-slate-800 mx-4"></div>
+            <div id="progress-3" class="w-10 h-10 rounded-full bg-slate-800 text-slate-500 flex items-center justify-center font-bold">3</div>
+        </div>
+
+        <!-- Step 1: Issuer Identity -->
+        <div id="step-1" class="space-y-6">
+            <div>
+                <h1 class="text-3xl font-bold text-white tracking-tight">Organization Identity</h1>
+                <p class="text-slate-400 mt-2">Let's define how your organization will appear to wallet holders and verifiers.</p>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-mono font-bold text-slate-500 uppercase tracking-wider mb-2">Organization Name</label>
+                    <input id="input-org-name" type="text" placeholder="e.g. University of Applied Sciences" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-slate-200 focus:outline-none focus:border-emerald-500 transition-all" />
+                </div>
+                <div>
+                    <label class="block text-xs font-mono font-bold text-slate-500 uppercase tracking-wider mb-2">Issuer URL (DID Domain)</label>
+                    <input id="input-org-url" type="url" placeholder="https://vericred.your-org.com" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-slate-200 focus:outline-none focus:border-emerald-500 transition-all" />
+                    <p class="text-[10px] text-slate-500 mt-2">This URL will be used to generate your <code>did:web</code> identifier.</p>
+                </div>
+            </div>
+
+            <button id="btn-next-1" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-2xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+                Continue to Connection
+            </button>
+        </div>
+
+        <!-- Step 2: Connection -->
+        <div id="step-2" class="hidden space-y-6">
+            <div>
+                <h1 class="text-3xl font-bold text-white tracking-tight">Data Connector</h1>
+                <p class="text-slate-400 mt-2">Connect VeriCred to your existing student or employee database.</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <button class="connector-opt p-4 border border-slate-800 rounded-2xl bg-slate-950/40 hover:border-emerald-500/50 transition-all text-left group active" data-type="json">
+                    <span class="material-symbols-outlined text-emerald-500 mb-2">storage</span>
+                    <p class="font-bold text-sm text-white">Local JSON</p>
+                    <p class="text-[10px] text-slate-500 mt-1">Simple file-based storage</p>
+                </button>
+                <button class="connector-opt p-4 border border-slate-800 rounded-2xl bg-slate-950/40 hover:border-emerald-500/50 transition-all text-left group" data-type="postgres">
+                    <span class="material-symbols-outlined text-blue-400 mb-2">database</span>
+                    <p class="font-bold text-sm text-white">PostgreSQL</p>
+                    <p class="text-[10px] text-slate-500 mt-1">Enterprise SQL connection</p>
+                </button>
+                <button class="connector-opt p-4 border border-slate-800 rounded-2xl bg-slate-950/40 hover:border-emerald-500/50 transition-all text-left group" data-type="mysql">
+                    <span class="material-symbols-outlined text-orange-400 mb-2">database</span>
+                    <p class="font-bold text-sm text-white">MySQL</p>
+                    <p class="text-[10px] text-slate-500 mt-1">Legacy SQL connection</p>
+                </button>
+                <button class="connector-opt p-4 border border-slate-800 rounded-2xl bg-slate-950/40 hover:border-emerald-500/50 transition-all text-left group" data-type="rest">
+                    <span class="material-symbols-outlined text-purple-400 mb-2">api</span>
+                    <p class="font-bold text-sm text-white">REST API</p>
+                    <p class="text-[10px] text-slate-500 mt-1">External HTTPS endpoint</p>
+                </button>
+            </div>
+
+            <div id="connector-config-fields" class="space-y-4 pt-4 border-t border-slate-800">
+                <!-- Dynamic Fields Based on Selection -->
+                <div>
+                    <label class="block text-xs font-mono font-bold text-slate-500 uppercase tracking-wider mb-2">Database Path</label>
+                    <input id="input-ds-path" type="text" value="./data/holders.json" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-slate-200 focus:outline-none focus:border-emerald-500 transition-all" />
+                </div>
+            </div>
+
+            <div class="flex gap-4">
+                <button id="btn-back-2" class="w-1/3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-4 rounded-2xl transition-all">Back</button>
+                <button id="btn-next-2" class="w-2/3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-2xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)]">Verify & Next</button>
+            </div>
+        </div>
+
+        <!-- Step 3: Finish -->
+        <div id="step-3" class="hidden space-y-8 text-center py-6">
+            <div class="flex justify-center">
+                <div class="w-20 h-20 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-emerald-500 text-5xl animate-bounce">check_circle</span>
+                </div>
+            </div>
+            <div>
+                <h1 class="text-3xl font-bold text-white tracking-tight">Setup Complete!</h1>
+                <p class="text-slate-400 mt-2 max-w-sm mx-auto">VeriCred is now configured for your organization. You are ready to issue your first Verifiable Credentials.</p>
+            </div>
+            
+            <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 text-left font-mono text-xs space-y-2">
+                <p class="text-slate-500 uppercase tracking-widest font-bold">Configuration Summary</p>
+                <div class="flex justify-between">
+                    <span class="text-slate-600">Issuer:</span>
+                    <span id="sum-name" class="text-emerald-400">University Admin</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-600">DID:</span>
+                    <span id="sum-did" class="text-slate-400 text-[10px] truncate max-w-[180px]">did:web:vericred.dev</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-600">Source:</span>
+                    <span id="sum-source" class="text-slate-300">JSON Connector</span>
+                </div>
+            </div>
+
+            <button id="btn-finish" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-2xl transition-all">
+                Go to Dashboard
+            </button>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 border border-emerald-500/30 text-white text-xs py-2.5 px-4 rounded-full shadow-2xl opacity-0 pointer-events-none transition-all duration-300 transform translate-y-2 flex items-center gap-2">
+        <span class="material-symbols-outlined text-emerald-500 text-sm">info</span>
+        <span id="toast-message">Notification</span>
+    </div>
+
+    <script is:inline>
+        let csrfToken = '';
+        let currentStep = 1;
+        let selectedType = 'json';
+
+        // Fetch CSRF
+        fetch('/admin/api/csrf-handshake')
+            .then(res => res.json())
+            .then(data => csrfToken = data.csrfToken);
+
+        function triggerToast(msg) {
+            const t = document.getElementById('toast');
+            document.getElementById('toast-message').textContent = msg;
+            t.classList.remove('opacity-0', 'translate-y-2');
+            t.classList.add('opacity-100', 'translate-y-0');
+            setTimeout(() => {
+                t.classList.remove('opacity-100', 'translate-y-0');
+                t.classList.add('opacity-0', 'translate-y-2');
+            }, 3000);
+        }
+
+        // Navigation
+        const next1 = document.getElementById('btn-next-1');
+        const next2 = document.getElementById('btn-next-2');
+        const back2 = document.getElementById('btn-back-2');
+        const finish = document.getElementById('btn-finish');
+
+        next1.addEventListener('click', () => {
+            const name = document.getElementById('input-org-name').value;
+            const url = document.getElementById('input-org-url').value;
+            if (!name || !url) return triggerToast('Please enter both name and URL.');
+            
+            try { new URL(url); } catch { return triggerToast('Invalid URL format.'); }
+
+            document.getElementById('step-1').classList.add('hidden');
+            document.getElementById('step-2').classList.remove('hidden');
+            document.getElementById('progress-2').classList.add('bg-emerald-500', 'text-white');
+            document.getElementById('progress-2').classList.remove('bg-slate-800', 'text-slate-500');
+            currentStep = 2;
+        });
+
+        back2.addEventListener('click', () => {
+            document.getElementById('step-2').classList.add('hidden');
+            document.getElementById('step-1').classList.remove('hidden');
+            document.getElementById('progress-2').classList.remove('bg-emerald-500', 'text-white');
+            document.getElementById('progress-2').classList.add('bg-slate-800', 'text-slate-500');
+            currentStep = 1;
+        });
+
+        // Connector Selection
+        const opts = document.querySelectorAll('.connector-opt');
+        opts.forEach(opt => {
+            opt.addEventListener('click', () => {
+                opts.forEach(o => o.classList.remove('border-emerald-500/50', 'bg-emerald-500/5', 'active'));
+                opt.classList.add('border-emerald-500/50', 'bg-emerald-500/5', 'active');
+                selectedType = opt.getAttribute('data-type');
+                renderConnectorFields(selectedType);
+            });
+        });
+
+        function renderConnectorFields(type) {
+            const container = document.getElementById('connector-config-fields');
+            if (type === 'json') {
+                container.innerHTML = `<div>
+                    <label class="block text-xs font-mono font-bold text-slate-500 uppercase tracking-wider mb-2">Database Path</label>
+                    <input id="input-ds-path" type="text" value="./data/holders.json" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-slate-200 focus:outline-none focus:border-emerald-500 transition-all" />
+                </div>`;
+            } else if (type === 'postgres' || type === 'mysql') {
+                container.innerHTML = `<div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-mono font-bold text-slate-500 uppercase tracking-wider mb-2">Connection String</label>
+                        <input id="input-ds-conn" type="text" placeholder="${type === 'postgres' ? 'postgres://user:pass@localhost:5432/db' : 'mysql://user:pass@localhost:3306/db'}" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-slate-200 focus:outline-none focus:border-emerald-500 transition-all" />
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-mono font-bold text-slate-500 uppercase tracking-wider mb-2">Table Name</label>
+                            <input id="input-ds-table" type="text" placeholder="users" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-slate-200 focus:outline-none focus:border-emerald-500 transition-all" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-mono font-bold text-slate-500 uppercase tracking-wider mb-2">Identifier Column</label>
+                            <input id="input-ds-idcol" type="text" placeholder="email" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-slate-200 focus:outline-none focus:border-emerald-500 transition-all" />
+                        </div>
+                    </div>
+                </div>`;
+            } else if (type === 'rest') {
+                container.innerHTML = `<div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-mono font-bold text-slate-500 uppercase tracking-wider mb-2">API Endpoint</label>
+                        <input id="input-ds-endpoint" type="text" placeholder="https://api.org.com/users/{id}" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-slate-200 focus:outline-none focus:border-emerald-500 transition-all" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-mono font-bold text-slate-500 uppercase tracking-wider mb-2">Auth Header (Optional)</label>
+                        <input id="input-ds-auth" type="text" placeholder="Bearer TOKEN" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-slate-200 focus:outline-none focus:border-emerald-500 transition-all" />
+                    </div>
+                </div>`;
+            }
+        }
+
+        next2.addEventListener('click', () => {
+            const name = document.getElementById('input-org-name').value;
+            const url = document.getElementById('input-org-url').value;
+            
+            const dataSource = { type: selectedType };
+            if (selectedType === 'json') dataSource.path = document.getElementById('input-ds-path').value;
+            else if (selectedType === 'postgres' || selectedType === 'mysql') {
+                dataSource.connectionString = document.getElementById('input-ds-conn').value;
+                dataSource.table = document.getElementById('input-ds-table').value;
+                dataSource.identifierColumn = document.getElementById('input-ds-idcol').value;
+            } else if (selectedType === 'rest') {
+                dataSource.endpoint = document.getElementById('input-ds-endpoint').value;
+                dataSource.authHeader = document.getElementById('input-ds-auth').value;
+            }
+
+            fetch('/admin/api/setup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+                body: JSON.stringify({ name, url, dataSource })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('step-2').classList.add('hidden');
+                    document.getElementById('step-3').classList.remove('hidden');
+                    document.getElementById('progress-3').classList.add('bg-emerald-500', 'text-white');
+                    document.getElementById('progress-3').classList.remove('bg-slate-800', 'text-slate-500');
+                    
+                    document.getElementById('sum-name').textContent = name;
+                    document.getElementById('sum-did').textContent = `did:web:${new URL(url).host}`;
+                    document.getElementById('sum-source').textContent = selectedType.toUpperCase() + ' Connector';
+                    currentStep = 3;
+                } else {
+                    triggerToast(data.error || 'Setup failed.');
+                }
+            })
+            .catch(err => triggerToast('Network error during setup.'));
+        });
+
+        finish.addEventListener('click', () => {
+            window.location.href = '/console/dashboard';
+        });
+    </script>
+</body>
+</html>

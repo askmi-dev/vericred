@@ -7,12 +7,17 @@ import { loadJsonConnector } from './json.js';
 import { loadPostgresConnector } from './postgres.js';
 import { loadMySQLConnector } from './mysql.js';
 import { loadRestConnector } from './rest.js';
+import { loadCSVConnector } from './csv.js';
+import { loadManualConnector } from './manual.js';
 
-export type SyncLookup = (id: string) => Record<string, unknown> | null;
-export type AsyncLookup = (id: string) => Promise<Record<string, unknown> | null>;
-export type Lookup = SyncLookup | AsyncLookup;
+export type Lookup = (id: string) => Promise<Record<string, unknown> | null> | Record<string, unknown> | null;
 
-export function buildConnector(config: VeriCredConfig): Lookup {
+export interface Connector {
+  lookup: Lookup;
+  getSchema: () => Promise<string[]> | string[];
+}
+
+export function buildConnector(config: VeriCredConfig): Connector {
   const { pseudonymSecret } = loadSecrets();
   const ds = config.dataSource;
 
@@ -38,7 +43,17 @@ export function buildConnector(config: VeriCredConfig): Lookup {
       if (!ds.endpoint) throw new Error('[connector] REST requires endpoint in config');
       return loadRestConnector({ endpoint: ds.endpoint, authHeader: ds.authHeader }, pseudonymSecret);
 
+    case 'csv':
+      return loadCSVConnector(
+        { path: ds.path ?? './data/holders.csv', identifierColumn: ds.identifierColumn ?? 'email' },
+        pseudonymSecret
+      );
+
+    case 'manual':
+      return loadManualConnector({ path: ds.path }, pseudonymSecret);
+
     default:
       throw new Error(`[connector] Unknown dataSource.type: ${(ds as { type: string }).type}`);
   }
 }
+

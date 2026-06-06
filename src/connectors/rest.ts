@@ -3,6 +3,7 @@
  * Config: { endpoint: "https://api.uni.example.com/students/{id}", authHeader: "Bearer TOKEN" }
  */
 import { deriveHolderPassword } from '../config/secrets.js';
+import type { Connector } from './index.js';
 
 export interface RestConfig {
   endpoint: string;    // use {id} as placeholder, e.g. https://api.example.com/users/{id}
@@ -12,22 +13,29 @@ export interface RestConfig {
 export function loadRestConnector(
   config: RestConfig,
   pseudonymSecret: string
-): (identifier: string) => Promise<Record<string, unknown> | null> {
-  return async (identifier: string) => {
-    try {
-      const url = config.endpoint.replace('{id}', encodeURIComponent(identifier));
-      const headers: Record<string, string> = { 'Accept': 'application/json' };
-      if (config.authHeader) headers['Authorization'] = config.authHeader;
+): Connector {
+  return {
+    lookup: async (identifier: string) => {
+      try {
+        const url = config.endpoint.replace('{id}', encodeURIComponent(identifier));
+        const headers: Record<string, string> = { 'Accept': 'application/json' };
+        if (config.authHeader) headers['Authorization'] = config.authHeader;
 
-      const res = await fetch(url, { headers });
-      if (!res.ok) return null;
+        const res = await fetch(url, { headers });
+        if (!res.ok) return null;
 
-      const row = await res.json() as Record<string, unknown>;
-      const id = String(row['id'] ?? identifier);
-      return { ...row, id, defaultPassword: deriveHolderPassword(id, pseudonymSecret), _source: 'rest' };
-    } catch (err) {
-      console.error('[connector:rest] Request failed:', err);
-      return null;
+        const row = await res.json() as Record<string, unknown>;
+        const id = String(row['id'] ?? identifier);
+        return { ...row, id, defaultPassword: deriveHolderPassword(id, pseudonymSecret), _source: 'rest' };
+      } catch (err) {
+        console.error('[connector:rest] Request failed:', err);
+        return null;
+      }
+    },
+    getSchema: () => {
+      // REST introspection is difficult without a valid sample.
+      // We return standard fields that are likely present in most identity APIs.
+      return ['id', 'email', 'firstName', 'lastName', 'region', 'role'];
     }
   };
 }

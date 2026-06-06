@@ -6,23 +6,33 @@
 import { Router as createRouter } from 'express';
 import type { Router } from 'express';
 import { randomBytes } from 'crypto';
+import { logInterop } from './interop-logger.js';
 
 export interface AccessTokenEntry {
   holderData: Record<string, unknown>;
   expiresAt: number;
   cNonce: string;
   cNonceExpiresAt: number;
+  credentialType?: string;
 }
 
 const C_NONCE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 // In-memory: pre-auth code -> holder data
-const preAuthCodes = new Map<string, { holderData: Record<string, unknown>; expiresAt: number }>();
+const preAuthCodes = new Map<string, {
+  holderData: Record<string, unknown>;
+  expiresAt: number;
+  credentialType?: string;
+}>();
 const accessTokens = new Map<string, AccessTokenEntry>();
 
-export function issuePreAuthCode(holderData: Record<string, unknown>): string {
+export function issuePreAuthCode(holderData: Record<string, unknown>, credentialType?: string): string {
   const code = randomBytes(16).toString('hex');
-  preAuthCodes.set(code, { holderData, expiresAt: Date.now() + 10 * 60 * 1000 }); // 10 min
+  preAuthCodes.set(code, {
+    holderData,
+    expiresAt: Date.now() + 10 * 60 * 1000, // 10 min
+    credentialType
+  });
   return code;
 }
 
@@ -48,6 +58,7 @@ export function createTokenRouter(): Router {
     const { grant_type, 'pre-authorized_code': code } = req.body as Record<string, string>;
 
     if (grant_type !== 'urn:ietf:params:oauth:grant-type:pre-authorized_code') {
+      logInterop({ type: 'error', category: 'token', message: 'Unsupported grant type', details: { grant_type } });
       res.status(400).json({ error: 'unsupported_grant_type' });
       return;
     }
@@ -55,11 +66,13 @@ export function createTokenRouter(): Router {
     const entry = preAuthCodes.get(code);
     if (!entry || entry.expiresAt < Date.now()) {
       preAuthCodes.delete(code);
+      logInterop({ type: 'warning', category: 'token', message: 'Invalid or expired pre-authorized code' });
       res.status(400).json({ error: 'invalid_grant' });
       return;
     }
 
     preAuthCodes.delete(code);
+    logInterop({ type: 'info', category: 'token', message: 'Token issued via Pre-Auth code', details: { type: entry.credentialType } });
     const accessToken = randomBytes(32).toString('hex');
     const cNonce = randomBytes(16).toString('hex');
 
@@ -68,6 +81,7 @@ export function createTokenRouter(): Router {
       expiresAt: Date.now() + 5 * 60 * 1000,
       cNonce,
       cNonceExpiresAt: Date.now() + C_NONCE_TTL_MS,
+      credentialType: entry.credentialType,
     });
 
     res.json({

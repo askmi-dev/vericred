@@ -1,0 +1,174 @@
+---
+// Stitch Project Navigator: A light, clean gateway to development components
+---
+
+<html class="light" lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Developer Hub | VeriCred</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <!-- Material Symbols -->
+    <link href="/assets/a39f5c6fcbb87b419667ec984d2e579a.css" rel="stylesheet" />
+    <!-- Tailwind Runtime Compiler -->
+    <script src="/assets/03ba5d9f9e95fc3599acebcbe7e5fb9a.js" is:inline></script>
+    <script id="tailwind-config" is:inline>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: "#ecfdf5",
+                            500: "#10b981",
+                            600: "#059669",
+                            900: "#064e3b"
+                        },
+                        slate: {
+                            900: "#0F172A",
+                            950: "#020617"
+                        }
+                    },
+                    fontFamily: {
+                        sans: ["Outfit", "sans-serif"],
+                        mono: ["JetBrains Mono", "monospace"]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #faf9f6; /* Claude Warm Ivory background */
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.05) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(245, 158, 11, 0.04) 0px, transparent 50%);
+        }
+        .grid-bg {
+            background-size: 40px 40px;
+            background-image: linear-gradient(to right, rgba(0,0,0,0.01) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(0,0,0,0.01) 1px, transparent 1px);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.01);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card:hover {
+            border-color: rgba(16, 185, 129, 0.2);
+            box-shadow: 0 10px 30px rgba(16, 185, 129, 0.04);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 antialiased flex flex-col grid-bg justify-between">
+
+    <!-- Top Navigation Header -->
+    <header class="border-b border-slate-100 bg-white/60 backdrop-blur-md sticky top-0 z-40">
+        <div class="flex justify-between items-center h-16 px-6 max-w-7xl mx-auto w-full">
+            <div class="flex items-center gap-3">
+                <svg width="36" height="32" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="200" height="200" rx="40" fill="#0F172A" />
+                    <path d="M60 70L100 140L140 70" stroke="#10B981" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M100 140L160 50" stroke="#10B981" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" />
+                    <circle cx="100" cy="100" r="10" fill="#F8FAFC" />
+                </svg>
+                <span class="text-xl font-bold tracking-tight text-slate-900">VeriCred</span>
+                <span class="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider">DEVELOPER PORTAL</span>
+            </div>
+            
+            <nav class="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-500">
+                <a class="text-slate-900 font-bold hover:text-slate-900 transition-colors" href="/dev/navigator">Developer Hub</a>
+                <a class="hover:text-slate-900 transition-colors" href="/">Public Landing</a>
+            </nav>
+
+            <div class="flex items-center gap-4">
+                <a href="/console/dashboard" class="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/20 font-semibold px-4 py-2 rounded-xl transition-all flex items-center gap-2 text-sm">
+                    <span>Admin Dashboard</span>
+                    <span class="material-symbols-outlined text-sm">arrow_forward</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl mx-auto w-full px-6 py-12">
+        <!-- Main Heading -->
+        <div class="text-center max-w-2xl mx-auto mb-16">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight leading-none mb-4">
+                Developer <span class="bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">Hub</span>
+            </h1>
+            <p class="text-slate-500 text-sm md:text-base leading-relaxed">
+                VeriCred's interactive developer testing tools, cryptographic sandboxes, and conceptual educational resources.
+            </p>
+        </div>
+
+        <!-- Screens Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <!-- Card 1: Packstation -->
+            <div class="glass-card rounded-2xl p-6 flex flex-col justify-between group">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full uppercase tracking-wider">Cryptographic Tool</span>
+                        <span class="text-xs font-mono text-slate-400">v1.2.0</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-900 mb-2 tracking-tight group-hover:text-emerald-500 transition-colors">Credential Packstation</h3>
+                    <p class="text-slate-500 text-xs leading-relaxed mb-6">Interactive SD-JWT-VC packaging workbench. Toggle individual claim selective disclosure, watch live cryptographic salting & hashing, and export standard SD-JWT-VC payloads.</p>
+                </div>
+                <a href="/dev/packstation" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-white rounded-xl text-xs font-semibold uppercase tracking-wider text-center transition-all">Launch Workbench</a>
+            </div>
+
+            <!-- Card 2: Presentation Sandbox -->
+            <div class="glass-card rounded-2xl p-6 flex flex-col justify-between group">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full uppercase tracking-wider">Verification Sandbox</span>
+                        <span class="text-xs font-mono text-slate-400">v1.2.0</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-900 mb-2 tracking-tight group-hover:text-emerald-500 transition-colors">Presentation Sandbox</h3>
+                    <p class="text-slate-500 text-xs leading-relaxed mb-6">Configure holder disclosure checklists, generate Holder Key Binding Proofs (KB-JWT), and submit presentations to a 5-Stage fail-closed cryptographic verifier pipeline.</p>
+                </div>
+                <a href="/dev/presentation" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-white rounded-xl text-xs font-semibold uppercase tracking-wider text-center transition-all">Launch Sandbox</a>
+            </div>
+
+            <!-- Card 3: Stitch Slides -->
+            <div class="glass-card rounded-2xl p-6 flex flex-col justify-between group">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-[10px] font-mono font-bold text-blue-600 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 rounded-full uppercase tracking-wider">Concept Demo</span>
+                        <span class="text-xs font-mono text-slate-400">v1.0.0</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-900 mb-2 tracking-tight group-hover:text-blue-500 transition-colors">Stitch Educational Deck</h3>
+                    <p class="text-slate-500 text-xs leading-relaxed mb-6">Explore compiled Google Stitch layout layers, conceptual user flows, and interactive mockups demonstrating secure evidence bridge designs.</p>
+                </div>
+                <a href="/dev/previewFront" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-white rounded-xl text-xs font-semibold uppercase tracking-wider text-center transition-all">View Concepts</a>
+            </div>
+
+            <!-- Card 4: Connections Dashboard -->
+            <div class="glass-card rounded-2xl p-6 flex flex-col justify-between group">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-[10px] font-mono font-bold text-slate-600 bg-slate-500/10 border border-slate-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider">Admin Workspace</span>
+                        <span class="text-xs font-mono text-slate-400">v1.1.0</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-900 mb-2 tracking-tight group-hover:text-emerald-500 transition-colors">Active Admin Gateway</h3>
+                    <p class="text-slate-500 text-xs leading-relaxed mb-6">Manage organization roots, verify credential metrics, and configure source database connector pipelines in our warm-light console environment.</p>
+                </div>
+                <a href="/console/dashboard" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold uppercase tracking-wider text-center transition-all">Launch Dashboard</a>
+            </div>
+        </div>
+    </main>
+
+    <footer class="border-t border-slate-200 bg-white/40 py-8 text-center text-xs font-mono text-slate-500">
+        <div class="max-w-7xl mx-auto px-6">
+            VeriCred Stitch Pipeline Node • Environment: <span class="text-emerald-600 font-bold">Staging / Isolated Development</span>
+        </div>
+    </footer>
+</body>
+</html>

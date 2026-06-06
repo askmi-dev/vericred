@@ -1,62 +1,35 @@
-# Wallet Interop Test Log
+# Wallet Interoperability Log - Troubleshooting
 
-Each test run gets its own dated entry. The goal is to isolate failures precisely,
-not to log "it didn't work." Fill in every field — vague notes compound into wasted hours.
+This log is captured dynamically by the VeriCred Gateway. Below are common categories of interoperability alerts and how to resolve them.
 
----
+## Category: `proof` (Holder Proof of Possession)
 
-## Test Entry Template
+These errors occur when the wallet's proof-of-possession JWT (sent to the `/credentials` endpoint) fails validation.
 
-```
-## [YYYY-MM-DD] — <Wallet Name> <Version> — <PASS / FAIL / PARTIAL>
+| Message | Potential Cause | Fix |
+|---------|-----------------|-----|
+| `Proof JWT typ must be "openid4vci-proof+jwt", got "..."` | Wallet is using an older or incorrect `typ` header value. | Ensure the wallet is OID4VCI draft-13 compliant. |
+| `Proof JWT verification failed: ...` | Cryptographic signature validation failed. | Check if the wallet used a different key than the one in the `jwk` header. |
+| `Proof JWT nonce does not match c_nonce` | Replay protection triggered or wallet used an expired nonce. | The wallet must use the `c_nonce` received from the `/token` response. |
 
-### Configuration
-- Wallet: 
-- Wallet version: 
-- VeriCred version (git hash): 
-- Credential type: AgeCredential
-- Format identifier sent in metadata: dc+sd-jwt
-- Issuer URL: http://localhost:3100 (or ngrok URL)
-- DEMO_MODE: true / false
+## Category: `token` (Access Token Request)
 
-### Flow result
+These alerts occur at the `/token` endpoint.
 
-| Step | Result | Notes |
-|---|---|---|
-| 1. Server starts, metadata loads | ✅ / ❌ | |
-| 2. Offer generated via /offer | ✅ / ❌ | |
-| 3. Wallet reads offer URI | ✅ / ❌ | |
-| 4. Wallet fetches /.well-known/openid-credential-issuer | ✅ / ❌ | |
-| 5. Wallet calls /token (pre-authorized_code) | ✅ / ❌ | |
-| 6. Wallet sends /credentials with proof JWT | ✅ / ❌ | |
-| 7. VeriCred returns Combined Format credential | ✅ / ❌ | |
-| 8. Wallet stores and displays credential | ✅ / ❌ | |
+| Message | Potential Cause | Fix |
+|---------|-----------------|-----|
+| `Unsupported grant type` | Wallet tried to use Authorization Code or another grant type. | VeriCred currently defaults to `urn:ietf:params:oauth:grant-type:pre-authorized_code`. |
+| `Invalid or expired pre-authorized code` | The QR code was scanned twice or the code timed out (10 min). | Generate a fresh Credential Offer in the Issuance Monitor. |
 
-### Observed failures
+## Category: `issuance` (Mapping & Building)
 
-**Metadata:**
+These alerts occur after proof validation, during the assembly of the SD-JWT-VC.
 
-**Proof JWT (from wallet logs or network tab):**
-
-**Nonce / c_nonce:**
-
-**Credential format / parsing:**
-
-**Error responses received:**
-
-### VeriCred server logs (relevant lines)
-
-\`\`\`
-paste here
-\`\`\`
-
-### Fix applied (if any)
-
-### Next action
-```
+| Message | Potential Cause | Fix |
+|---------|-----------------|-----|
+| `Field mapping failed` | The data source is missing a required field (e.g., `dateOfBirth`). | Check the **Schema Mapping** tab and ensure all required fields are mapped to existing database columns. |
+| `Issued ...` | **Success!** | No action needed. |
 
 ---
 
-## Test Log
-
-*(no entries yet — add first entry after real wallet test)*
+*Note: For real-time debugging, use the **Issuance Monitor** in the Admin Console.*

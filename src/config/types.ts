@@ -17,7 +17,7 @@ export interface VeriCredConfig {
   };
   templateOptions?: Record<string, unknown>;
   dataSource: {
-    type: 'json' | 'postgres' | 'mysql' | 'rest' | 'csv';
+    type: 'json' | 'postgres' | 'mysql' | 'rest' | 'csv' | 'manual';
     path?: string;
     connectionString?: string;
     table?: string;

@@ -1,13 +1,20 @@
+import { writeFileSync } from 'fs';
 import { Router as createRouter } from 'express';
 import type { Router } from 'express';
 import { requireAdmin } from '../middleware/auth.js';
 import { getRuntimeStats, getUptime } from './runtime.js';
 import { getIssuedCredentials } from '../revocation/statuslist.js';
 import { loadSecrets } from '../config/secrets.js';
-import { createSession, destroySession, createCsrfToken, requireCsrf, cookieFlags } from '../middleware/auth.js';
+import { createSession, destroySession, createCsrfToken, requireCsrf, cookieFlags, getSessionId } from '../middleware/auth.js';
 import { setHolderPassword, formatInTimezone, readHolders, REGIONS, REGION_TIMEZONE } from '../connectors/generator.js';
 import type { HolderRecord } from '../connectors/generator.js';
-import { listTemplates } from '../credentials/registry.js';
+import { listTemplates, getTemplate } from '../credentials/registry.js';
+import { maskHolderRecord } from './masking.js';
+import { loadConfig } from '../config/loader.js';
+import type { Connector } from '../connectors/index.js';
+import { getIssuerKeyPair, rotateIssuerKeyPair, getAllPublicKeys } from '../keys/manager.js';
+import { calculateJwkThumbprint, exportJWK } from 'jose';
+import { getInteropLogs } from '../oid4vci/interop-logger.js';
 // Register templates so they appear in listTemplates()
 import '../credentials/templates/age.js';
 import '../credentials/templates/employee.js';
@@ -15,6 +22,7 @@ import '../credentials/templates/membership.js';
 
 const DATA_DIR = process.env.DATA_DIR ?? '.';
 const DATA_PATH = `${DATA_DIR}/holders.json`;
+const CONFIG_PATH = `${DATA_DIR}/vericred.config.json`;
 
 function groupByRegion(holders: HolderRecord[]) {
   return holders.reduce<Record<string, number>>((acc, h) => {
@@ -31,8 +39,74 @@ function maskEmail(email: string): string {
   return visible + '***@' + domain;
 }
 
-export function createAdminRouter(): Router {
+export function createAdminRouter(connector: Connector): Router {
   const router = createRouter();
+
+  router.get('/admin/api/setup-status', requireAdmin, (_req, res) => {
+    const config = loadConfig();
+    // Default name is 'VeriCred Issuer'. If it's still that, we're likely unconfigured.
+    const isUnconfigured = config.issuer.name === 'VeriCred Issuer';
+    res.json({ isUnconfigured });
+  });
+
+  router.post('/admin/api/setup', requireAdmin, requireCsrf, (req, res) => {
+    const { name, url, dataSource } = req.body as { name?: string; url?: string; dataSource?: any };
+    if (!name || !url) {
+      res.status(400).json({ error: 'Issuer name and URL are required' });
+      return;
+    }
+
+    try {
+      const config = loadConfig();
+      config.issuer.name = name;
+      config.issuer.url = url;
+      config.issuer.did = `did:web:${new URL(url).host}`;
+      if (dataSource) config.dataSource = dataSource;
+
+      writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
+      res.json({ success: true, message: 'Initial configuration saved successfully!' });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to save setup: ' + (err as Error).message });
+    }
+  });
+
+  router.get('/admin/api/keys-status', requireAdmin, async (_req, res) => {
+    try {
+      const { kid, publicKey } = await getIssuerKeyPair();
+      const allKeys = await getAllPublicKeys();
+      const thumbprint = await calculateJwkThumbprint(await exportJWK(publicKey), 'sha256');
+
+      res.json({
+        active: { kid, thumbprint },
+        totalKeys: allKeys.length,
+        historyCount: allKeys.length - 1
+      });
+    } catch (err) {
+      res.status(500).json({ error: 'failed to fetch key status' });
+    }
+  });
+
+  router.get('/admin/api/interop-logs', requireAdmin, (_req, res) => {
+    res.json(getInteropLogs());
+  });
+
+  router.post('/admin/api/rotate-keys', requireAdmin, requireCsrf, async (_req, res) => {
+    try {
+      const newKey = await rotateIssuerKeyPair();
+      res.json({ success: true, message: 'Keys rotated successfully!', kid: newKey.kid });
+    } catch (err) {
+      res.status(500).json({ error: 'failed to rotate keys' });
+    }
+  });
+
+  router.get('/admin/api/source-schema', requireAdmin, async (_req, res) => {
+    try {
+      const columns = await connector.getSchema();
+      res.json({ columns });
+    } catch (err) {
+      res.status(500).json({ error: 'failed to fetch source schema' });
+    }
+  });
 
   router.get('/admin/login', (_req, res) => {
     res.setHeader('Content-Type', 'text/html');
@@ -75,7 +149,8 @@ export function createAdminRouter(): Router {
     const credentials = getIssuedCredentials();
     const stats = getRuntimeStats();
     const q = req.query as Record<string, string>;
-    const csrf = createCsrfToken();
+    const sessionId = getSessionId(req) ?? '';
+    const csrf = createCsrfToken(sessionId);
     const now = new Date();
     const today = now.toISOString().slice(0, 10);
 
@@ -273,7 +348,14 @@ export function createAdminRouter(): Router {
       + '</script></body></html>');
   });
 
-  router.get('/admin/api/holders', requireAdmin, (_req, res) => res.json(readHolders(DATA_PATH)));
+  router.get('/admin/api/holders', requireAdmin, (_req, res) => {
+    const holders = readHolders(DATA_PATH);
+    if (process.env['PII_ADMIN_MODE'] === 'true') {
+      res.json(holders);
+    } else {
+      res.json(holders.map(h => maskHolderRecord(h as unknown as Record<string, unknown>)));
+    }
+  });
   router.get('/admin/api/stats', requireAdmin, (_req, res) => {
     const creds = getIssuedCredentials();
     res.json({
@@ -286,6 +368,59 @@ export function createAdminRouter(): Router {
   // Read-only: list available credential templates
   router.get('/admin/templates', requireAdmin, (_req, res) => {
     res.json({ templates: listTemplates() });
+  });
+
+  router.get('/admin/api/config', requireAdmin, (_req, res) => {
+    const config = loadConfig();
+    res.json({
+      type: config.credential.type,
+      fieldMappings: config.fieldMappings,
+      dataSourceType: config.dataSource.type,
+    });
+  });
+
+  router.post('/admin/api/save-mapping', requireAdmin, requireCsrf, (req, res) => {
+    const { templateId, fieldMappings } = req.body as { templateId?: string; fieldMappings?: Record<string, string> };
+    if (!templateId || !fieldMappings) {
+      res.status(400).json({ error: 'templateId and fieldMappings are required' });
+      return;
+    }
+
+    // 1. Dry-run template existence validation
+    let template;
+    try {
+      template = getTemplate(templateId);
+    } catch (err) {
+      res.status(400).json({ error: (err as Error).message });
+      return;
+    }
+
+    // 2. Validate field mappings against template requirements
+    const validationErrors = template.validateMappings(fieldMappings);
+    if (validationErrors.length > 0) {
+      res.status(400).json({ error: 'Invalid mappings', details: validationErrors });
+      return;
+    }
+
+    // 3. Persist to vericred.config.json atomically
+    try {
+      const config = loadConfig();
+      config.credential.type = templateId;
+      config.fieldMappings = fieldMappings;
+
+      const CONFIG_PATH = `${DATA_DIR}/vericred.config.json`;
+      writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
+      res.json({ success: true, message: `Configuration for ${templateId} successfully persisted!` });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to write configuration: ' + (err as Error).message });
+    }
+  });
+
+  router.get('/admin/api/csrf-handshake', requireAdmin, (req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    const sessionId = getSessionId(req) ?? '';
+    const csrfToken = createCsrfToken(sessionId);
+    res.json({ csrfToken });
   });
 
   return router;

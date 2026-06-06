@@ -1,0 +1,167 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+---
+
+<AdminLayout title="Security & Keys">
+    <div class="mb-8">
+        <h2 class="text-2xl md:text-3xl font-bold text-white tracking-tight">Security & Key Management</h2>
+        <p class="text-slate-400 text-sm md:text-base mt-1">Manage your cryptographic root of trust, rotate issuer keys, and monitor key history.</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <!-- Active Key Info -->
+        <div class="lg:col-span-7 space-y-6">
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 backdrop-blur-md">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+                        <span class="material-symbols-outlined text-emerald-500">key</span>
+                        Active Signing Key
+                    </h3>
+                    <span class="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full uppercase">Primary</span>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest mb-1.5">Key ID (KID)</label>
+                        <div class="bg-slate-950 rounded-xl p-3 border border-slate-800 font-mono text-xs text-slate-300 break-all" id="active-kid">
+                            Loading...
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest mb-1.5">SHA-256 Thumbprint (RFC 7638)</label>
+                        <div class="bg-slate-950 rounded-xl p-3 border border-slate-800 font-mono text-xs text-slate-300 break-all" id="active-thumbprint">
+                            Loading...
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8 pt-6 border-t border-slate-800/60 flex flex-col sm:flex-row gap-4">
+                    <button id="btn-rotate-keys" class="flex-1 px-6 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined text-lg">autorenew</span>
+                        Rotate Issuer Keys
+                    </button>
+                    <button id="btn-download-public" class="flex-1 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined text-lg">download</span>
+                        Download Public JWK
+                    </button>
+                </div>
+            </div>
+
+            <!-- Security Audit Notice -->
+            <div class="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-5 flex gap-4">
+                <span class="material-symbols-outlined text-amber-500">warning</span>
+                <div class="text-xs text-amber-200/80 leading-relaxed">
+                    <p class="font-bold text-amber-500 uppercase mb-1">Key Rotation Notice</p>
+                    Rotating keys will archive the current key and generate a fresh P-256 pair. Existing credentials will remain valid as long as the old public keys are retained in your <code>did.json</code> document. Do not delete your <code>key-history.json</code> file.
+                </div>
+            </div>
+        </div>
+
+        <!-- History & Statistics -->
+        <div class="lg:col-span-5 space-y-6">
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 backdrop-blur-md">
+                <h3 class="text-sm font-bold text-white tracking-tight flex items-center gap-2 mb-6">
+                    <span class="material-symbols-outlined text-purple-400">history</span>
+                    Rotation History
+                </h3>
+                
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center text-xs font-mono">
+                        <span class="text-slate-500 uppercase">Total Keys in DID</span>
+                        <span id="stat-total-keys" class="text-white font-bold">--</span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs font-mono">
+                        <span class="text-slate-500 uppercase">Archived Keys</span>
+                        <span id="stat-history-count" class="text-slate-400">--</span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs font-mono">
+                        <span class="text-slate-500 uppercase">Last Rotation</span>
+                        <span class="text-emerald-400">NEVER</span>
+                    </div>
+                </div>
+
+                <div class="mt-6 space-y-2" id="history-list">
+                    <!-- History items could go here -->
+                </div>
+            </div>
+
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 backdrop-blur-md">
+                <h3 class="text-sm font-bold text-white tracking-tight flex items-center gap-2 mb-4">
+                    <span class="material-symbols-outlined text-blue-400">shield</span>
+                    Protocol Parameters
+                </h3>
+                <div class="space-y-3 text-[10px] font-mono">
+                    <div class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 flex justify-between">
+                        <span class="text-slate-500 uppercase">Algorithm</span>
+                        <span class="text-blue-400 font-bold">ECDSA P-256 (ES256)</span>
+                    </div>
+                    <div class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 flex justify-between">
+                        <span class="text-slate-500 uppercase">Encoding</span>
+                        <span class="text-blue-400 font-bold">JWK / JWS</span>
+                    </div>
+                    <div class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 flex justify-between">
+                        <span class="text-slate-500 uppercase">DID Method</span>
+                        <span class="text-blue-400 font-bold">did:web</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client Script -->
+    <script is:inline>
+        let csrfToken = '';
+
+        // Fetch CSRF
+        fetch('/admin/api/csrf-handshake')
+            .then(res => res.json())
+            .then(data => csrfToken = data.csrfToken);
+
+        function loadKeyStatus() {
+            fetch('/admin/api/keys-status')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('active-kid').textContent = data.active.kid;
+                    document.getElementById('active-thumbprint').textContent = data.active.thumbprint;
+                    document.getElementById('stat-total-keys').textContent = data.totalKeys;
+                    document.getElementById('stat-history-count').textContent = data.historyCount;
+                })
+                .catch(err => console.error('Error loading keys:', err));
+        }
+
+        loadKeyStatus();
+
+        document.getElementById('btn-rotate-keys').addEventListener('click', () => {
+            if (!confirm('WARNING: Rotating keys is a major security operation. Are you sure you want to proceed?')) return;
+
+            fetch('/admin/api/rotate-keys', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    if (window.triggerToast) window.triggerToast('Keys rotated successfully!');
+                    loadKeyStatus();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(err => alert('Network error during rotation.'));
+        });
+
+        document.getElementById('btn-download-public').addEventListener('click', () => {
+            fetch('/.well-known/did.json')
+                .then(res => res.json())
+                .then(did => {
+                    const activeKey = did.verificationMethod[0].publicKeyJwk;
+                    const blob = new Blob([JSON.stringify(activeKey, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `issuer-public-key-${activeKey.kid.slice(0, 8)}.json`;
+                    a.click();
+                });
+        });
+    </script>
+</AdminLayout>
