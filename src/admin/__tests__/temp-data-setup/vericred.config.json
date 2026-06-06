@@ -1,0 +1,16 @@
+{
+  "issuer": {
+    "name": "University of Graz",
+    "url": "https://vericred.uni-graz.at",
+    "did": "did:web:vericred.uni-graz.at"
+  },
+  "credential": {
+    "type": "AgeCredential",
+    "expiresInDays": 30
+  },
+  "dataSource": {
+    "type": "json",
+    "path": "./data/holders.json"
+  },
+  "fieldMappings": {}
+}

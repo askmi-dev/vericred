@@ -405,6 +405,50 @@
                 </div>
             </div>
         </div>
+
+        <!-- Features Grid -->
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-8 w-full mt-12 mb-20 relative z-10">
+            <div class="flex flex-col gap-3">
+                <div class="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-emerald-500 border border-slate-100">
+                    <span class="material-symbols-outlined">security</span>
+                </div>
+                <h4 class="text-lg font-bold text-slate-900">SD-JWT Privacy</h4>
+                <p class="text-slate-500 text-sm leading-relaxed">Nutzen Sie Selective Disclosure, um nur notwendige Daten freizugeben. Schützen Sie die Privatsphäre Ihrer Nutzer durch kryptografische Salzs.</p>
+            </div>
+            <div class="flex flex-col gap-3">
+                <div class="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-blue-500 border border-slate-100">
+                    <span class="material-symbols-outlined">sync_alt</span>
+                </div>
+                <h4 class="text-lg font-bold text-slate-900">Echtzeit-Revocation</h4>
+                <p class="text-slate-500 text-sm leading-relaxed">StatusList2021 Integration erlaubt den sofortigen Widerruf von Zertifikaten über performante Bitstrings – ohne Blockchain-Latenz.</p>
+            </div>
+            <div class="flex flex-col gap-3">
+                <div class="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-orange-500 border border-slate-100">
+                    <span class="material-symbols-outlined">cable</span>
+                </div>
+                <h4 class="text-lg font-bold text-slate-900">SQL & REST Connectors</h4>
+                <p class="text-slate-500 text-sm leading-relaxed">Mappen Sie Ihre bestehenden Datenbanken (Postgres, MySQL) direkt auf standardisierte Credential-Profile ohne Code-Änderung.</p>
+            </div>
+        </section>
+
+        <!-- Live Demo / CTA -->
+        <div class="w-full bg-emerald-900 rounded-[2.5rem] p-12 text-center relative overflow-hidden mb-20">
+            <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(#fff 1.5px, transparent 1.5px); background-size: 24px 24px;"></div>
+            <div class="relative z-10">
+                <h2 class="text-3xl md:text-4xl font-extrabold text-white mb-6">Bereit für die Zukunft der Identität?</h2>
+                <p class="text-emerald-100 text-lg mb-10 max-w-2xl mx-auto">VeriCred ist Open-Source und für den produktiven Einsatz im eIDAS 2.0 Rahmen konzipiert. Starten Sie noch heute.</p>
+                <div class="flex flex-wrap justify-center gap-4">
+                    <a href="/console/setup" class="bg-white text-emerald-900 font-bold px-8 py-4 rounded-2xl hover:bg-emerald-50 transition-all flex items-center gap-2">
+                        <span>Setup Wizard starten</span>
+                        <span class="material-symbols-outlined">magic_button</span>
+                    </a>
+                    <a href="/dev/navigator" class="bg-emerald-800/50 text-white font-bold px-8 py-4 rounded-2xl border border-emerald-700/50 hover:bg-emerald-800 transition-all flex items-center gap-2">
+                        <span>Entwickler-Library</span>
+                        <span class="material-symbols-outlined">library_books</span>
+                    </a>
+                </div>
+            </div>
+        </div>
     </main>
 
     <!-- Footer -->
@@ -420,11 +464,12 @@
                 <span class="font-bold text-slate-800 text-sm">VeriCred Gateway Platform</span>
             </div>
             <div class="flex gap-6 text-xs font-mono text-slate-500">
-                <a href="/dev/navigator" class="hover:text-slate-900">Library</a>
-                <a href="#" class="hover:text-slate-900">Privacy Policy</a>
-                <a href="#" class="hover:text-slate-900">Terms of Service</a>
+                <a href="/dev/navigator" class="hover:text-slate-900 transition-colors">Library</a>
+                <a href="/walkthrough.md" target="_blank" class="hover:text-slate-900 transition-colors">Documentation</a>
+                <a href="/docs/WALLET_INTEROP_GUIDE.md" target="_blank" class="hover:text-slate-900 transition-colors">Interop Guide</a>
+                <a href="https://github.com/askmi-dev/vericred" target="_blank" class="hover:text-slate-900 transition-colors">GitHub</a>
             </div>
-            <span class="text-xs font-mono text-slate-400">© 2026 VeriCred open source gateway platform.</span>
+            <span class="text-xs font-mono text-slate-400">© 2026 VeriCred open source gateway platform. Built with passion for privacy.</span>
         </div>
     </footer>
 

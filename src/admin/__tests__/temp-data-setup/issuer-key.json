@@ -1,0 +1,16 @@
+{
+  "privateKey": {
+    "kty": "EC",
+    "x": "J96Eofeiyr-DvsfGbZ5pD69jIZJsQYy6a7pPb-EZL7Q",
+    "y": "eUCw8qwdhJViE1p69ZkllWEF4f9Ge8WAYec2VAzomos",
+    "crv": "P-256",
+    "d": "DjEBKXoGp2XQr16ozgtRu51B9XnwCtm-DxTm4jRxXrQ"
+  },
+  "publicKey": {
+    "kty": "EC",
+    "x": "J96Eofeiyr-DvsfGbZ5pD69jIZJsQYy6a7pPb-EZL7Q",
+    "y": "eUCw8qwdhJViE1p69ZkllWEF4f9Ge8WAYec2VAzomos",
+    "crv": "P-256"
+  },
+  "kid": "d0c8921a-67db-494e-833d-105edaf9db5c"
+}

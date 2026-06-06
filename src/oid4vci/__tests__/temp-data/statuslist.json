@@ -1,0 +1,14 @@
+{
+  "listId": "12317a3c-a8be-44c2-b0dd-8a8b386ebde6",
+  "nextIndex": 1,
+  "revokedIndices": [],
+  "issuedCredentials": [
+    {
+      "credentialId": "urn:uuid:9520cf8d-10fb-435c-9b36-9bb33716ffe0",
+      "holderEmail": "john.doe@example.com",
+      "statusIndex": 0,
+      "issuedAt": "2026-06-06T07:16:24.815Z",
+      "revoked": false
+    }
+  ]
+}

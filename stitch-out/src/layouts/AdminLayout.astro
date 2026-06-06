@@ -268,6 +268,16 @@ const isPathActive = (path: string) => {
             </li>
             <li>
                 <a class={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all duration-200 ${
+                    isPathActive('/console/holders') 
+                    ? 'bg-emerald-500/10 text-emerald-400 border-r-2 border-emerald-500 font-semibold' 
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                }`} href="/console/holders">
+                    <span class="material-symbols-outlined text-lg">badge</span>
+                    <span>Holders Management</span>
+                </a>
+            </li>
+            <li>
+                <a class={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all duration-200 ${
                     isPathActive('/console/schema') 
                     ? 'bg-emerald-500/10 text-emerald-400 border-r-2 border-emerald-500 font-semibold' 
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
@@ -349,12 +359,11 @@ const isPathActive = (path: string) => {
 
                 <!-- Admin Session Controls -->
                 <div class="flex items-center gap-4 text-slate-400">
-                    <span class="text-xs font-mono text-slate-400 hidden lg:inline">API KEY: <span class="text-emerald-500">••••••••••</span></span>
-                    <button class="hover:text-white transition-colors" title="Notifications">
-                        <span class="material-symbols-outlined text-xl">notifications</span>
-                    </button>
-                    <a href="/navigator" class="hover:text-white transition-colors flex items-center" title="Stitch Screen Navigator">
-                        <span class="material-symbols-outlined text-xl">layers</span>
+                    <span class="text-xs font-mono text-slate-400 hidden lg:inline">SESSION: <span class="text-emerald-500">AUTHORIZED</span></span>
+                    <div class="h-4 w-px bg-slate-800 hidden lg:block"></div>
+                    <a href="/admin/logout" class="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl transition-all text-[10px] font-mono font-bold uppercase tracking-wider">
+                        <span class="material-symbols-outlined text-sm">logout</span>
+                        <span>Log Out</span>
                     </a>
                 </div>
             </div>

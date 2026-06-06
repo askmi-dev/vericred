@@ -22,7 +22,11 @@ import './credentials/templates/employee.js';
 import './credentials/templates/membership.js';
 
 try {
+  const explicitEnv = { ...process.env };
   process.loadEnvFile();
+  for (const [key, value] of Object.entries(explicitEnv)) {
+    if (value !== undefined) process.env[key] = value;
+  }
 } catch {
   // Ignore error if .env file is missing
 }
@@ -113,7 +117,7 @@ app.get('/console', (_req, res) => {
   res.redirect('/console/dashboard');
 });
 
-app.get('/console/:page(dashboard|schema|monitor|logo|security|legacy/blockchain|setup)', (req, res) => {
+app.get('/console/:page(dashboard|holders|schema|monitor|logo|security|legacy/blockchain|setup)', (req, res) => {
   const page = req.params.page;
   
   // Check if setup is needed
@@ -128,7 +132,7 @@ app.get('/console/:page(dashboard|schema|monitor|logo|security|legacy/blockchain
   res.sendFile(path.resolve(`stitch-out/dist/console/${page}/index.html`));
 });
 
-app.get('/console/:page(dashboard|schema|monitor|logo|legacy/blockchain|setup)/index.html', (req, res) => {
+app.get('/console/:page(dashboard|holders|schema|monitor|logo|legacy/blockchain|setup)/index.html', (req, res) => {
   const page = req.params.page;
   
   if (page !== 'setup') {

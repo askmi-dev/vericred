@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { generateKeyPair, exportJWK, SignJWT, decodeJwt } from 'jose';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import { loadSecrets } from '../../config/secrets.js';
 import { decodeDisclosure } from '../../sdjwt/disclosures.js';
 
@@ -10,8 +11,49 @@ describe('Task 4: Dynamic Issuance and Smart Mapping E2E Integration', () => {
 
   beforeAll(async () => {
     // Isolated environment setup
-    process.env['DATA_DIR'] = './src/oid4vci/__tests__/temp-data';
+    const tempDir = './src/oid4vci/__tests__/temp-data';
+    if (existsSync(tempDir)) rmSync(tempDir, { recursive: true, force: true });
+    mkdirSync(tempDir, { recursive: true });
+
+    writeFileSync(`${tempDir}/holders.json`, JSON.stringify([
+      {
+        id: 'holder-test-01',
+        email: 'john.doe@example.com',
+        dateOfBirth: '1990-01-01',
+        givenName: 'John',
+        familyName: 'Doe',
+        organization: 'ACME Corp',
+        role: 'Software Engineer',
+        department: 'R&D'
+      }
+    ], null, 2));
+
+    writeFileSync(`${tempDir}/vericred.config.json`, JSON.stringify({
+      issuer: {
+        name: 'VeriCred Test Issuer',
+        url: 'http://localhost:3513',
+        did: 'did:web:localhost%3A3513'
+      },
+      credential: {
+        type: 'AgeCredential',
+        expiresInDays: 30
+      },
+      templateOptions: {
+        ageThresholds: [18, 21],
+        jurisdiction: 'EU'
+      },
+      dataSource: {
+        type: 'json',
+        path: `${tempDir}/holders.json`
+      },
+      fieldMappings: {
+        dateOfBirth: 'dateOfBirth'
+      }
+    }, null, 2));
+
+    process.env['DATA_DIR'] = tempDir;
     process.env['PORT'] = '3513';
+    process.env['ISSUER_URL'] = 'http://localhost:3513';
     serverUrl = 'http://localhost:3513';
 
     holderKeys = await generateKeyPair('ES256');

@@ -1,0 +1,14 @@
+{
+  "listId": "22740e78-b94d-4130-a1ec-7a8ba31bc631",
+  "nextIndex": 1,
+  "revokedIndices": [],
+  "issuedCredentials": [
+    {
+      "credentialId": "urn:uuid:cc24967a-57a2-4670-8fbf-725c46ed17dc",
+      "holderEmail": "eudi-holder@example.com",
+      "statusIndex": 0,
+      "issuedAt": "2026-06-06T07:14:58.210Z",
+      "revoked": false
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+[
+  {
+    "id": "holder-ac92715f-3b69-42cb-af25-73e0696a4a71",
+    "firstName": "Noah",
+    "lastName": "Wagner",
+    "email": "noah.wagner.6a4a71@example.com",
+    "region": "Steiermark",
+    "timezone": "Europe/Vienna",
+    "dateOfBirth": "1995-02-13",
+    "defaultPassword": "0aNaCADntSOrpRwq",
+    "createdAt": "2026-06-06T07:15:06.007Z",
+    "sessionId": "6f9f1507-710c-42c3-b272-3707276604d3"
+  },
+  {
+    "id": "holder-34fc9e51-711b-45d3-9544-1546ca1d1089",
+    "firstName": "Mia",
+    "lastName": "Schulz",
+    "email": "mia.schulz.1d1089@example.com",
+    "region": "Bayern",
+    "timezone": "Europe/Berlin",
+    "dateOfBirth": "1963-11-21",
+    "defaultPassword": "zVVSRRVE5DxgA_BZ",
+    "createdAt": "2026-06-06T07:15:06.008Z",
+    "sessionId": "6f9f1507-710c-42c3-b272-3707276604d3"
+  },
+  {
+    "id": "holder-7c7beaf9-351f-43d6-90f8-89f418a87c14",
+    "firstName": "Emma",
+    "lastName": "Schulz",
+    "email": "emma.schulz.a87c14@example.com",
+    "region": "Zürich",
+    "timezone": "Europe/Zurich",
+    "dateOfBirth": "1976-04-05",
+    "defaultPassword": "bhhrb7xO_Ss9wMmT",
+    "createdAt": "2026-06-06T07:15:06.008Z",
+    "sessionId": "6f9f1507-710c-42c3-b272-3707276604d3"
+  },
+  {
+    "id": "holder-4cd90347-0b7d-45b6-aefb-d0d05c47e374",
+    "firstName": "Emma",
+    "lastName": "Fischer",
+    "email": "emma.fischer.47e374@example.com",
+    "region": "Zürich",
+    "timezone": "Europe/Zurich",
+    "dateOfBirth": "1970-09-03",
+    "defaultPassword": "jLWIZi_6BZQIxtq4",
+    "createdAt": "2026-06-06T07:15:06.008Z",
+    "sessionId": "6f9f1507-710c-42c3-b272-3707276604d3"
+  },
+  {
+    "id": "holder-276d16c3-8fc2-42ee-922c-515586a58aa3",
+    "firstName": "Noah",
+    "lastName": "Weber",
+    "email": "noah.weber.a58aa3@example.com",
+    "region": "Niedersachsen",
+    "timezone": "Europe/Berlin",
+    "dateOfBirth": "1966-11-19",
+    "defaultPassword": "ZCkCTnzcU9mGciW-",
+    "createdAt": "2026-06-06T07:15:06.008Z",
+    "sessionId": "6f9f1507-710c-42c3-b272-3707276604d3"
+  }
+]

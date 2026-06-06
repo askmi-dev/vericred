@@ -1,0 +1,250 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+---
+
+<AdminLayout title="Holders Management">
+    <!-- Header Section -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
+        <div>
+            <h2 class="text-2xl md:text-3xl font-bold text-white tracking-tight">Holders Management</h2>
+            <p class="text-slate-400 text-sm md:text-base mt-1">Manage subject identities, set access passwords, and monitor credential counts per holder.</p>
+        </div>
+        <div class="flex gap-3 w-full md:w-auto">
+            <div class="relative flex-grow md:w-64">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">search</span>
+                <input type="text" id="holder-search" placeholder="Search by name or email..." class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs font-mono text-slate-300 focus:outline-none focus:border-emerald-500 transition-all" />
+            </div>
+            <button id="btn-refresh" class="flex items-center justify-center gap-2 px-4 py-2 bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 rounded-xl font-semibold text-xs uppercase tracking-wider transition-all">
+                <span class="material-symbols-outlined text-sm">refresh</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats & Filters Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+        <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-md">
+            <h3 class="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest mb-1">Total Subjects</h3>
+            <p id="stat-total-holders" class="text-3xl font-bold text-white tracking-tight">--</p>
+        </div>
+        <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-md">
+            <h3 class="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest mb-1">Region Filtering</h3>
+            <select id="filter-region" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs font-mono text-slate-300 mt-2 focus:outline-none focus:border-emerald-500">
+                <option value="">All Regions</option>
+            </select>
+        </div>
+        <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-md">
+            <h3 class="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest mb-1">Date Created</h3>
+            <select id="filter-date" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs font-mono text-slate-300 mt-2 focus:outline-none focus:border-emerald-500">
+                <option value="all">All Time</option>
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+            </select>
+        </div>
+        <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-md flex items-center justify-between">
+            <div>
+                <h3 class="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest mb-1">PII Mode</h3>
+                <p id="pii-status" class="text-xs font-mono font-bold text-emerald-400">MASKED</p>
+            </div>
+            <span class="material-symbols-outlined text-slate-500">visibility_off</span>
+        </div>
+    </div>
+
+    <!-- Main Table -->
+    <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl overflow-hidden backdrop-blur-md">
+        <div class="overflow-x-auto custom-scrollbar">
+            <table class="w-full text-left border-collapse font-mono text-xs">
+                <thead>
+                    <tr class="border-b border-slate-800 bg-slate-950/40 text-slate-500 uppercase font-semibold text-[10px] tracking-wider">
+                        <th class="p-4 w-24">ID</th>
+                        <th class="p-4">Name</th>
+                        <th class="p-4">Email</th>
+                        <th class="p-4 w-32">Region</th>
+                        <th class="p-4 w-40">Created At</th>
+                        <th class="p-4 w-20 text-center">Creds</th>
+                        <th class="p-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="holders-tbody" class="divide-y divide-slate-800/50 text-slate-300">
+                    <tr>
+                        <td colspan="7" class="p-8 text-center text-slate-500">Loading subjects list...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Password Modal -->
+    <div id="pw-modal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-[100] hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-[400px] shadow-2xl transform scale-95 transition-transform duration-300">
+            <h3 class="text-lg font-bold text-white mb-2">Set Subject Password</h3>
+            <p class="text-slate-400 text-xs mb-6">This will override the current password for <span id="modal-holder-email" class="text-emerald-400 font-mono"></span>.</p>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-[10px] font-mono font-semibold text-slate-500 uppercase tracking-wider mb-1.5">New Password</label>
+                    <input type="password" id="new-pw-input" placeholder="Min. 8 characters" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm font-mono text-slate-300 focus:outline-none focus:border-emerald-500" />
+                </div>
+                
+                <div class="flex gap-3 pt-4">
+                    <button id="btn-modal-cancel" class="flex-1 px-4 py-2 bg-slate-950 hover:bg-slate-800 text-slate-400 border border-slate-800 rounded-xl font-bold text-xs uppercase tracking-wider transition-all">Cancel</button>
+                    <button id="btn-modal-save" class="flex-1 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script is:inline>
+        let allHolders = [];
+        let csrfToken = '';
+        let currentEditingId = '';
+
+        const tbody = document.getElementById('holders-tbody');
+        const statTotal = document.getElementById('stat-total-holders');
+        const searchInput = document.getElementById('holder-search');
+        const regionFilter = document.getElementById('filter-region');
+        const dateFilter = document.getElementById('filter-date');
+        const refreshBtn = document.getElementById('btn-refresh');
+        
+        const pwModal = document.getElementById('pw-modal');
+        const modalEmail = document.getElementById('modal-holder-email');
+        const pwInput = document.getElementById('new-pw-input');
+
+        // Handshake
+        fetch('/admin/api/csrf-handshake')
+            .then(res => res.json())
+            .then(data => csrfToken = data.csrfToken);
+
+        function loadData() {
+            fetch('/admin/api/holders')
+                .then(res => res.json())
+                .then(data => {
+                    allHolders = data;
+                    render();
+                    updateStats();
+                    updateRegionFilter();
+                })
+                .catch(err => {
+                    tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-red-400">Failed to load subjects: ${err.message}</td></tr>`;
+                });
+        }
+
+        function updateStats() {
+            statTotal.textContent = allHolders.length;
+        }
+
+        function updateRegionFilter() {
+            const regions = [...new Set(allHolders.map(h => h.region))].sort();
+            const current = regionFilter.value;
+            regionFilter.innerHTML = '<option value="">All Regions</option>' + 
+                regions.map(r => `<option value="${r}" ${r === current ? 'selected' : ''}>${r}</option>`).join('');
+        }
+
+        function render() {
+            const search = searchInput.value.toLowerCase();
+            const region = regionFilter.value;
+            const dateVal = dateFilter.value;
+            const now = Date.now();
+            const cutoff = {
+                today: now - 86400000,
+                week: now - 7 * 86400000,
+                month: now - 30 * 86400000
+            }[dateVal];
+
+            const filtered = allHolders.filter(h => {
+                const matchSearch = (h.firstName + ' ' + h.lastName).toLowerCase().includes(search) || h.email.toLowerCase().includes(search);
+                const matchRegion = !region || h.region === region;
+                const matchDate = !cutoff || (h.createdAt && new Date(h.createdAt).getTime() >= cutoff);
+                return matchSearch && matchRegion && matchDate;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-500">No subjects found matching filters.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.slice(0, 100).map(h => {
+                const date = h.createdAt ? new Date(h.createdAt).toISOString().slice(0, 19).replace('T', ' ') : '-';
+                const hasPw = h.customPassword;
+                return `
+                    <tr class="hover:bg-slate-800/10 transition-colors group">
+                        <td class="p-4 text-slate-500 text-[10px]">${h.id.slice(-8)}</td>
+                        <td class="p-4 font-bold text-white">${h.firstName} ${h.lastName}</td>
+                        <td class="p-4 text-emerald-400/80">${h.email}</td>
+                        <td class="p-4 text-slate-400">${h.region}</td>
+                        <td class="p-4 text-slate-500 font-mono text-[10px]">${date}</td>
+                        <td class="p-4 text-center">
+                            <span class="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-full font-bold text-[9px]">-</span>
+                        </td>
+                        <td class="p-4 text-right space-x-2">
+                            <span class="text-[9px] font-bold ${hasPw ? 'text-emerald-500' : 'text-slate-600'} uppercase mr-2">${hasPw ? 'Custom PW' : 'Default'}</span>
+                            <button class="text-xs font-bold text-slate-400 hover:text-white transition-colors uppercase tracking-wider btn-set-pw" data-id="${h.id}" data-email="${h.email}">Set PW</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Bind events
+            tbody.querySelectorAll('.btn-set-pw').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = e.currentTarget.getAttribute('data-id');
+                    const email = e.currentTarget.getAttribute('data-email');
+                    openModal(id, email);
+                });
+            });
+        }
+
+        function openModal(id, email) {
+            currentEditingId = id;
+            modalEmail.textContent = email;
+            pwInput.value = '';
+            pwModal.classList.remove('hidden');
+            setTimeout(() => {
+                pwModal.classList.remove('opacity-0');
+                pwModal.querySelector('div').classList.remove('scale-95');
+                pwInput.focus();
+            }, 10);
+        }
+
+        function closeModal() {
+            pwModal.classList.add('opacity-0');
+            pwModal.querySelector('div').classList.add('scale-95');
+            setTimeout(() => pwModal.classList.add('hidden'), 300);
+        }
+
+        document.getElementById('btn-modal-cancel').addEventListener('click', closeModal);
+        document.getElementById('btn-modal-save').addEventListener('click', () => {
+            const pw = pwInput.value;
+            if (pw.length < 8) {
+                alert('Password must be at least 8 characters');
+                return;
+            }
+
+            fetch('/admin/holder/password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-csrf-token': csrfToken
+                },
+                body: JSON.stringify({ holderId: currentEditingId, password: pw })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    if (window.triggerToast) window.triggerToast('Password updated successfully!');
+                    closeModal();
+                    loadData();
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to update'));
+                }
+            });
+        });
+
+        searchInput.addEventListener('input', render);
+        regionFilter.addEventListener('change', render);
+        dateFilter.addEventListener('change', render);
+        refreshBtn.addEventListener('click', loadData);
+
+        loadData();
+    </script>
+</AdminLayout>
