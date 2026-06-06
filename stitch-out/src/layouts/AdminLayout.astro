@@ -388,6 +388,23 @@ const isPathActive = (path: string) => {
 
     <!-- Core Layout Scripts -->
     <script is:inline>
+        // Fetch and sync DID
+        function syncIssuerDid() {
+            const didCodeEl = document.getElementById('issuer-did-code');
+            if (!didCodeEl) return;
+            
+            fetch('/.well-known/did.json')
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.id) {
+                        didCodeEl.textContent = data.id;
+                    }
+                })
+                .catch(err => console.error('Error syncing DID:', err));
+        }
+        
+        syncIssuerDid();
+
         // Copy-to-clipboard Logic
         const copyBtn = document.getElementById('copy-did-btn');
         const codeEl = document.getElementById('issuer-did-code');

@@ -1,0 +1,25 @@
+{
+  "issuer": {
+    "name": "VeriCred Issuer",
+    "url": "http://localhost:3517",
+    "did": "did:web:localhost%3A3517"
+  },
+  "credential": {
+    "type": "AgeCredential",
+    "expiresInDays": 30
+  },
+  "templateOptions": {
+    "ageThresholds": [
+      18,
+      21
+    ],
+    "jurisdiction": "EU"
+  },
+  "dataSource": {
+    "type": "json",
+    "path": "./src/admin/__tests__/temp-data-keys/holders.json"
+  },
+  "fieldMappings": {
+    "dateOfBirth": "dateOfBirth"
+  }
+}

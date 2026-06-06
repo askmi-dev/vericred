@@ -1,0 +1,62 @@
+[
+  {
+    "id": "holder-29bcab72-9e03-48d4-a711-15bbbd2c671e",
+    "firstName": "Mia",
+    "lastName": "Schulz",
+    "email": "mia.schulz.2c671e@example.com",
+    "region": "Berlin",
+    "timezone": "Europe/Berlin",
+    "dateOfBirth": "1988-07-11",
+    "defaultPassword": "Unr_00nq3rubqlnJ",
+    "createdAt": "2026-06-06T09:05:26.390Z",
+    "sessionId": "badfb691-3410-44ef-8f47-312219a1e4a3"
+  },
+  {
+    "id": "holder-761d1a1f-c98f-40b5-8895-4b5afb7aac01",
+    "firstName": "Felix",
+    "lastName": "Weber",
+    "email": "felix.weber.7aac01@example.com",
+    "region": "Tirol",
+    "timezone": "Europe/Vienna",
+    "dateOfBirth": "1964-04-04",
+    "defaultPassword": "tb3eYUGOwOhTZA0S",
+    "createdAt": "2026-06-06T09:05:26.390Z",
+    "sessionId": "badfb691-3410-44ef-8f47-312219a1e4a3"
+  },
+  {
+    "id": "holder-7d991059-90ba-4c3b-8d9d-799235696b4e",
+    "firstName": "Alex",
+    "lastName": "Schulz",
+    "email": "alex.schulz.696b4e@example.com",
+    "region": "Salzburg",
+    "timezone": "Europe/Vienna",
+    "dateOfBirth": "1986-02-03",
+    "defaultPassword": "uDJY1Z9qLkwFjhdv",
+    "createdAt": "2026-06-06T09:05:26.390Z",
+    "sessionId": "badfb691-3410-44ef-8f47-312219a1e4a3"
+  },
+  {
+    "id": "holder-64392647-5068-423c-8fd0-50357142d5ae",
+    "firstName": "Jonas",
+    "lastName": "Wagner",
+    "email": "jonas.wagner.42d5ae@example.com",
+    "region": "Bern",
+    "timezone": "Europe/Zurich",
+    "dateOfBirth": "1976-02-18",
+    "defaultPassword": "ToDFu8Er9r30hddY",
+    "createdAt": "2026-06-06T09:05:26.390Z",
+    "sessionId": "badfb691-3410-44ef-8f47-312219a1e4a3"
+  },
+  {
+    "id": "holder-aebf58b1-8325-4f7f-b9bc-331f805c27ee",
+    "firstName": "Lena",
+    "lastName": "Schulz",
+    "email": "lena.schulz.5c27ee@example.com",
+    "region": "Baden-Württemberg",
+    "timezone": "Europe/Berlin",
+    "dateOfBirth": "2008-07-02",
+    "defaultPassword": "ZIABDLLG1u2InvZX",
+    "createdAt": "2026-06-06T09:05:26.390Z",
+    "sessionId": "badfb691-3410-44ef-8f47-312219a1e4a3"
+  }
+]

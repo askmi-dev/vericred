@@ -1,0 +1,69 @@
+[
+  {
+    "id": "rev-holder-01",
+    "email": "rev-holder@example.com",
+    "firstName": "Rev",
+    "lastName": "Holder",
+    "dateOfBirth": "1990-01-01"
+  },
+  {
+    "id": "holder-8f6a920a-eb59-454c-822d-602e0a465787",
+    "firstName": "Mia",
+    "lastName": "Fischer",
+    "email": "mia.fischer.465787@example.com",
+    "region": "Berlin",
+    "timezone": "Europe/Berlin",
+    "dateOfBirth": "2001-02-25",
+    "defaultPassword": "WgJOAadW-66EgSlh",
+    "createdAt": "2026-06-06T09:05:23.359Z",
+    "sessionId": "71d8baa3-d673-403a-82c5-f17e4a72451d"
+  },
+  {
+    "id": "holder-ccab378d-af05-48b6-8852-b038f89f2ec7",
+    "firstName": "Alex",
+    "lastName": "Mayer",
+    "email": "alex.mayer.9f2ec7@example.com",
+    "region": "Tirol",
+    "timezone": "Europe/Vienna",
+    "dateOfBirth": "1992-04-17",
+    "defaultPassword": "4KWiGzm2jaCFV5Ac",
+    "createdAt": "2026-06-06T09:05:23.360Z",
+    "sessionId": "71d8baa3-d673-403a-82c5-f17e4a72451d"
+  },
+  {
+    "id": "holder-c73a62c8-0de1-407b-9ce8-28fa8d232174",
+    "firstName": "Mia",
+    "lastName": "Schulz",
+    "email": "mia.schulz.232174@example.com",
+    "region": "Bayern",
+    "timezone": "Europe/Berlin",
+    "dateOfBirth": "1971-09-01",
+    "defaultPassword": "UNt7t9QbdFY0asEE",
+    "createdAt": "2026-06-06T09:05:23.360Z",
+    "sessionId": "71d8baa3-d673-403a-82c5-f17e4a72451d"
+  },
+  {
+    "id": "holder-1f99f457-4590-4348-8120-30672bbd7cc6",
+    "firstName": "Mia",
+    "lastName": "Schmidt",
+    "email": "mia.schmidt.bd7cc6@example.com",
+    "region": "Zürich",
+    "timezone": "Europe/Zurich",
+    "dateOfBirth": "1977-03-21",
+    "defaultPassword": "ML-enzwsBoKXoRho",
+    "createdAt": "2026-06-06T09:05:23.360Z",
+    "sessionId": "71d8baa3-d673-403a-82c5-f17e4a72451d"
+  },
+  {
+    "id": "holder-7557c9dd-ef33-4b84-b9f3-197c2b99e3fb",
+    "firstName": "Emma",
+    "lastName": "Weber",
+    "email": "emma.weber.99e3fb@example.com",
+    "region": "Wien",
+    "timezone": "Europe/Vienna",
+    "dateOfBirth": "2001-06-13",
+    "defaultPassword": "OZ65G0Tcnm4DHYLM",
+    "createdAt": "2026-06-06T09:05:23.360Z",
+    "sessionId": "71d8baa3-d673-403a-82c5-f17e4a72451d"
+  }
+]

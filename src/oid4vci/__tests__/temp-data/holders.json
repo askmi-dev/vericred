@@ -1,0 +1,72 @@
+[
+  {
+    "id": "holder-test-01",
+    "email": "john.doe@example.com",
+    "dateOfBirth": "1990-01-01",
+    "givenName": "John",
+    "familyName": "Doe",
+    "organization": "ACME Corp",
+    "role": "Software Engineer",
+    "department": "R&D"
+  },
+  {
+    "id": "holder-b04e5f4e-1bb8-4f02-92ea-7040a97bcb83",
+    "firstName": "Sara",
+    "lastName": "Schulz",
+    "email": "sara.schulz.7bcb83@example.com",
+    "region": "Niederösterreich",
+    "timezone": "Europe/Vienna",
+    "dateOfBirth": "2005-04-12",
+    "defaultPassword": "DN4Oj_l-Cd2moPW9",
+    "createdAt": "2026-06-06T09:05:19.775Z",
+    "sessionId": "a08b7d49-d320-4183-8b3b-b19399ece07f"
+  },
+  {
+    "id": "holder-eca04bb0-d98e-40f9-bd54-a5c347aa9080",
+    "firstName": "Felix",
+    "lastName": "Müller",
+    "email": "felix.müller.aa9080@example.com",
+    "region": "Zürich",
+    "timezone": "Europe/Zurich",
+    "dateOfBirth": "1975-12-23",
+    "defaultPassword": "FJ0X8sHd0BBIqAH_",
+    "createdAt": "2026-06-06T09:05:19.775Z",
+    "sessionId": "a08b7d49-d320-4183-8b3b-b19399ece07f"
+  },
+  {
+    "id": "holder-81979496-36aa-47d7-8ab9-120d59eae17c",
+    "firstName": "Sara",
+    "lastName": "Becker",
+    "email": "sara.becker.eae17c@example.com",
+    "region": "Genf",
+    "timezone": "Europe/Zurich",
+    "dateOfBirth": "1989-02-03",
+    "defaultPassword": "oWdmcSsNni6_ndPX",
+    "createdAt": "2026-06-06T09:05:19.775Z",
+    "sessionId": "a08b7d49-d320-4183-8b3b-b19399ece07f"
+  },
+  {
+    "id": "holder-170be7c0-9226-48e7-baf1-7d7984286645",
+    "firstName": "Marie",
+    "lastName": "Müller",
+    "email": "marie.müller.286645@example.com",
+    "region": "Baden-Württemberg",
+    "timezone": "Europe/Berlin",
+    "dateOfBirth": "2007-11-15",
+    "defaultPassword": "ELueEVyBMintX9cB",
+    "createdAt": "2026-06-06T09:05:19.775Z",
+    "sessionId": "a08b7d49-d320-4183-8b3b-b19399ece07f"
+  },
+  {
+    "id": "holder-2af12f7c-8e44-4b1f-b522-fc386ac9df33",
+    "firstName": "Lena",
+    "lastName": "Schulz",
+    "email": "lena.schulz.c9df33@example.com",
+    "region": "Bern",
+    "timezone": "Europe/Zurich",
+    "dateOfBirth": "2001-11-03",
+    "defaultPassword": "LixVisRG4Vbo2I_s",
+    "createdAt": "2026-06-06T09:05:19.775Z",
+    "sessionId": "a08b7d49-d320-4183-8b3b-b19399ece07f"
+  }
+]

@@ -1,0 +1,21 @@
+[
+  {
+    "timestamp": "2026-06-06T09:05:23.972Z",
+    "type": "info",
+    "category": "issuance",
+    "message": "Issued AgeCredential",
+    "details": {
+      "credentialId": "urn:uuid:2c4fb994-4cc0-4178-9239-d605a0949628",
+      "holderEmail": "rev-holder@example.com"
+    }
+  },
+  {
+    "timestamp": "2026-06-06T09:05:23.955Z",
+    "type": "info",
+    "category": "token",
+    "message": "Token issued via Pre-Auth code",
+    "details": {
+      "type": "AgeCredential"
+    }
+  }
+]

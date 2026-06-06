@@ -110,10 +110,27 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
         const modalEmail = document.getElementById('modal-holder-email');
         const pwInput = document.getElementById('new-pw-input');
 
-        // Handshake
-        fetch('/admin/api/csrf-handshake')
-            .then(res => res.json())
-            .then(data => csrfToken = data.csrfToken);
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[char]));
+        }
+
+        function refreshCsrf() {
+            return fetch('/admin/api/csrf-handshake')
+                .then(res => res.json())
+                .then(data => {
+                    csrfToken = data.csrfToken;
+                    return csrfToken;
+                });
+        }
+
+        // Initial Handshake
+        refreshCsrf();
 
         function loadData() {
             fetch('/admin/api/holders')
@@ -134,10 +151,10 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
         }
 
         function updateRegionFilter() {
-            const regions = [...new Set(allHolders.map(h => h.region))].sort();
+            const regions = [...new Set(allHolders.map(h => h.region).filter(Boolean))].sort();
             const current = regionFilter.value;
             regionFilter.innerHTML = '<option value="">All Regions</option>' + 
-                regions.map(r => `<option value="${r}" ${r === current ? 'selected' : ''}>${r}</option>`).join('');
+                regions.map(r => `<option value="${escapeHtml(r)}" ${r === current ? 'selected' : ''}>${escapeHtml(r)}</option>`).join('');
         }
 
         function render() {
@@ -152,7 +169,9 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
             }[dateVal];
 
             const filtered = allHolders.filter(h => {
-                const matchSearch = (h.firstName + ' ' + h.lastName).toLowerCase().includes(search) || h.email.toLowerCase().includes(search);
+                const displayName = `${h.firstName ?? ''} ${h.lastName ?? ''}`.toLowerCase();
+                const email = String(h.email ?? '').toLowerCase();
+                const matchSearch = displayName.includes(search) || email.includes(search);
                 const matchRegion = !region || h.region === region;
                 const matchDate = !cutoff || (h.createdAt && new Date(h.createdAt).getTime() >= cutoff);
                 return matchSearch && matchRegion && matchDate;
@@ -165,20 +184,26 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 
             tbody.innerHTML = filtered.slice(0, 100).map(h => {
                 const date = h.createdAt ? new Date(h.createdAt).toISOString().slice(0, 19).replace('T', ' ') : '-';
-                const hasPw = h.customPassword;
+                const id = escapeHtml(h.id ?? '');
+                const email = escapeHtml(h.email ?? '');
+                const firstName = escapeHtml(h.firstName ?? '');
+                const lastName = escapeHtml(h.lastName ?? '');
+                const region = escapeHtml(h.region ?? '-');
+                const credentialCount = Number(h.credentialCount ?? 0);
+                const hasPw = Boolean(h.hasCustomPassword);
                 return `
                     <tr class="hover:bg-slate-800/10 transition-colors group">
-                        <td class="p-4 text-slate-500 text-[10px]">${h.id.slice(-8)}</td>
-                        <td class="p-4 font-bold text-white">${h.firstName} ${h.lastName}</td>
-                        <td class="p-4 text-emerald-400/80">${h.email}</td>
-                        <td class="p-4 text-slate-400">${h.region}</td>
+                        <td class="p-4 text-slate-500 text-[10px]">${id.slice(-8)}</td>
+                        <td class="p-4 font-bold text-white">${firstName} ${lastName}</td>
+                        <td class="p-4 text-emerald-400/80">${email}</td>
+                        <td class="p-4 text-slate-400">${region}</td>
                         <td class="p-4 text-slate-500 font-mono text-[10px]">${date}</td>
                         <td class="p-4 text-center">
-                            <span class="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-full font-bold text-[9px]">-</span>
+                            <span class="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-full font-bold text-[9px]">${credentialCount}</span>
                         </td>
                         <td class="p-4 text-right space-x-2">
                             <span class="text-[9px] font-bold ${hasPw ? 'text-emerald-500' : 'text-slate-600'} uppercase mr-2">${hasPw ? 'Custom PW' : 'Default'}</span>
-                            <button class="text-xs font-bold text-slate-400 hover:text-white transition-colors uppercase tracking-wider btn-set-pw" data-id="${h.id}" data-email="${h.email}">Set PW</button>
+                            <button class="text-xs font-bold text-slate-400 hover:text-white transition-colors uppercase tracking-wider btn-set-pw" data-id="${id}" data-email="${email}">Set PW</button>
                         </td>
                     </tr>
                 `;
@@ -233,6 +258,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
                 if (data.success) {
                     if (window.triggerToast) window.triggerToast('Password updated successfully!');
                     closeModal();
+                    refreshCsrf();
                     loadData();
                 } else {
                     alert('Error: ' + (data.error || 'Failed to update'));

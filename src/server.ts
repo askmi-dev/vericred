@@ -78,7 +78,7 @@ const dataPath = config.dataSource.path ?? './data/holders.json';
     }
   }
 
-  const isUnconfigured = config.issuer.name === 'VeriCred Issuer' || config.issuer.url.includes('localhost');
+  const isUnconfigured = config.issuer.name === 'VeriCred Issuer' && config.issuer.did.includes('localhost');
 
   if (!startupOk && !isUnconfigured) {
     console.error('[startup] Configuration errors found. Refusing to start.');
@@ -119,43 +119,48 @@ app.get('/console', (_req, res) => {
 
 app.get('/console/:page(dashboard|holders|schema|monitor|logo|security|legacy/blockchain|setup)', (req, res) => {
   const page = req.params.page;
-  
+  const distPath = process.env.FRONTEND_DIST_PATH || 'stitch-out/dist';
+
   // Check if setup is needed
   if (page !== 'setup') {
     const config = loadConfig();
-    if (config.issuer.name === 'VeriCred Issuer' || config.issuer.url.includes('localhost')) {
+    const isUnconfigured = config.issuer.name === 'VeriCred Issuer' && config.issuer.did.includes('localhost');
+    if (isUnconfigured) {
       res.redirect('/console/setup');
       return;
     }
   }
 
-  res.sendFile(path.resolve(`stitch-out/dist/console/${page}/index.html`));
+  res.sendFile(path.resolve(path.join(distPath, `console/${page}/index.html`)));
 });
 
 app.get('/console/:page(dashboard|holders|schema|monitor|logo|legacy/blockchain|setup)/index.html', (req, res) => {
   const page = req.params.page;
-  
+  const distPath = process.env.FRONTEND_DIST_PATH || 'stitch-out/dist';
+
   if (page !== 'setup') {
     const config = loadConfig();
-    if (config.issuer.name === 'VeriCred Issuer' || config.issuer.url.includes('localhost')) {
+    const isUnconfigured = config.issuer.name === 'VeriCred Issuer' && config.issuer.did.includes('localhost');
+    if (isUnconfigured) {
       res.redirect('/console/setup');
       return;
     }
   }
 
-  res.sendFile(path.resolve(`stitch-out/dist/console/${page}/index.html`));
+  res.sendFile(path.resolve(path.join(distPath, `console/${page}/index.html`)));
 });
 
 // Dev routes (Development only)
 if (process.env['NODE_ENV'] === 'development') {
+  const distPath = process.env.FRONTEND_DIST_PATH || 'stitch-out/dist';
   app.get('/dev', (_req, res) => {
     res.redirect('/dev/navigator');
   });
   app.get('/dev/navigator', (_req, res) => {
-    res.sendFile(path.resolve('stitch-out/dist/dev/navigator/index.html'));
+    res.sendFile(path.resolve(path.join(distPath, 'dev/navigator/index.html')));
   });
   app.get('/dev/navigator/index.html', (_req, res) => {
-    res.sendFile(path.resolve('stitch-out/dist/dev/navigator/index.html'));
+    res.sendFile(path.resolve(path.join(distPath, 'dev/navigator/index.html')));
   });
 } else {
   app.use('/dev', (_req, res) => {
@@ -169,11 +174,24 @@ app.use(createOfferRouter(lookup));
 app.use(createRevocationRouter());
 app.use(createAdminRouter(connector));
 
-// Public static files fallback (serves index.html at root, assets under /assets, favicon, etc.)
-app.use(express.static(path.resolve('stitch-out/dist')));
+// Public static files fallback
+const distPath = process.env.FRONTEND_DIST_PATH || 'stitch-out/dist';
+app.use(express.static(path.resolve(distPath)));
 
 // Health (public, no PII)
 app.get('/health', (_req, res) => res.json({ status: 'ok', issuer: config.issuer.did }));
+
+// Public Info (for white-label landing page)
+app.get('/api/info', (_req, res) => {
+  const cfg = loadConfig();
+  const isConfigured = cfg.issuer.name !== 'VeriCred Issuer' && !cfg.issuer.did.includes('localhost');
+  res.json({
+    issuerName: cfg.issuer.name,
+    issuerDid: cfg.issuer.did,
+    isConfigured,
+    supportedTemplates: listTemplates().map(t => ({ id: t.id, name: t.id.replace('Credential', '') }))
+  });
+});
 
 const PORT = process.env['PORT'] ?? 3100;
 export const SERVER_STARTED_AT = new Date();

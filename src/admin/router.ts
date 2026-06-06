@@ -21,8 +21,10 @@ import '../credentials/templates/employee.js';
 import '../credentials/templates/membership.js';
 
 const DATA_DIR = process.env.DATA_DIR ?? '.';
-const DATA_PATH = `${DATA_DIR}/holders.json`;
 const CONFIG_PATH = `${DATA_DIR}/vericred.config.json`;
+const issuerUrlToDidWeb = (issuerUrl: string): string =>
+  `did:web:${new URL(issuerUrl).host.replace(/:/g, '%3A')}`;
+const getHolderDataPath = (): string => loadConfig().dataSource.path ?? `${DATA_DIR}/holders.json`;
 
 function groupByRegion(holders: HolderRecord[]) {
   return holders.reduce<Record<string, number>>((acc, h) => {
@@ -60,7 +62,7 @@ export function createAdminRouter(connector: Connector): Router {
       const config = loadConfig();
       config.issuer.name = name;
       config.issuer.url = url;
-      config.issuer.did = `did:web:${new URL(url).host}`;
+      config.issuer.did = issuerUrlToDidWeb(url);
       if (dataSource) config.dataSource = dataSource;
 
       writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
@@ -140,7 +142,7 @@ export function createAdminRouter(connector: Connector): Router {
     const { holderId, password } = req.body as { holderId?: string; password?: string };
     if (!holderId || !password) { res.status(400).json({ error: 'holderId and password required' }); return; }
     if (password.length < 8) { res.status(400).json({ error: 'Password must be at least 8 characters' }); return; }
-    const ok = setHolderPassword(DATA_PATH, holderId, password);
+    const ok = setHolderPassword(getHolderDataPath(), holderId, password);
     res.json({ success: ok });
   });
 
@@ -149,18 +151,33 @@ export function createAdminRouter(connector: Connector): Router {
   });
 
   router.get('/admin/api/holders', requireAdmin, (_req, res) => {
-    const holders = readHolders(DATA_PATH);
-    if (process.env['PII_ADMIN_MODE'] === 'true') {
-      res.json(holders);
-    } else {
-      res.json(holders.map(h => maskHolderRecord(h as unknown as Record<string, unknown>)));
+    const holders = readHolders(getHolderDataPath());
+    const credentials = getIssuedCredentials();
+    
+    // Group credentials by holder email for count
+    const credCountByEmail: Record<string, number> = {};
+    for (const c of credentials) {
+      if (!c.revoked) {
+        credCountByEmail[c.holderEmail] = (credCountByEmail[c.holderEmail] ?? 0) + 1;
+      }
     }
+
+    const result = holders.map(h => {
+      const record = process.env['PII_ADMIN_MODE'] === 'true' ? h : maskHolderRecord(h as unknown as Record<string, unknown>);
+      return {
+        ...record,
+        hasCustomPassword: Boolean(h.customPassword),
+        credentialCount: credCountByEmail[h.email] ?? 0
+      };
+    });
+
+    res.json(result);
   });
   router.get('/admin/api/stats', requireAdmin, (_req, res) => {
     const creds = getIssuedCredentials();
     res.json({
       ...getRuntimeStats(),
-      regions: groupByRegion(readHolders(DATA_PATH)),
+      regions: groupByRegion(readHolders(getHolderDataPath())),
       credentials: { total: creds.length, active: creds.filter(c => !c.revoked).length, revoked: creds.filter(c => c.revoked).length },
     });
   });

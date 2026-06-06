@@ -6,7 +6,7 @@
 <head>
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>VeriCred | Verifiable Credentials schnell aus bestehenden Datenquellen ausstellen</title>
+    <title>VeriCred | Verifiable Credentials Gateway</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -87,219 +87,17 @@
                     <path d="M100 140L160 50" stroke="#10B981" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" />
                     <circle cx="100" cy="100" r="10" fill="#F8FAFC" />
                 </svg>
-                <span class="text-xl font-bold tracking-tight text-slate-900">VeriCred</span>
+                <span id="nav-brand-name" class="text-xl font-bold tracking-tight text-slate-900">VeriCred</span>
             </div>
             
             <nav class="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-500">
-                <!-- Solutions Mega Dropdown -->
-                <div class="group py-2">
-                    <button class="flex items-center gap-1 hover:text-slate-950 transition-colors focus:outline-none">
-                        <span>Solutions</span>
-                        <span class="material-symbols-outlined text-[16px] transition-transform duration-300 group-hover:rotate-180">expand_more</span>
-                    </button>
-                    <!-- Mega Menu Panel -->
-                    <div class="absolute left-1/2 -translate-x-1/2 top-full mt-1 w-[840px] bg-white/95 backdrop-blur-xl border border-slate-200/50 rounded-2xl shadow-2xl p-6 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300 transform scale-95 origin-top group-hover:scale-100 z-50 grid grid-cols-3 gap-6 text-left">
-                        <!-- Column 1: By Org Size -->
-                        <div class="flex flex-col gap-4">
-                            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">By Org Size</span>
-                            <div class="flex flex-col gap-1">
-                                <!-- Startups -->
-                                <a href="/console/setup" class="flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors group/item">
-                                    <div class="w-10 h-10 rounded-full bg-emerald-100/60 text-emerald-600 flex items-center justify-center shrink-0">
-                                        <span class="material-symbols-outlined text-[18px]">rocket_launch</span>
-                                    </div>
-                                    <div>
-                                        <h4 class="font-bold text-slate-800 text-xs group-hover/item:text-emerald-600 transition-colors">Startups & Devs</h4>
-                                        <p class="text-[10px] text-slate-400 font-medium leading-normal mt-0.5">Quick-start JSON connectors for rapid prototyping.</p>
-                                    </div>
-                                </a>
-                                <!-- SMBs -->
-                                <a href="/console/setup" class="flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors group/item">
-                                    <div class="w-10 h-10 rounded-full bg-blue-100/60 text-blue-600 flex items-center justify-center shrink-0">
-                                        <span class="material-symbols-outlined text-[18px]">store</span>
-                                    </div>
-                                    <div>
-                                        <h4 class="font-bold text-slate-800 text-xs group-hover/item:text-blue-600 transition-colors">Medium Enterprises</h4>
-                                        <p class="text-[10px] text-slate-400 font-medium leading-normal mt-0.5">Connect existing SQL databases directly to the EU-Wallet.</p>
-                                    </div>
-                                </a>
-                                <!-- Institutions -->
-                                <a href="/console/setup" class="flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors group/item">
-                                    <div class="w-10 h-10 rounded-full bg-orange-100/60 text-orange-600 flex items-center justify-center shrink-0">
-                                        <span class="material-symbols-outlined text-[18px]">account_balance</span>
-                                    </div>
-                                    <div>
-                                        <h4 class="font-bold text-slate-800 text-xs group-hover/item:text-orange-600 transition-colors">Trust Anchors</h4>
-                                        <p class="text-[10px] text-slate-400 font-medium leading-normal mt-0.5">Issue legal identity proofs with HSM-backed security.</p>
-                                    </div>
-                                </a>
-                            </div>
-                        </div>
-
-                        <!-- Column 2: By Use Case -->
-                        <div class="flex flex-col gap-4">
-                            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">By Use Case</span>
-                            <div class="flex flex-col gap-1">
-                                <!-- Academic Degrees -->
-                                <a href="/dev/packstation" class="flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors group/item">
-                                    <div class="w-10 h-10 rounded-full bg-rose-100/60 text-rose-500 flex items-center justify-center shrink-0">
-                                        <span class="material-symbols-outlined text-[18px]">school</span>
-                                    </div>
-                                    <div>
-                                        <h4 class="font-bold text-slate-800 text-xs group-hover/item:text-rose-500 transition-colors">Academic Degrees</h4>
-                                        <p class="text-[10px] text-slate-400 font-medium leading-normal mt-0.5">Issue tamper-proof diplomas as SD-JWT-VC.</p>
-                                    </div>
-                                </a>
-                                <!-- Employment Proofs -->
-                                <a href="/dev/presentation" class="flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors group/item">
-                                    <div class="w-10 h-10 rounded-full bg-amber-100/60 text-amber-600 flex items-center justify-center shrink-0">
-                                        <span class="material-symbols-outlined text-[18px]">badge</span>
-                                    </div>
-                                    <div>
-                                        <h4 class="font-bold text-slate-800 text-xs group-hover/item:text-amber-600 transition-colors">Employment Proofs</h4>
-                                        <p class="text-[10px] text-slate-400 font-medium leading-normal mt-0.5">Verify work history with selective disclosure.</p>
-                                    </div>
-                                </a>
-                                <!-- Membership -->
-                                <a href="/console/monitor" class="flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors group/item">
-                                    <div class="w-10 h-10 rounded-full bg-yellow-100/60 text-yellow-600 flex items-center justify-center shrink-0">
-                                        <span class="material-symbols-outlined text-[18px]">card_membership</span>
-                                    </div>
-                                    <div>
-                                        <h4 class="font-bold text-slate-800 text-xs group-hover/item:text-yellow-600 transition-colors">Member Cards</h4>
-                                        <p class="text-[10px] text-slate-400 font-medium leading-normal mt-0.5">Digital club and association memberships.</p>
-                                    </div>
-                                </a>
-                            </div>
-                        </div>
-
-                        <!-- Column 3: By Role -->
-                        <div class="flex flex-col gap-4">
-                            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">By Role</span>
-                            <div class="flex flex-col gap-1">
-                                <!-- Issuers -->
-                                <a href="/console/dashboard" class="flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors group/item">
-                                    <div class="w-10 h-10 rounded-full bg-emerald-100/60 text-emerald-600 flex items-center justify-center shrink-0">
-                                        <span class="material-symbols-outlined text-[18px]">send_and_archive</span>
-                                    </div>
-                                    <div>
-                                        <h4 class="font-bold text-slate-800 text-xs group-hover/item:text-emerald-600 transition-colors">Credential Issuers</h4>
-                                        <p class="text-[10px] text-slate-400 font-medium leading-normal mt-0.5">Manage your issuance pipeline and key rotation.</p>
-                                    </div>
-                                </a>
-                                <!-- Verifiers -->
-                                <a href="/dev/presentation" class="flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors group/item">
-                                    <div class="w-10 h-10 rounded-full bg-orange-100/60 text-orange-600 flex items-center justify-center shrink-0">
-                                        <span class="material-symbols-outlined text-[18px]">fact_check</span>
-                                    </div>
-                                    <div>
-                                        <h4 class="font-bold text-slate-800 text-xs group-hover/item:text-orange-600 transition-colors">Service Verifiers</h4>
-                                        <p class="text-[10px] text-slate-400 font-medium leading-normal mt-0.5">Accept and verify SD-JWT credentials in your app.</p>
-                                    </div>
-                                </a>
-                                <!-- Developers -->
-                                <a href="/dev/navigator" class="flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors group/item">
-                                    <div class="w-10 h-10 rounded-full bg-blue-100/60 text-blue-600 flex items-center justify-center shrink-0">
-                                        <span class="material-symbols-outlined text-[18px]">terminal</span>
-                                    </div>
-                                    <div>
-                                        <h4 class="font-bold text-slate-800 text-xs group-hover/item:text-blue-600 transition-colors">Developers</h4>
-                                        <p class="text-[10px] text-slate-400 font-medium leading-normal mt-0.5">Open-source SDKs and OID4VCI implementation guides.</p>
-                                    </div>
-                                </a>
-                                
-                                <div class="mt-2 border-t border-slate-100/80 pt-3 px-2">
-                                    <a href="/dev/navigator" class="flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors group/link">
-                                        <span>Explore the Developer Library</span>
-                                        <span class="material-symbols-outlined text-sm transition-transform duration-300 group-hover/link:translate-x-1">keyboard_double_arrow_right</span>
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Resources Mega Dropdown -->
-                <div class="group py-2">
-                    <button class="flex items-center gap-1 hover:text-slate-950 transition-colors focus:outline-none">
-                        <span>Resources</span>
-                        <span class="material-symbols-outlined text-[16px] transition-transform duration-300 group-hover:rotate-180">expand_more</span>
-                    </button>
-                    <!-- Mega Menu Panel -->
-                    <div class="absolute left-1/2 -translate-x-1/2 top-full mt-1 w-[840px] bg-white/95 backdrop-blur-xl border border-slate-200/50 rounded-2xl shadow-2xl p-6 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300 transform scale-95 origin-top group-hover:scale-100 z-50 grid grid-cols-3 gap-6 text-left">
-                        <!-- Column 1 -->
-                        <div class="flex flex-col gap-2">
-                            <!-- Library (Highlighted!) -->
-                            <a href="/dev/navigator" class="flex items-start gap-3 p-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100/60 border border-emerald-500/10 transition-colors group/item">
-                                <div class="w-10 h-10 rounded-full bg-emerald-100/80 text-emerald-600 flex items-center justify-center shrink-0">
-                                    <span class="material-symbols-outlined text-[20px]">library_books</span>
-                                </div>
-                                <div>
-                                    <h4 class="font-extrabold text-slate-800 text-xs transition-colors">Library</h4>
-                                    <p class="text-[10px] text-slate-500 font-medium leading-normal mt-0.5">Explore the miTch Evidence-Bridge & Navigator.</p>
-                                </div>
-                            </a>
-                            
-                            <!-- Key Rotation -->
-                            <a href="/console/security" class="flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors group/item">
-                                <div class="w-10 h-10 rounded-full bg-blue-100/60 text-blue-600 flex items-center justify-center shrink-0">
-                                    <span class="material-symbols-outlined text-[18px]">key</span>
-                                </div>
-                                <div>
-                                    <h4 class="font-bold text-slate-800 text-xs group-hover/item:text-blue-600 transition-colors">Key Management</h4>
-                                    <p class="text-[10px] text-slate-400 font-medium leading-normal mt-0.5">Learn how VeriCred handles P-256 key rotation.</p>
-                                </div>
-                            </a>
-                        </div>
-
-                        <!-- Column 2 -->
-                        <div class="flex flex-col gap-2">
-                            <!-- Templates -->
-                            <a href="/dev/previewFront" class="flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors group/item">
-                                <div class="w-10 h-10 rounded-full bg-blue-100/60 text-blue-600 flex items-center justify-center shrink-0">
-                                    <span class="material-symbols-outlined text-[18px]">dashboard</span>
-                                </div>
-                                <div>
-                                    <h4 class="font-bold text-slate-800 text-xs group-hover/item:text-blue-600 transition-colors">Layouts & Slides</h4>
-                                    <p class="text-[10px] text-slate-400 font-medium leading-normal mt-0.5">Visual previews of the VeriCred architecture.</p>
-                                </div>
-                            </a>
-                            
-                            <!-- Help Center -->
-                            <a href="/docs/WALLET_INTEROP_GUIDE.md" class="flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors group/item">
-                                <div class="w-10 h-10 rounded-full bg-sky-100/60 text-sky-600 flex items-center justify-center shrink-0">
-                                    <span class="material-symbols-outlined text-[18px]">lightbulb</span>
-                                </div>
-                                <div>
-                                    <h4 class="font-bold text-slate-800 text-xs group-hover/item:text-sky-600 transition-colors">Interop Guide</h4>
-                                    <p class="text-[10px] text-slate-400 font-medium leading-normal mt-0.5">Step-by-step guide to connecting real mobile wallets.</p>
-                                </div>
-                            </a>
-                        </div>
-
-                        <!-- Column 3 -->
-                        <div class="flex flex-col gap-2">
-                            <!-- Roadmap -->
-                            <a href="/walkthrough.md" target="_blank" class="flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors group/item">
-                                <div class="w-10 h-10 rounded-full bg-orange-100/60 text-orange-500 flex items-center justify-center shrink-0">
-                                    <span class="material-symbols-outlined text-[18px]">map</span>
-                                </div>
-                                <div>
-                                    <h4 class="font-bold text-slate-800 text-xs group-hover/item:text-orange-500 transition-colors">Walkthrough</h4>
-                                    <p class="text-[10px] text-slate-400 font-medium leading-normal mt-0.5">Read the full technical walkthrough and roadmap.</p>
-                                </div>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Library Direct Link -->
                 <a class="hover:text-slate-950 transition-colors" href="/dev/navigator">Library</a>
+                <a class="hover:text-slate-950 transition-colors" href="/walkthrough.md" target="_blank">Documentation</a>
             </nav>
 
             <div class="flex items-center gap-4">
                 <a href="/console/dashboard" class="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/20 font-semibold px-4 py-2 rounded-xl transition-all flex items-center gap-2 text-sm">
-                    <span>Gateway Console</span>
+                    <span id="nav-cta-text">Gateway Console</span>
                     <span class="material-symbols-outlined text-sm">settings_input_component</span>
                 </a>
             </div>
@@ -311,34 +109,45 @@
         
         <!-- Hero badge -->
         <div class="text-center mb-16 relative z-10">
-            <div class="inline-flex items-center gap-2 px-3.5 py-1 bg-emerald-500/10 border border-emerald-500/15 rounded-full text-emerald-600 font-mono text-xs font-semibold uppercase tracking-wider mb-8">
+            <div id="hero-badge" class="inline-flex items-center gap-2 px-3.5 py-1 bg-emerald-500/10 border border-emerald-500/15 rounded-full text-emerald-600 font-mono text-xs font-semibold uppercase tracking-wider mb-8">
                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 v2.1.0 open-source production release
             </div>
             
-            <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight text-slate-900 mb-6 leading-tight max-w-4xl mx-auto">
+            <h1 id="hero-title" class="text-4xl md:text-6xl font-extrabold tracking-tight text-slate-900 mb-6 leading-tight max-w-4xl mx-auto">
                 Verifiable Credentials schnell aus bestehenden Datenquellen ausstellen.
             </h1>
             
-            <p class="text-slate-500 text-lg md:text-xl mb-10 max-w-3xl mx-auto leading-relaxed">
+            <p id="hero-desc" class="text-slate-500 text-lg md:text-xl mb-10 max-w-3xl mx-auto leading-relaxed">
                 Verbinden Sie Ihre SQL-Datenbanken, PostgreSQL-Datastores oder REST-APIs direkt mit dem EU-Wallet-Ökosystem. 
                 Keine Blockchain, keine künstliche Komplexität. Reines OID4VCI & SD-JWT-VC Gateway-Issuance.
             </p>
 
-            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
-               <a href="/console/dashboard" class="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-[0_4px_20px_rgba(16,185,129,0.15)]">
+            <div id="hero-ctas" class="flex flex-col sm:flex-row items-center justify-center gap-4">
+               <a id="cta-primary" href="/console/dashboard" class="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-[0_4px_20px_rgba(16,185,129,0.15)]">
                    <span>Open Gateway Console</span>
                    <span class="material-symbols-outlined text-lg">settings_input_component</span>
                </a>
-               <a href="/docs/WALLET_INTEROP_GUIDE.md" target="_blank" class="w-full sm:w-auto bg-white border border-slate-200 text-slate-600 hover:text-slate-900 font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-50/50 transition-all shadow-sm">
+               <a id="cta-secondary" href="/docs/WALLET_INTEROP_GUIDE.md" target="_blank" class="w-full sm:w-auto bg-white border border-slate-200 text-slate-600 hover:text-slate-900 font-bold px-8 py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-50/50 transition-all shadow-sm">
                    <span class="material-symbols-outlined text-lg">smartphone</span>
                    <span>Connect Real Wallet</span>
                </a>
             </div>
+
+            <!-- Issuer Info (Initially Hidden) -->
+            <div id="issuer-info-card" class="hidden mt-12 bg-slate-950 rounded-2xl p-4 border border-slate-800 inline-flex items-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div class="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20">
+                    <span class="material-symbols-outlined">verified</span>
+                </div>
+                <div class="text-left">
+                    <p class="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest">Active Trusted Issuer</p>
+                    <code id="issuer-did-display" class="text-xs text-emerald-400 font-mono">did:web:...</code>
+                </div>
+            </div>
         </div>
 
         <!-- Bento Grid Visualization Area -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full mb-12 relative z-10">
+        <div id="marketing-bento" class="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full mb-12 relative z-10">
             <!-- Code Block (Spans 8 columns) -->
             <div class="lg:col-span-8 glass-card rounded-2xl p-6 flex flex-col shadow-sm relative overflow-hidden">
                 <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
@@ -366,11 +175,6 @@
     <span class="text-amber-800">"givenName"</span>: <span class="text-emerald-700">"Max"</span>,
     <span class="text-amber-800">"degree"</span>: <span class="text-emerald-700">"Bachelor of Science (Computer Science)"</span>,
     <span class="text-amber-800">"gpa"</span>: <span class="text-emerald-700">"1.3"</span>
-  &#125;,
-  <span class="text-amber-800">"proof"</span>: &#123;
-    <span class="text-amber-800">"type"</span>: <span class="text-emerald-700">"JsonWebSignature2020"</span>,
-    <span class="text-amber-800">"proofPurpose"</span>: <span class="text-emerald-700">"assertionMethod"</span>,
-    <span class="text-amber-800">"verificationMethod"</span>: <span class="text-emerald-700">"did:web:vericred.dev#key-1"</span>
   &#125;
 <span class="text-slate-800">&#125;</span></code></pre>
                 </div>
@@ -386,7 +190,7 @@
                     <div>
                         <h3 class="text-lg font-bold text-slate-900 mb-1.5">did:web Native</h3>
                         <p class="text-slate-500 text-sm leading-relaxed">
-                            Verankern Sie Ihre Identität direkt auf Ihrer Domain. Keine Blockchain-Gebühren, maximale Kontrolle über Ihren DNS.
+                            Verankern Sie Ihre Identität direkt auf Ihrer Domain. Keine Blockchain-Gebühren.
                         </p>
                     </div>
                 </div>
@@ -397,9 +201,9 @@
                         <span class="material-symbols-outlined text-xl">hub</span>
                     </div>
                     <div>
-                        <h3 class="text-lg font-bold text-slate-900 mb-1.5">miTch / EU-Wallet Ready</h3>
+                        <h3 class="text-lg font-bold text-slate-900 mb-1.5">miTch Ready</h3>
                         <p class="text-slate-500 text-sm leading-relaxed">
-                            Vollständig kompatibel mit europäischen Wallet-Spezifikationen, W3C-Standards, OID4VCI und SD-JWT-VC.
+                            Vollständig kompatibel mit europäischen Wallet-Spezifikationen.
                         </p>
                     </div>
                 </div>
@@ -407,44 +211,40 @@
         </div>
 
         <!-- Features Grid -->
-        <section class="grid grid-cols-1 md:grid-cols-3 gap-8 w-full mt-12 mb-20 relative z-10">
+        <section id="marketing-features" class="grid grid-cols-1 md:grid-cols-3 gap-8 w-full mt-12 mb-20 relative z-10">
             <div class="flex flex-col gap-3">
                 <div class="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-emerald-500 border border-slate-100">
                     <span class="material-symbols-outlined">security</span>
                 </div>
                 <h4 class="text-lg font-bold text-slate-900">SD-JWT Privacy</h4>
-                <p class="text-slate-500 text-sm leading-relaxed">Nutzen Sie Selective Disclosure, um nur notwendige Daten freizugeben. Schützen Sie die Privatsphäre Ihrer Nutzer durch kryptografische Salzs.</p>
+                <p class="text-slate-500 text-sm leading-relaxed">Nutzen Sie Selective Disclosure, um nur notwendige Daten freizugeben.</p>
             </div>
             <div class="flex flex-col gap-3">
                 <div class="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-blue-500 border border-slate-100">
                     <span class="material-symbols-outlined">sync_alt</span>
                 </div>
                 <h4 class="text-lg font-bold text-slate-900">Echtzeit-Revocation</h4>
-                <p class="text-slate-500 text-sm leading-relaxed">StatusList2021 Integration erlaubt den sofortigen Widerruf von Zertifikaten über performante Bitstrings – ohne Blockchain-Latenz.</p>
+                <p class="text-slate-500 text-sm leading-relaxed">StatusList2021 Integration erlaubt den sofortigen Widerruf.</p>
             </div>
             <div class="flex flex-col gap-3">
                 <div class="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-orange-500 border border-slate-100">
                     <span class="material-symbols-outlined">cable</span>
                 </div>
                 <h4 class="text-lg font-bold text-slate-900">SQL & REST Connectors</h4>
-                <p class="text-slate-500 text-sm leading-relaxed">Mappen Sie Ihre bestehenden Datenbanken (Postgres, MySQL) direkt auf standardisierte Credential-Profile ohne Code-Änderung.</p>
+                <p class="text-slate-500 text-sm leading-relaxed">Mappen Sie Ihre bestehenden Datenbanken direkt.</p>
             </div>
         </section>
 
         <!-- Live Demo / CTA -->
-        <div class="w-full bg-emerald-900 rounded-[2.5rem] p-12 text-center relative overflow-hidden mb-20">
+        <div id="marketing-cta" class="w-full bg-emerald-900 rounded-[2.5rem] p-12 text-center relative overflow-hidden mb-20">
             <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(#fff 1.5px, transparent 1.5px); background-size: 24px 24px;"></div>
             <div class="relative z-10">
                 <h2 class="text-3xl md:text-4xl font-extrabold text-white mb-6">Bereit für die Zukunft der Identität?</h2>
-                <p class="text-emerald-100 text-lg mb-10 max-w-2xl mx-auto">VeriCred ist Open-Source und für den produktiven Einsatz im eIDAS 2.0 Rahmen konzipiert. Starten Sie noch heute.</p>
+                <p class="text-emerald-100 text-lg mb-10 max-w-2xl mx-auto">VeriCred ist Open-Source und für den produktiven Einsatz konzipiert.</p>
                 <div class="flex flex-wrap justify-center gap-4">
                     <a href="/console/setup" class="bg-white text-emerald-900 font-bold px-8 py-4 rounded-2xl hover:bg-emerald-50 transition-all flex items-center gap-2">
                         <span>Setup Wizard starten</span>
                         <span class="material-symbols-outlined">magic_button</span>
-                    </a>
-                    <a href="/dev/navigator" class="bg-emerald-800/50 text-white font-bold px-8 py-4 rounded-2xl border border-emerald-700/50 hover:bg-emerald-800 transition-all flex items-center gap-2">
-                        <span>Entwickler-Library</span>
-                        <span class="material-symbols-outlined">library_books</span>
                     </a>
                 </div>
             </div>
@@ -472,6 +272,60 @@
             <span class="text-xs font-mono text-slate-400">© 2026 VeriCred open source gateway platform. Built with passion for privacy.</span>
         </div>
     </footer>
+
+    <script is:inline>
+        // White-Label Hydration
+        fetch('/api/info')
+            .then(res => res.json())
+            .then(data => {
+                if (data.isConfigured) {
+                    // Update Page for End-Users (Holders)
+                    document.title = `${data.issuerName} | Digital Credential Portal`;
+                    
+                    const brandEl = document.getElementById('nav-brand-name');
+                    if (brandEl) brandEl.textContent = data.issuerName;
+                    
+                    const ctaTextEl = document.getElementById('nav-cta-text');
+                    if (ctaTextEl) ctaTextEl.textContent = 'Admin Console';
+                    
+                    const badgeEl = document.getElementById('hero-badge');
+                    if (badgeEl) badgeEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> OPERATIONAL TRUST GATEWAY`;
+                    
+                    const titleEl = document.getElementById('hero-title');
+                    if (titleEl) titleEl.textContent = `${data.issuerName} Digital Credentials`;
+                    
+                    const descEl = document.getElementById('hero-desc');
+                    if (descEl) descEl.textContent = `Erhalten und verifizieren Sie Ihre offiziellen digitalen Nachweise von ${data.issuerName}. Sicher, datenschutzfreundlich und EU-Wallet kompatibel.`;
+                    
+                    // Update CTAs for Holder/Verifier Focus
+                    const ctaPrimary = document.getElementById('cta-primary');
+                    if (ctaPrimary) {
+                        ctaPrimary.href = '/dev/packstation'; 
+                        ctaPrimary.innerHTML = `<span>Nachweis beantragen</span><span class="material-symbols-outlined text-lg">badge</span>`;
+                    }
+                    
+                    const ctaSecondary = document.getElementById('cta-secondary');
+                    if (ctaSecondary) {
+                        ctaSecondary.href = '/dev/presentation';
+                        ctaSecondary.innerHTML = `<span>Nachweis prüfen</span><span class="material-symbols-outlined text-lg">fact_check</span>`;
+                    }
+                    
+                    // Show Issuer Card
+                    const infoCard = document.getElementById('issuer-info-card');
+                    if (infoCard) {
+                        infoCard.classList.remove('hidden');
+                        document.getElementById('issuer-did-display').textContent = data.issuerDid;
+                    }
+
+                    // Hide Marketing-specific sections
+                    ['marketing-bento', 'marketing-features', 'marketing-cta'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.classList.add('hidden');
+                    });
+                }
+            })
+            .catch(err => console.error('Landing page hydration failed:', err));
+    </script>
 
 </body>
 </html>
