@@ -9,7 +9,7 @@
     "createdAt": "2026-06-03T19:44:04.770Z",
     "sessionId": "6db08b1c-d098-46ad-93c1-bbfd66643e50",
     "timezone": "Europe/Vienna",
-    "customPassword": "smoke-password-123"
+    "customPassword": "valid-password-456"
   },
   {
     "id": "holder-dd83803c-5c2d-4926-b6c8-4132c9292572",
@@ -5834,5 +5834,125 @@
     "defaultPassword": "N0WJEW02B3HgedRm",
     "createdAt": "2026-06-06T09:19:31.326Z",
     "sessionId": "c73c02f8-2e3d-4de0-a670-00bdb2c8e8de"
+  },
+  {
+    "id": "holder-46119118-b83f-412f-9ac3-696ee2c89da5",
+    "firstName": "Sara",
+    "lastName": "Schulz",
+    "email": "sara.schulz.c89da5@example.com",
+    "region": "Steiermark",
+    "timezone": "Europe/Vienna",
+    "dateOfBirth": "1976-03-17",
+    "defaultPassword": "JMNt9X2f2oA75l24",
+    "createdAt": "2026-06-06T09:45:08.101Z",
+    "sessionId": "8e097532-5725-4deb-841c-4f4a5d035825"
+  },
+  {
+    "id": "holder-4b09442b-7167-436e-9efa-b14cf4c59c42",
+    "firstName": "Jonas",
+    "lastName": "Fischer",
+    "email": "jonas.fischer.c59c42@example.com",
+    "region": "Baden-Württemberg",
+    "timezone": "Europe/Berlin",
+    "dateOfBirth": "1991-05-16",
+    "defaultPassword": "Va4TdVrWq7ukrUc4",
+    "createdAt": "2026-06-06T09:45:08.102Z",
+    "sessionId": "8e097532-5725-4deb-841c-4f4a5d035825"
+  },
+  {
+    "id": "holder-c5a19faa-dadf-4f82-a7a5-cbfe0aa032f6",
+    "firstName": "Mia",
+    "lastName": "Becker",
+    "email": "mia.becker.a032f6@example.com",
+    "region": "NRW",
+    "timezone": "Europe/Berlin",
+    "dateOfBirth": "1982-10-05",
+    "defaultPassword": "wCpdYjyRszb6TKQt",
+    "createdAt": "2026-06-06T09:45:08.102Z",
+    "sessionId": "8e097532-5725-4deb-841c-4f4a5d035825"
+  },
+  {
+    "id": "holder-99ac64f0-c465-425d-898c-4efee6e4dbd8",
+    "firstName": "Felix",
+    "lastName": "Schmidt",
+    "email": "felix.schmidt.e4dbd8@example.com",
+    "region": "Oberösterreich",
+    "timezone": "Europe/Vienna",
+    "dateOfBirth": "1982-03-21",
+    "defaultPassword": "4n0mDV368nudydL-",
+    "createdAt": "2026-06-06T09:45:08.102Z",
+    "sessionId": "8e097532-5725-4deb-841c-4f4a5d035825"
+  },
+  {
+    "id": "holder-d863c274-7971-4d42-8be4-c2448c8416c5",
+    "firstName": "Tobias",
+    "lastName": "Weber",
+    "email": "tobias.weber.8416c5@example.com",
+    "region": "Salzburg",
+    "timezone": "Europe/Vienna",
+    "dateOfBirth": "1973-09-08",
+    "defaultPassword": "WWIKh31YVkJ6ErVe",
+    "createdAt": "2026-06-06T09:45:08.102Z",
+    "sessionId": "8e097532-5725-4deb-841c-4f4a5d035825"
+  },
+  {
+    "id": "holder-e0dd3521-79b6-4b70-b83f-f2dcfc973fa3",
+    "firstName": "Alex",
+    "lastName": "Schmidt",
+    "email": "alex.schmidt.973fa3@example.com",
+    "region": "Salzburg",
+    "timezone": "Europe/Vienna",
+    "dateOfBirth": "1984-10-01",
+    "defaultPassword": "_fg9ltQYz7MznF3v",
+    "createdAt": "2026-06-06T11:45:05.467Z",
+    "sessionId": "cae44f3b-c942-4e14-9c4d-574219e6fbe6"
+  },
+  {
+    "id": "holder-6adda136-2735-4bad-a568-71012512719f",
+    "firstName": "Mia",
+    "lastName": "Wagner",
+    "email": "mia.wagner.12719f@example.com",
+    "region": "Salzburg",
+    "timezone": "Europe/Vienna",
+    "dateOfBirth": "1963-08-05",
+    "defaultPassword": "vOo-Ez8470HaPGd7",
+    "createdAt": "2026-06-06T11:45:05.467Z",
+    "sessionId": "cae44f3b-c942-4e14-9c4d-574219e6fbe6"
+  },
+  {
+    "id": "holder-830ab1c2-388f-4e83-a410-c8a38bf29a0c",
+    "firstName": "Emma",
+    "lastName": "Weber",
+    "email": "emma.weber.f29a0c@example.com",
+    "region": "Genf",
+    "timezone": "Europe/Zurich",
+    "dateOfBirth": "1974-07-10",
+    "defaultPassword": "9d5DbLyiAsoMINhP",
+    "createdAt": "2026-06-06T11:45:05.467Z",
+    "sessionId": "cae44f3b-c942-4e14-9c4d-574219e6fbe6"
+  },
+  {
+    "id": "holder-5327ff6f-9b6c-41be-8b6d-85093b8c5b8a",
+    "firstName": "Lena",
+    "lastName": "Wagner",
+    "email": "lena.wagner.8c5b8a@example.com",
+    "region": "Steiermark",
+    "timezone": "Europe/Vienna",
+    "dateOfBirth": "1971-05-14",
+    "defaultPassword": "Gp5w40EZaEygtk2X",
+    "createdAt": "2026-06-06T11:45:05.467Z",
+    "sessionId": "cae44f3b-c942-4e14-9c4d-574219e6fbe6"
+  },
+  {
+    "id": "holder-ef2db5c5-d849-462c-ba03-3b4f1367d3ae",
+    "firstName": "Alex",
+    "lastName": "Schmidt",
+    "email": "alex.schmidt.67d3ae@example.com",
+    "region": "NRW",
+    "timezone": "Europe/Berlin",
+    "dateOfBirth": "1967-07-19",
+    "defaultPassword": "MeY3Ffp_F3jTWQoL",
+    "createdAt": "2026-06-06T11:45:05.467Z",
+    "sessionId": "cae44f3b-c942-4e14-9c4d-574219e6fbe6"
   }
 ]
