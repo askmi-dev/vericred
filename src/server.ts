@@ -10,6 +10,7 @@ import { createCredentialRouter } from './oid4vci/issuer.js';
 import { createOfferRouter } from './oid4vci/offer.js';
 import { createAdminRouter } from './admin/router.js';
 import { createRevocationRouter } from './revocation/router.js';
+import { createOid4vpRouter } from './oid4vp/router.js';
 import { requireAdmin } from './middleware/auth.js';
 import { generateHolders } from './connectors/generator.js';
 import { logStartup, markProcessStart } from './admin/runtime.js';
@@ -109,6 +110,7 @@ app.use(createDidRouter());
 app.use(createMetadataRouter());
 app.use(createTokenRouter());
 app.use(createCredentialRouter(secrets.pseudonymSecret));
+app.use(createOid4vpRouter());
 
 // Console routes (Admin only)
 app.use('/console', requireAdmin);
