@@ -8,3 +8,9 @@ dist/
 
 data/
 
+# Runtime artifacts
+oid4vp_sessions.json
+SESSION_SUMMARY.md
+runtime.json
+src/**/temp-data*/
+
