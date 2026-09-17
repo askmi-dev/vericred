@@ -29,11 +29,11 @@ jobs:
     - name: Run Security Vulnerability Audit
       run: npm audit --audit-level=high --omit=dev || true
 
-    - name: Execute 132 Cryptographic & Architecture Tests
-      run: npm test
-
     - name: Validate Production Build Compilation
       run: npm run build
+
+    - name: Execute 132 Cryptographic & Architecture Tests
+      run: npm test
 
   docker-dry-run:
     name: Test Container Build Integrity
