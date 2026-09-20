@@ -1,56 +1,50 @@
-# Wallet Interoperability Guide
+# Wallet contract and acceptance
 
-VeriCred is designed to be fully compliant with the **OpenID for Verifiable Credential Issuance (OID4VCI)** specification (draft-13+) and the **SD-JWT-VC** format (draft-ietf-oauth-sd-jwt-vc).
+**Independent wallet execution is NOT RUN.** Synthetic route tests, even when using real signatures,
+encryption and certificates, do not establish EUDI or miTch acceptance.
 
-This guide helps you connect real-world mobile wallets to your VeriCred instance.
+The current authoritative protocol table, exact Android pin, schema/trust decisions and operator steps are
+in [EUDI_ACCEPTANCE_CONTRACT.md](EUDI_ACCEPTANCE_CONTRACT.md). Android comes first; iOS and miTch must each
+complete independent acceptance.
 
-## 1. Supported Formats & Protocols
+## Runtime profiles
 
-| Component | Standard | Note |
-|-----------|----------|------|
-| **Issuance Protocol** | OID4VCI (draft-13+) | Supports Pre-Authorized Code Flow. |
-| **Credential Format** | `dc+sd-jwt` | Modern SD-JWT-VC (Digital Credentials). |
-| **Key Binding** | JWK Thumbprint | Proof-of-possession via KB-JWT. |
-| **Crypto** | ECDSA P-256 (ES256) | NIST P-256 curve support. |
+- `WALLET_PROFILE=eudi-android`: certificate-signed metadata and x509_hash presentation requests;
+  encrypted final VCI requests/responses; encrypted direct_post.jwt; Token Status List.
+  Startup needs matching issuer/verifier certificate material and HTTPS. The configured certificates
+  still need wallet-ecosystem trust/entitlement acceptance.
+- Default `custom`: existing JSON metadata, inline redirect_uri/direct_post and StatusList2021.
+  This is a custom integration profile, not proof that a reference wallet supports it.
+- `protocol: "legacy-draft"` is explicit and available only in custom mode. Final sessions do not accept
+  a legacy typ/VCT. No wallet may bypass disclosure commitments, holder binding, audience/nonce, replay
+  checks or revocation.
 
-## 2. Tested Wallets
+## Shared flow
 
-| Wallet App | Platform | Compatibility | Note |
-|------------|----------|---------------|------|
-| **EUDI Wallet (Ref App)** | iOS / Android | ✅ Full | Best for testing EU-wide interoperability. |
-| **Lissi Wallet** | iOS / Android | ✅ Full | Robust OID4VCI support. |
-| **Sphereon Wallet** | iOS / Android | ✅ Full | Excellent debugging tools for OID4VCI. |
-| **walt.id Wallet** | Web / Mobile | ⚠️ Partial | Ensure `dc+sd-jwt` is enabled in settings. |
+1. Authenticated admin creates POST /offer with the connector's lookup identifier. A stale source/configuration
+   change rejects the lookup. Deliver the bearer grant privately; QR generation stays local.
+2. Wallet discovers metadata, redeems the code at POST /token and obtains POST /nonce.
+3. Wallet signs an ES256 openid4vci-proof+jwt with public P-256 JWK, current iat, exact issuer audience and nonce.
+4. Submit final credential_configuration_id plus proofs.jwt with one proof. In EUDI mode encrypt the entire
+   request to an advertised encryption key and include the wallet response-encryption JWK/enc inside it.
+   Decrypt the application/jwt response and read credentials[0].credential.
+5. Initiate a presentation session. In EUDI mode fetch/verify the signed Request Object using request_uri.
+   Verify x5c trust and x509_hash client identity; select disclosures matching DCQL.
+6. Bind the SD-JWT using kb+jwt with the exact client_id audience, session nonce and sd_hash including the
+   trailing tilde. Encrypt the DCQL response/state to the session key and POST it as form parameter response.
+7. Result reads require the separate readToken capability. Successful presentation submissions are one-use.
+   Check status according to the selected profile and reject retired/revoked/unknown credentials.
 
-## 3. How to Issue to a Real Wallet
+## Release evidence
 
-1.  **Configure Issuer URL**: Ensure your `vericred.config.json` has a public-facing `issuer.url` (or use a tunnel like `ngrok`).
-2.  **Open Admin Console**: Navigate to the **Issuance Monitor** (`/console/monitor`).
-3.  **Generate Offer**:
-    *   Select a **Holder** (Subject) from your database.
-    *   Select a **Credential Profile** (e.g., `EmployeeCredential`).
-    *   Click the **QR Code box**.
-4.  **Scan with Wallet**: Open your mobile wallet app and scan the generated QR code.
-5.  **Complete Flow**: The wallet will request the credential using the Pre-Authorized code. Since VeriCred currently defaults to `user_pin_required: false`, the issuance should happen instantly.
+Record pinned wallet build/digest, OS/device, trust/registration settings, custom VCT/profile, issuer origin,
+image digest and redacted success/negative results. Never publish raw credentials, access tokens, grants
+or private keys in acceptance logs. A missing/consumed nonce requires a new nonce; a consumed grant requires
+a fresh offer.
 
-## 4. Common Interoperability Issues
+Run [live connectors](connector-acceptance.md), [offline restoration](BACKUP_RESTORE.md) and the HTTPS
+preflight before device release acceptance. Restoration deliberately invalidates all old credentials and
+temporary authorization; holders need fresh issuance.
 
-### "Invalid Format" or "Unsupported Type"
-Some older wallets expect `vc+sd-jwt` instead of the modern `dc+sd-jwt`.
-*   **Fix**: Update `vericred.config.json` setting `"credential": { "format": "vc+sd-jwt" }` and restart the server.
-
-### "Unable to resolve DID"
-Real wallets need to resolve your `did:web` identifier to verify your signature.
-*   **Fix**: Ensure your `/.well-known/did.json` is reachable from the public internet and served over HTTPS. If testing locally, use `ngrok` and update the `issuer.url` in config.
-
-### "Proof Validation Failed"
-The wallet sends a proof-of-possession JWT. If it fails:
-*   Check the **Issuance Monitor** logs.
-*   Ensure the wallet is using `ES256` for its proof.
-*   Verify that the `nonce` in the wallet's proof matches the one issued in the offer.
-
-## 5. Debugging Tools
-
-*   **OID4VCI Trace**: Check the server console logs for `[proof]` and `[issuer]` messages.
-*   **SD-JWT Tool**: Use [sd-jwt.js](https://sd-jwt.js.org/) to deconstruct and verify the tokens issued by VeriCred.
-*   **JWT.io**: Use [jwt.io](https://jwt.io) to check the headers and payload of the issued SD-JWT (note: it won't handle the disclosures automatically).
+miTch uses the same public protocol and checks. Wallet UI/transport adapters stay outside claim mapping,
+signing and validation. This work does not modify the miTch repository or claim cross-repository acceptance.

@@ -8,23 +8,25 @@
  * Secure flag is set automatically when NODE_ENV=production.
  */
 import type { Request, Response, NextFunction } from 'express';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
+import { EncryptedMap } from '../storage/encrypted-map.js';
 import { loadSecrets } from '../config/secrets.js';
 
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
-const sessions = new Map<string, number>();
+const sessions = new EncryptedMap<number>('admin-sessions');
 
 interface CsrfTokenEntry {
   sessionId: string;
   expiry: number;
 }
-const csrfTokens = new Map<string, CsrfTokenEntry>(); // token -> entry
+const csrfTokens = new EncryptedMap<CsrfTokenEntry>('csrf-tokens'); // token -> entry
 
 const isProduction = process.env['NODE_ENV'] === 'production';
 const COOKIE_FLAGS = '; HttpOnly; Path=/; SameSite=Strict; Max-Age=28800'
   + (isProduction ? '; Secure' : '');
 
 export function createSession(): string {
+  pruneExpired();
   const token = randomBytes(32).toString('hex');
   sessions.set(token, Date.now() + SESSION_TTL_MS);
   return token;
@@ -40,6 +42,7 @@ export function getSessionId(req: Request): string | undefined {
 
 /** Generate a CSRF token bound to a session. Embed in forms as hidden field "csrf". */
 export function createCsrfToken(sessionId: string): string {
+  pruneExpired();
   const token = randomBytes(24).toString('hex');
   csrfTokens.set(token, { sessionId, expiry: Date.now() + 60 * 60 * 1000 }); // 1h
   return token;
@@ -72,12 +75,14 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
 
   const bearer = req.headers.authorization?.replace('Bearer ', '').trim();
   if (bearer && bearer === secrets.adminApiKey) {
+    res.locals.actor = 'admin-api';
     next();
     return;
   }
 
   const cookie = getSessionId(req);
   if (cookie && isValidSession(cookie)) {
+    res.locals.actor = 'admin-session:' + createHash('sha256').update(cookie).digest('hex').slice(0,16);
     next();
     return;
   }
@@ -100,7 +105,7 @@ export function requireCsrf(req: Request, res: Response, next: NextFunction): vo
       return;
     }
 
-    const token = (req.body as Record<string, string>)['csrf']
+    const token = ((req.body ?? {}) as Record<string, string>)['csrf']
       ?? req.headers['x-csrf-token'] as string;
     const cookie = getSessionId(req);
     if (!validateCsrf(token, cookie)) {

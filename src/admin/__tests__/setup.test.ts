@@ -1,79 +1,73 @@
-import { describe, it, expect, beforeAll } from 'vitest';
-import { existsSync, rmSync, mkdirSync, writeFileSync, readFileSync } from 'fs';
-import { loadSecrets } from '../../config/secrets.js';
+import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest';
+import express from 'express';
+import type { Server } from 'node:http';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { createAdminRouter } from '../router.js';
+import { liveConnector } from '../../connectors/index.js';
+import { DEFAULT_CONFIG, configPath, saveConfig } from '../../config/loader.js';
 
-describe('Admin Setup & Introspection', () => {
-  let serverUrl: string;
-  const adminApiKey = loadSecrets().adminApiKey;
-
+describe('Admin source setup', () => {
+  let server: Server;
+  let url: string;
+  const headers = { Authorization: 'Bearer ' + process.env.ADMIN_API_KEY, 'Content-Type': 'application/json' };
+  const first = join(process.env.DATA_DIR!, 'first.json');
+  const second = join(process.env.DATA_DIR!, 'second.json');
+  const source = liveConnector();
+  const post = (body: unknown) => fetch(url + '/admin/api/setup', { method: 'POST', headers, body: JSON.stringify(body) });
   beforeAll(async () => {
-    const tempDir = './src/admin/__tests__/temp-data-setup';
-    if (existsSync(tempDir)) rmSync(tempDir, { recursive: true, force: true });
-    mkdirSync(tempDir, { recursive: true });
-
-    // Start with a "fresh" config
-    const freshConfig = {
-      issuer: { name: 'VeriCred Issuer', url: 'http://localhost:3100', did: '' },
-      credential: { type: 'AgeCredential', expiresInDays: 30 },
-      dataSource: { type: 'json', path: `${tempDir}/holders.json` },
-      fieldMappings: {}
-    };
-    writeFileSync(`${tempDir}/vericred.config.json`, JSON.stringify(freshConfig, null, 2));
-    writeFileSync(`${tempDir}/holders.json`, JSON.stringify([{ id: 'h1', email: 'h1@ex.com', firstName: 'H1' }], null, 2));
-
-    process.env['DATA_DIR'] = tempDir;
-    process.env['PORT'] = '3516';
-    process.env['ISSUER_URL'] = 'http://localhost:3516';
-    serverUrl = 'http://localhost:3516';
-
-    await import('../../server.js');
-    await new Promise(resolve => setTimeout(resolve, 500));
+    const app = express(); app.use(express.json()); app.use(createAdminRouter(source));
+    server = app.listen(0, '127.0.0.1');
+    await new Promise<void>(resolve => server.once('listening', resolve));
+    url = 'http://127.0.0.1:' + (server.address() as { port: number }).port;
   });
-
-  it('detects unconfigured status', async () => {
-    const res = await fetch(`${serverUrl}/admin/api/setup-status`, {
-      headers: { 'Authorization': `Bearer ${adminApiKey}` }
-    });
-    const data = await res.json() as any;
-    expect(data.isUnconfigured).toBe(true);
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+    writeFileSync(first, JSON.stringify([{ id: 'old', email: 'old@example.com', firstName: 'Old' }]));
+    writeFileSync(second, JSON.stringify([{ id: 'new', email: 'new@example.com', firstName: 'New', department: 'Law', password: 'sensitive', apiToken: 'sensitive' }]));
+    saveConfig({ ...structuredClone(DEFAULT_CONFIG), dataSource: { type: 'json', path: first } });
   });
-
-  it('performs setup and updates config', async () => {
-    const setupRes = await fetch(`${serverUrl}/admin/api/setup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminApiKey}` },
-      body: JSON.stringify({
-        name: 'University of Graz',
-        url: 'https://vericred.uni-graz.at',
-        dataSource: { type: 'json', path: './data/holders.json' }
-      })
-    });
-    const setupData = await setupRes.json() as any;
-    if (setupRes.status !== 200) {
-      console.error('Setup failed:', setupRes.status, setupData);
-    }
-    expect(setupRes.status).toBe(200);
-    expect(setupData.success).toBe(true);
-
-    const statusRes = await fetch(`${serverUrl}/admin/api/setup-status`, {
-      headers: { 'Authorization': `Bearer ${adminApiKey}` }
-    });
-    const statusData = await statusRes.json() as any;
-    expect(statusData.isUnconfigured).toBe(false);
-
-    // Verify file persistence
-    const config = JSON.parse(readFileSync(`${process.env['DATA_DIR']}/vericred.config.json`, 'utf-8'));
-    expect(config.issuer.name).toBe('University of Graz');
-    expect(config.issuer.did).toBe('did:web:vericred.uni-graz.at');
+  afterAll(async () => {
+    vi.unstubAllGlobals();
+    await source.close?.();
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
   });
-
-  it('introspects source schema', async () => {
-    const res = await fetch(`${serverUrl}/admin/api/source-schema`, {
-      headers: { 'Authorization': `Bearer ${adminApiKey}` }
-    });
-    const data = await res.json() as any;
-    expect(data.columns).toContain('email');
-    expect(data.columns).toContain('firstName');
-    expect(data.columns).toContain('id');
+  it('activates a validated source immediately for lookup, admin listing and schema', async () => {
+    expect((await source.lookup('old'))?.id).toBe('old');
+    const response = await post({ name: 'New Issuer', url: 'https://issuer.example.org', dataSource: { type: 'json', path: second } });
+    expect(response.status).toBe(200);
+    expect((await source.lookup('new'))?.id).toBe('new');
+    expect(await source.lookup('old')).toBeNull();
+    expect(JSON.parse(readFileSync(configPath(), 'utf8')).issuer.did).toBe('did:web:issuer.example.org');
+    const schema = await fetch(url + '/admin/api/source-schema', { headers }).then(r => r.json()) as { columns: string[] };
+    expect(schema.columns).toContain('department');
+    process.env.PII_ADMIN_MODE = 'true';
+    const holders = await fetch(url + '/admin/api/holders', { headers }).then(r => r.json()) as Record<string, unknown>[];
+    delete process.env.PII_ADMIN_MODE;
+    expect(holders[0].id).toBe('new');
+    expect(holders[0]).not.toHaveProperty('password');
+    expect(holders[0]).not.toHaveProperty('apiToken');
+  });
+  it('leaves config and runtime unchanged when the candidate source is unavailable', async () => {
+    const before = readFileSync(configPath(), 'utf8');
+    const response = await post({ name: 'Invalid Issuer', url: 'https://issuer.example.org', dataSource: { type: 'json', path: second + '.missing' } });
+    expect(response.status).toBe(400);
+    expect(readFileSync(configPath(), 'utf8')).toBe(before);
+    expect((await source.lookup('old'))?.id).toBe('old');
+  });
+  it('rejects unsafe SQL configuration without changing config', async () => {
+    const before = readFileSync(configPath(), 'utf8');
+    const response = await post({ name: 'Invalid Issuer', url: 'https://issuer.example.org', dataSource: { type: 'postgres', connectionString: 'postgresql://localhost/test', table: 'users; DROP TABLE users' } });
+    expect(response.status).toBe(400);
+    expect(readFileSync(configPath(), 'utf8')).toBe(before);
+  });
+  it('uses CSV connector listing instead of parsing CSV as JSON', async () => {
+    const csv = join(process.env.DATA_DIR!, 'holders.csv');
+    writeFileSync(csv, 'id,email,region\n0001,csv@example.com,EU');
+    expect((await post({ name: 'CSV Issuer', url: 'https://issuer.example.org', dataSource: { type: 'csv', path: csv, identifierColumn: 'email' } })).status).toBe(200);
+    const holders = await fetch(url + '/admin/api/holders', { headers }).then(r => r.json()) as Record<string, unknown>[];
+    expect(holders[0].id).toBe('0001');
+    const stats = await fetch(url + '/admin/api/stats', { headers }).then(r => r.json()) as { regions: Record<string, number> };
+    expect(stats.regions.EU).toBe(1);
   });
 });

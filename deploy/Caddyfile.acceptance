@@ -1,0 +1,7 @@
+{$ACCEPTANCE_HOST} {
+    reverse_proxy gateway:3100 {
+        header_up -Forwarded
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto https
+    }
+}

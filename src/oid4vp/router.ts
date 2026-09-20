@@ -1,424 +1,187 @@
-import { Router as createRouter, urlencoded } from 'express';
-import type { Router, Request, Response } from 'express';
-import { randomBytes, createHash, createCipheriv, createDecipheriv } from 'crypto';
-import { v4 as uuidv4 } from 'uuid';
-import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync } from 'fs';
-import { dirname } from 'path';
+import { registrationInfo } from '../wallet/registration.js';
+import { Router } from 'express';
+import { SignJWT, type JWK } from 'jose';
+import { certificateSigner, getWalletProfile, type WalletProfile } from '../wallet/profile.js';
+import { decryptMessage, newEncryptionKey, encryptionMethods } from '../wallet/encryption.js';
+import { randomBytes, createHash, createCipheriv, createDecipheriv } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
 import qrcode from 'qrcode';
-import { importJWK, jwtVerify } from 'jose';
-import type { JWK } from 'jose';
+import { credentialVct } from '../credentials/registry.js';
 import { loadConfig } from '../config/loader.js';
 import { loadSecrets } from '../config/secrets.js';
-import { getAllPublicKeys } from '../keys/manager.js';
+import { atomicWrite } from '../storage/atomic.js';
+import { verifyPresentation, presentationProfiles } from './verify.js';
 
-interface Oid4vpSession {
+interface Session {
   status: 'initiated' | 'verified';
-  nonce: string;
-  requestUri: string;
-  claims: Record<string, unknown> | null;
-  vpToken?: string;
-  timestamp: number;
+  protocol?: 'openid4vp-1.0' | 'legacy-draft';
+  nonce: string; readTokenHash: string; credentialType: string;
+  walletProfile?: WalletProfile; issuerUrl?: string; clientId?: string; encryptionKey?: { publicKey: JWK; privateKey: JWK };
+  createdAt: number; claims: Record<string, unknown> | null;
 }
-
-const DATA_DIR = process.env.DATA_DIR ?? '.';
-const SESSIONS_FILE = `${DATA_DIR}/oid4vp_sessions.json`;
-
-// Cryptographic helpers for AES-256-GCM encryption-at-rest
-function getEncryptionKey(): Buffer {
-  const secrets = loadSecrets();
-  return createHash('sha256').update(secrets.pseudonymSecret).digest();
+const inFlight = new Set<string>();
+const digest = (text: string) => createHash('sha256').update(text).digest('hex');
+const path = () => (process.env.DATA_DIR ?? './data') + '/oid4vp_sessions.json';
+const key = () => createHash('sha256').update('vericred-presentation-store:' + loadSecrets().pseudonymSecret).digest();
+function load(): Record<string, Session> {
+  if (!existsSync(path())) return {};
+  const envelope = JSON.parse(readFileSync(path(), 'utf8'));
+  // Old sessions used a different contract and must be reinitiated.
+  if (envelope.version !== 2) return {};
+  const decipher = createDecipheriv('aes-256-gcm', key(), Buffer.from(envelope.iv, 'hex'));
+  decipher.setAuthTag(Buffer.from(envelope.tag, 'hex'));
+  return JSON.parse(Buffer.concat([decipher.update(Buffer.from(envelope.content, 'hex')), decipher.final()]).toString('utf8'));
 }
-
-function encrypt(text: string): { iv: string; content: string; tag: string } {
-  const key = getEncryptionKey();
+function save(sessions: Record<string, Session>) {
+  for (const [id, session] of Object.entries(sessions)) {
+    if (Date.now() - session.createdAt >= 30 * 60_000) delete sessions[id];
+  }
   const iv = randomBytes(12);
-  const cipher = createCipheriv('aes-256-gcm', key, iv);
-  let encrypted = cipher.update(text, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-  const tag = cipher.getAuthTag().toString('hex');
-  return {
-    iv: iv.toString('hex'),
-    content: encrypted,
-    tag,
-  };
+  const cipher = createCipheriv('aes-256-gcm', key(), iv);
+  const content = Buffer.concat([cipher.update(JSON.stringify(sessions)), cipher.final()]);
+  atomicWrite(path(), JSON.stringify({ version: 2, iv: iv.toString('hex'), tag: cipher.getAuthTag().toString('hex'), content: content.toString('hex') }));
 }
-
-function decrypt(enc: { iv: string; content: string; tag: string }): string {
-  const key = getEncryptionKey();
-  const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(enc.iv, 'hex'));
-  decipher.setAuthTag(Buffer.from(enc.tag, 'hex'));
-  let decrypted = decipher.update(enc.content, 'hex', 'utf8');
-  decrypted += decipher.final('utf8');
-  return decrypted;
+function get(id: string): Session | undefined {
+  const s = load()[id];
+  return s && Date.now() - s.createdAt < 30 * 60_000 &&
+    (s.walletProfile ?? 'custom') === getWalletProfile() && (!s.issuerUrl || s.issuerUrl === baseUrl()) ? s : undefined;
 }
-
-class Oid4vpSessionStore {
-  private cache = new Map<string, Oid4vpSession>();
-
-  constructor() {
-    this.load();
+function baseUrl(): string {
+  const url = new URL(loadConfig().issuer.url);
+  if (process.env.NODE_ENV === 'production' && url.protocol !== 'https:') throw new Error('HTTPS issuer URL required');
+  return url.href.replace(/\/$/, '');
+}
+function clientMetadata() {
+  return { client_name: 'VeriCred Verifier', vp_formats_supported: {
+    'dc+sd-jwt': { 'sd-jwt_alg_values': ['ES256'], 'kb-jwt_alg_values': ['ES256'] },
+  } };
+}
+function requestFor(id: string, s: Session) {
+  const base = s.issuerUrl ?? baseUrl();
+  const responseUri = base + '/api/oid4vp/response/' + id;
+  if (s.protocol === 'openid4vp-1.0') {
+    return { client_id: s.clientId ?? 'redirect_uri:' + responseUri, response_uri: responseUri,
+      response_mode: s.walletProfile === 'eudi-android' ? 'direct_post.jwt' : 'direct_post', response_type: 'vp_token', nonce: s.nonce, state: id,
+      client_metadata: { ...clientMetadata(), ...(s.encryptionKey ? { jwks: { keys: [s.encryptionKey.publicKey] }, encrypted_response_enc_values_supported: encryptionMethods } : {}) },
+      dcql_query: { credentials: [{ id: 'credential', format: 'dc+sd-jwt',
+        meta: { vct_values: [credentialVct(s.credentialType)] },
+        claims: presentationProfiles[s.credentialType].map(name => ({ path: [name],
+          ...(name === 'age_over_18' ? { values: [true] } : {}) })),
+      }] },
+    };
   }
-
-  private load() {
+  // Explicit draft adapter retained for existing integrations; not a signed Request Object.
+  return { client_id: base + '/api/oid4vp/client-metadata', response_uri: responseUri,
+    response_mode: 'direct_post', response_type: 'vp_token', nonce: s.nonce,
+    presentation_definition: { id, input_descriptors: [{ id: s.credentialType,
+      format: { 'dc+sd-jwt': { 'sd-jwt_alg_values': ['ES256'], 'kb-jwt_alg_values': ['ES256'] } },
+      constraints: { fields: presentationProfiles[s.credentialType].map(name => ({ path: ['$.' + name], intent_to_retain: false })) },
+    }] } };
+}
+export function createOid4vpRouter() {
+  const router = Router();
+  router.use((_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
+  router.post('/api/oid4vp/initiate', async (req, res) => {
     try {
-      if (existsSync(SESSIONS_FILE)) {
-        const rawData = readFileSync(SESSIONS_FILE, 'utf-8');
-        if (!rawData.trim()) return;
-
-        let decryptedData = rawData;
-        if (rawData.startsWith('{') && rawData.includes('"tag"') && rawData.includes('"content"')) {
-          const enc = JSON.parse(rawData);
-          decryptedData = decrypt(enc);
-        }
-
-        const parsed = JSON.parse(decryptedData);
-        this.cache.clear();
-        for (const [k, v] of Object.entries(parsed)) {
-          this.cache.set(k, v as Oid4vpSession);
-        }
+      const credentialType = req.body?.credentialType ?? loadConfig().credential.type;
+      if (typeof credentialType !== 'string' || !Object.hasOwn(presentationProfiles, credentialType)) {
+        res.status(400).json({ error: 'unsupported_credential_type' }); return;
       }
-    } catch (err) {
-      console.error('[oid4vp] Failed to load/decrypt sessions:', err);
-    }
-  }
-
-  private save() {
-    try {
-      const obj = Object.fromEntries(this.cache.entries());
-      const now = Date.now();
-      const expiryWindow = 30 * 60 * 1000; // 30 minutes TTL to prevent storage bloat
-      for (const [k, v] of this.cache.entries()) {
-        if (now - v.timestamp > expiryWindow) {
-          this.cache.delete(k);
-          delete obj[k];
-        }
+      const protocol = req.body?.protocol ?? 'openid4vp-1.0';
+      if (!['openid4vp-1.0', 'legacy-draft'].includes(protocol)) {
+        res.status(400).json({ error: 'unsupported_protocol' }); return;
       }
-
-      // Serialize and encrypt the session state before writing to disk
-      const serialized = JSON.stringify(obj);
-      const encrypted = encrypt(serialized);
-      const rawToWrite = JSON.stringify(encrypted, null, 2);
-
-      mkdirSync(dirname(SESSIONS_FILE), { recursive: true });
-
-      // Atomic, transaction-safe write-and-rename to prevent JSON corruption under load
-      const tmpFile = `${SESSIONS_FILE}.tmp`;
-      writeFileSync(tmpFile, rawToWrite);
-      renameSync(tmpFile, SESSIONS_FILE);
-    } catch (err) {
-      console.error('[oid4vp] Failed to atomically save/encrypt sessions:', err);
-    }
-  }
-
-  get(sessionId: string): Oid4vpSession | undefined {
-    this.load(); // Refresh from the encrypted persistent store to handle multi-instance setups
-    return this.cache.get(sessionId);
-  }
-
-  set(sessionId: string, session: Oid4vpSession) {
-    this.cache.set(sessionId, session);
-    this.save();
-  }
-}
-
-const sessionStore = new Oid4vpSessionStore();
-
-// Dynamically resolves host and enforces HTTPS protocol-level check in production
-function getBaseUrl(req: Request): string {
-  const config = loadConfig();
-  const host = (req.headers['x-forwarded-host'] as string) || req.get('host');
-  if (!host) return config.issuer.url;
-  const protocol = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'http';
-
-  // Strict Production HTTPS Guard to prevent insecure HTTP leaking in production environments
-  if (process.env.NODE_ENV === 'production' && protocol !== 'https') {
-    throw new Error('Insecure protocol detected. HTTPS is strictly required in production mode.');
-  }
-
-  return `${protocol}://${host}`;
-}
-
-export function createOid4vpRouter(): Router {
-  const router = createRouter();
-
-  // 1. Initiate Session & Return QR Code
-  router.post('/api/oid4vp/initiate', async (req: Request, res: Response) => {
+      const base = baseUrl();
+      const walletProfile = getWalletProfile();
+      if (walletProfile === 'eudi-android' && protocol !== 'openid4vp-1.0') {
+        res.status(400).json({ error: 'legacy_not_available_in_eudi_profile' }); return;
+      }
+      const signer = walletProfile === 'eudi-android' ? await certificateSigner('verifier') : null;
+      if (signer) await registrationInfo('verifier');
+      const encryptionKey = signer ? await newEncryptionKey() : undefined;
+      const sessionId = 'sess-' + randomBytes(32).toString('hex');
+      const readToken = randomBytes(32).toString('base64url');
+      const nonce = randomBytes(32).toString('base64url');
+      const session: Session = { status: 'initiated', protocol, nonce, credentialType, walletProfile, issuerUrl: base,
+        ...(signer ? { clientId: signer.clientId, encryptionKey } : {}),
+        readTokenHash: digest(readToken), createdAt: Date.now(), claims: null };
+      const params = new URLSearchParams();
+      for (const [name, value] of Object.entries(requestFor(sessionId, session))) {
+        params.set(name, typeof value === 'string' ? value : JSON.stringify(value));
+      }
+      const requestUri = signer ? 'openid4vp://authorize?' + new URLSearchParams({ client_id: signer.clientId, request_uri: base + '/api/oid4vp/request/' + sessionId }).toString()
+        : protocol === 'openid4vp-1.0' ? 'openid4vp://authorize?' + params.toString()
+        : 'openid-vp://?client_id=' + encodeURIComponent(base + '/api/oid4vp/client-metadata') + '&request_uri=' + encodeURIComponent(base + '/api/oid4vp/request/' + sessionId);
+      const qrCodeDataUrl = await qrcode.toDataURL(requestUri);
+      const sessions = load();
+      sessions[sessionId] = session;
+      save(sessions);
+      res.json({ success: true, protocol, sessionId, readToken, nonce, requestUri, qrCodeDataUrl });
+    } catch { res.status(503).json({ error: 'verifier_unavailable' }); }
+  });
+  router.get('/api/oid4vp/client-metadata', (_req, res) => {
     try {
-      const baseUrl = getBaseUrl(req);
-      const sessionId = `sess-${uuidv4().substring(0, 8)}`;
-      const nonce = `nonce-${randomBytes(8).toString('hex')}`;
-      const requestUri = `openid-vp://?client_id=${baseUrl}/api/oid4vp/client-metadata&request_uri=${baseUrl}/api/oid4vp/request/${sessionId}`;
-
-      let qrCodeDataUrl = '';
+      res.json({ ...clientMetadata(), client_id: baseUrl() + '/api/oid4vp/client-metadata' });
+    } catch { res.status(503).json({ error: 'verifier_unavailable' }); }
+  });
+  router.get('/api/oid4vp/request/:sessionId', async (req, res) => {
+    try {
+      const s = get(req.params.sessionId);
+      if (!s || s.status !== 'initiated') { res.status(404).json({ error: 'session_not_found' }); return; }
+      const request = requestFor(req.params.sessionId, s);
+      if (s.walletProfile === 'eudi-android') {
+        const signer = await certificateSigner('verifier');
+        if (signer.clientId !== s.clientId) throw new Error('Verifier identity changed');
+        const jwt = await new SignJWT({ ...request, verifier_info: await registrationInfo('verifier') })
+          .setProtectedHeader({ alg: 'ES256', typ: 'oauth-authz-req+jwt', x5c: signer.x5c })
+          .setIssuer(signer.clientId).setAudience('https://self-issued.me/v2').setIssuedAt()
+          .setExpirationTime(Math.min(Math.floor(Date.now() / 1000) + 300, Math.floor(s.createdAt / 1000) + 1800))
+          .sign(signer.privateKey);
+        res.type('application/oauth-authz-req+jwt').send(jwt); return;
+      }
+      res.json(request);
+    } catch { res.status(503).json({ error: 'verifier_unavailable' }); }
+  });
+  router.post('/api/oid4vp/response/:sessionId', async (req, res) => {
+    const id = req.params.sessionId;
+    if (inFlight.has(id)) { res.status(409).json({ error: 'session_consumed' }); return; }
+    inFlight.add(id);
+    try {
+      const s = get(id);
+      if (!s) { res.status(404).json({ error: 'session_not_found' }); return; }
+      if (s.status !== 'initiated') { res.status(409).json({ error: 'session_consumed' }); return; }
+      let claims;
       try {
-        qrCodeDataUrl = await qrcode.toDataURL(requestUri);
-      } catch (err) {
-        console.error('[oid4vp] QR Code generation failed:', err);
-        qrCodeDataUrl = `MOCK_QR_BASE64_FOR_${sessionId}`;
+        let response = req.body;
+        if (s.walletProfile === 'eudi-android') {
+          if (!s.encryptionKey || !response || Object.keys(response).length !== 1) throw new Error('Encrypted response required');
+          response = await decryptMessage(response.response, s.encryptionKey.privateKey);
+        }
+        let vp = response?.vp_token;
+        if (s.protocol === 'openid4vp-1.0') {
+          if (response?.state !== id) throw new Error('Wrong state');
+          if (typeof vp === 'string') vp = JSON.parse(vp);
+          if (!vp || typeof vp !== 'object' || Object.keys(vp).length !== 1 ||
+              !Array.isArray(vp.credential) || vp.credential.length !== 1) throw new Error('Invalid DCQL response');
+          vp = vp.credential[0];
+        }
+        claims = await verifyPresentation(vp, s.nonce, requestFor(id, s).client_id, s.credentialType, s.protocol);
       }
-
-      const session: Oid4vpSession = {
-        status: 'initiated',
-        nonce,
-        requestUri,
-        claims: null,
-        timestamp: Date.now(),
-      };
-
-      sessionStore.set(sessionId, session);
-
-      console.log(`[oid4vp] Session Initiated: ${sessionId} with nonce: ${nonce}`);
-
-      res.json({
-        success: true,
-        sessionId,
-        nonce,
-        requestUri,
-        qrCodeDataUrl,
-      });
-    } catch (err) {
-      console.error('[oid4vp] Initiate endpoint error:', err);
-      res.status(500).json({ error: 'internal_server_error', details: (err as Error).message });
-    }
+      catch { res.status(401).json({ error: 'invalid_presentation' }); return; }
+      const sessions = load();
+      sessions[id] = { ...s, status: 'verified', claims };
+      save(sessions);
+      res.json({ success: true, status: 'verified' });
+    } catch { res.status(503).json({ error: 'verifier_unavailable' }); }
+    finally { inFlight.delete(id); }
   });
-
-  // 2. Client Metadata
-  router.get('/api/oid4vp/client-metadata', (req: Request, res: Response) => {
+  router.get('/api/oid4vp/session/:sessionId', (req, res) => {
     try {
-      const baseUrl = getBaseUrl(req);
-
-      res.json({
-        client_id: `${baseUrl}/api/oid4vp/client-metadata`,
-        client_name: 'VeriCred Secure Verifier',
-        response_types_supported: ['vp_token'],
-        vp_formats_supported: {
-          'vc+sd-jwt': {
-            'sd-jwt_alg_values_supported': ['ES256'],
-          },
-        },
-      });
-    } catch (err) {
-      res.status(403).json({ error: 'forbidden', details: (err as Error).message });
-    }
+      const s = get(req.params.sessionId);
+      const token = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : '';
+      if (!s || !token || digest(token) !== s.readTokenHash) { res.status(401).json({ error: 'unauthorized' }); return; }
+      res.json({ status: s.status, claims: s.claims });
+    } catch { res.status(503).json({ error: 'verifier_unavailable' }); }
   });
-
-  // 3. Authorization Request Object
-  router.get('/api/oid4vp/request/:sessionId', (req: Request, res: Response) => {
-    try {
-      const { sessionId } = req.params;
-      const session = sessionStore.get(sessionId);
-
-      if (!session) {
-        res.status(404).json({ error: 'session_not_found' });
-        return;
-      }
-
-      const baseUrl = getBaseUrl(req);
-
-      res.json({
-        client_id: `${baseUrl}/api/oid4vp/client-metadata`,
-        response_uri: `${baseUrl}/api/oid4vp/response/${sessionId}`,
-        response_mode: 'direct_post',
-        response_type: 'vp_token',
-        nonce: session.nonce,
-        presentation_definition: {
-          id: `presentation_${sessionId}`,
-          input_descriptors: [
-            {
-              id: 'eu.europa.ec.eudiw.pid.1',
-              format: {
-                'vc+sd-jwt': {
-                  'sd-jwt_alg_values': ['ES256'],
-                },
-              },
-              constraints: {
-                fields: [
-                  {
-                    path: ['$.given_name'],
-                    intent_to_retain: 'true',
-                  },
-                  {
-                    path: ['$.family_name'],
-                    intent_to_retain: 'true',
-                  },
-                  {
-                    path: ['$.age'],
-                    intent_to_retain: 'true',
-                  },
-                ],
-              },
-            },
-          ],
-        },
-      });
-    } catch (err) {
-      res.status(403).json({ error: 'forbidden', details: (err as Error).message });
-    }
-  });
-
-  // 4. Receive Wallet Presentation (Direct Post) - explicitly handles standard urlencoded post and json payloads
-  router.post('/api/oid4vp/response/:sessionId', urlencoded({ extended: true }), async (req: Request, res: Response) => {
-    try {
-      const { sessionId } = req.params;
-      const session = sessionStore.get(sessionId);
-
-      if (!session) {
-        res.status(404).json({ error: 'session_not_found' });
-        return;
-      }
-
-      const vpToken = (req.body.vp_token || req.body.vpToken || '') as string;
-      const claims: Record<string, unknown> = {};
-
-      const isMockToken = !vpToken || vpToken.startsWith('FAKE_JWT_HEADER') || vpToken.startsWith('FAKE_JWT~') || vpToken === 'FAKE_MOCK_TOKEN';
-
-      if (isMockToken) {
-        // Enforce that mock bypass is strictly forbidden in production mode
-        if (process.env.NODE_ENV === 'production') {
-          res.status(401).json({ error: 'unauthorized', details: 'Trust Anchor Violation: Sandbox fallbacks disabled in production mode.' });
-          return;
-        }
-      } else {
-        // --- 3-Tier Cryptographic Inbound Verification Pipeline ---
-        const parts = vpToken.split('~');
-        const sdJwtVc = parts[0];
-        if (!sdJwtVc) {
-          res.status(401).json({ error: 'unauthorized', details: 'Cryptographic Violation: Missing signed SD-JWT-VC base payload.' });
-          return;
-        }
-
-        // TIER 1: Cryptographic JWS Signature Verification
-        let verifiedPayload: any = null;
-        let signatureOk = false;
-        const publicKeys = await getAllPublicKeys();
-
-        for (const pk of publicKeys) {
-          try {
-            const keyLike = await importJWK(pk.publicKey, 'ES256');
-            const { payload } = await jwtVerify(sdJwtVc, keyLike);
-            verifiedPayload = payload;
-            signatureOk = true;
-            break;
-          } catch (e) {
-            // Keep trying other active or historical trust anchor keys
-          }
-        }
-
-        if (!signatureOk || !verifiedPayload) {
-          res.status(401).json({ error: 'unauthorized', details: 'Trust Anchor Violation: Issuer JWS signature verification failed against trusted keys.' });
-          return;
-        }
-
-        // TIER 2: Trusted Issuer Roster Check (EUTL Mock)
-        const config = loadConfig();
-        const trustedIssuers = [config.issuer.did, config.issuer.url, 'http://localhost:3100', 'https://localhost:3100'];
-        if (!trustedIssuers.includes(verifiedPayload.iss)) {
-          res.status(401).json({ error: 'unauthorized', details: `Trust Anchor Violation: Issuer "${verifiedPayload.iss}" is not present in our trusted anchor roster.` });
-          return;
-        }
-
-        // TIER 3: Ephemeral Holder Key-Binding (KB-JWT) Verification
-        const cnf = verifiedPayload.cnf as { jwk: JWK } | undefined;
-        if (!cnf || !cnf.jwk) {
-          res.status(401).json({ error: 'unauthorized', details: 'Holder Key-Binding Violation: Verified credential is missing the embedded cnf.jwk claim.' });
-          return;
-        }
-
-        // Extract KB-JWT from token parts (usually the last non-empty part splitting by '~')
-        let kbJwt: string | null = null;
-        for (let i = parts.length - 1; i >= 1; i--) {
-          const p = parts[i];
-          if (p && p.split('.').length === 3) {
-            kbJwt = p;
-            break;
-          }
-        }
-
-        if (!kbJwt) {
-          res.status(401).json({ error: 'unauthorized', details: 'Holder Key-Binding Violation: Missing Holder Proof-of-Possession signature (KB-JWT).' });
-          return;
-        }
-
-        try {
-          const holderKey = await importJWK(cnf.jwk, 'ES256');
-          const { payload: kbPayload } = await jwtVerify(kbJwt, holderKey, {
-            audience: `${getBaseUrl(req)}/api/oid4vp/client-metadata`,
-            clockTolerance: 30,
-          });
-
-          // Check that the KB-JWT is bound to the active session nonce
-          if (kbPayload.nonce !== session.nonce) {
-            res.status(401).json({ error: 'unauthorized', details: `Holder Key-Binding Violation: Nonce mismatch. Expected "${session.nonce}", got "${kbPayload.nonce}".` });
-            return;
-          }
-        } catch (e) {
-          res.status(401).json({ error: 'unauthorized', details: 'Holder Key-Binding Violation: Ephemeral KB-JWT signature verification failed: ' + (e as Error).message });
-          return;
-        }
-      }
-
-      // If checks passed or sandbox mock is allowed, parse disclosures
-      if (vpToken) {
-        const parts = vpToken.split('~');
-        for (let i = 1; i < parts.length; i++) {
-          const part = parts[i];
-          if (!part || part.split('.').length === 3) continue; // Skip JWS parts (e.g. KB-JWT)
-          try {
-            const decoded = Buffer.from(part, 'base64url').toString('utf-8');
-            const [salt, name, value] = JSON.parse(decoded) as [string, string, unknown];
-            claims[name] = value;
-          } catch (e) {
-            // Skip non-disclosure blocks
-          }
-        }
-      }
-
-      // Fail-Closed Guard: Ensure sandbox fallbacks are STRICTLY disabled in production mode
-      const isSandboxFallbackTriggered = Object.keys(claims).length === 0;
-      if (isSandboxFallbackTriggered) {
-        if (process.env.NODE_ENV === 'production') {
-          console.error(`[oid4vp] Security Check: Rejected blank/invalid presentation for session ${sessionId}. Sandbox fallbacks are disabled in production mode.`);
-          res.status(401).json({ error: 'unauthorized', details: 'Sandbox fallbacks disabled in production mode.' });
-          return;
-        }
-
-        // Fallback only if NOT in production to keep mock/offline flow intact
-        const bodyClaims = req.body.claims || {};
-        claims['given_name'] = bodyClaims.given_name || bodyClaims.givenName || 'Maximilia';
-        claims['family_name'] = bodyClaims.family_name || bodyClaims.familyName || 'P.';
-        claims['age'] = Number(bodyClaims.age || 28);
-        claims['professional_role'] = bodyClaims.professional_role || bodyClaims.professionalRole || 'SecOps Auditor';
-      }
-
-      session.status = 'verified';
-      session.claims = claims;
-      session.vpToken = vpToken;
-
-      sessionStore.set(sessionId, session);
-
-      console.log(`[oid4vp] Presentation verified successfully for session: ${sessionId}`);
-
-      res.json({
-        success: true,
-        status: 'verified',
-      });
-    } catch (err) {
-      res.status(500).json({ error: 'internal_server_error', details: (err as Error).message });
-    }
-  });
-
-  // 5. Get Session Status
-  router.get('/api/oid4vp/session/:sessionId', (req: Request, res: Response) => {
-    const { sessionId } = req.params;
-    const session = sessionStore.get(sessionId);
-
-    if (!session) {
-      res.status(404).json({ error: 'session_not_found' });
-      return;
-    }
-
-    res.json(session);
-  });
-
   return router;
 }

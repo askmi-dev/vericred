@@ -94,9 +94,9 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
         </div>
     </div>
 
-    <script is:inline>
+    <script>
+        import { adminMutation, escapeHtml } from '../../admin-client';
         let allHolders = [];
-        let csrfToken = '';
         let currentEditingId = '';
 
         const tbody = document.getElementById('holders-tbody');
@@ -110,31 +110,16 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
         const modalEmail = document.getElementById('modal-holder-email');
         const pwInput = document.getElementById('new-pw-input');
 
-        function escapeHtml(value) {
-            return String(value ?? '').replace(/[&<>"']/g, (char) => ({
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#39;'
-            }[char]));
-        }
 
-        function refreshCsrf() {
-            return fetch('/admin/api/csrf-handshake')
-                .then(res => res.json())
-                .then(data => {
-                    csrfToken = data.csrfToken;
-                    return csrfToken;
-                });
-        }
-
-        // Initial Handshake
-        refreshCsrf();
 
         function loadData() {
             fetch('/admin/api/holders')
-                .then(res => res.json())
+                .then(async res => {
+                    const data = await res.json();
+                    if (res.status === 501) throw new Error('This source does not provide a holder list. Enter a known identifier in the Issuance Monitor.');
+                    if (!res.ok || !Array.isArray(data)) throw new Error(data.error || 'Unable to load holders');
+                    return data;
+                })
                 .then(data => {
                     allHolders = data;
                     render();
@@ -142,7 +127,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
                     updateRegionFilter();
                 })
                 .catch(err => {
-                    tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-red-400">Failed to load subjects: ${err.message}</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-red-400">Failed to load subjects: ${escapeHtml(err.message)}</td></tr>`;
                 });
         }
 
@@ -185,6 +170,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
             tbody.innerHTML = filtered.slice(0, 100).map(h => {
                 const date = h.createdAt ? new Date(h.createdAt).toISOString().slice(0, 19).replace('T', ' ') : '-';
                 const id = escapeHtml(h.id ?? '');
+                const shortId = escapeHtml(String(h.id ?? '').slice(-8));
                 const email = escapeHtml(h.email ?? '');
                 const firstName = escapeHtml(h.firstName ?? '');
                 const lastName = escapeHtml(h.lastName ?? '');
@@ -193,7 +179,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
                 const hasPw = Boolean(h.hasCustomPassword);
                 return `
                     <tr class="hover:bg-slate-800/10 transition-colors group">
-                        <td class="p-4 text-slate-500 text-[10px]">${id.slice(-8)}</td>
+                        <td class="p-4 text-slate-500 text-[10px]">${shortId}</td>
                         <td class="p-4 font-bold text-white">${firstName} ${lastName}</td>
                         <td class="p-4 text-emerald-400/80">${email}</td>
                         <td class="p-4 text-slate-400">${region}</td>
@@ -245,11 +231,10 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
                 return;
             }
 
-            fetch('/admin/holder/password', {
+            adminMutation('/admin/holder/password', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'x-csrf-token': csrfToken
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ holderId: currentEditingId, password: pw })
             })
@@ -258,12 +243,12 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
                 if (data.success) {
                     if (window.triggerToast) window.triggerToast('Password updated successfully!');
                     closeModal();
-                    refreshCsrf();
                     loadData();
                 } else {
                     alert('Error: ' + (data.error || 'Failed to update'));
                 }
-            });
+            })
+            .catch(err => alert('Could not update the password: ' + err.message));
         });
 
         searchInput.addEventListener('input', render);

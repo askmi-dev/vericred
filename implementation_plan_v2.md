@@ -1,3 +1,5 @@
+> Historical material: claims and examples below describe an earlier prototype or plan. See [current production handover](docs/PRODUCTION_HANDOVER.md) for implementation and acceptance status.
+
 # VeriCred — Production Implementation Plan v2
 
 ## What we're building

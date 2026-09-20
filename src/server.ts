@@ -1,3 +1,4 @@
+import './config/env.js';
 import express from 'express';
 import path from 'path';
 import { loadConfig } from './config/loader.js';
@@ -11,10 +12,15 @@ import { createOfferRouter } from './oid4vci/offer.js';
 import { createAdminRouter } from './admin/router.js';
 import { createRevocationRouter } from './revocation/router.js';
 import { createOid4vpRouter } from './oid4vp/router.js';
-import { requireAdmin } from './middleware/auth.js';
+import { requireAdmin, requireCsrf } from './middleware/auth.js';
 import { generateHolders } from './connectors/generator.js';
 import { logStartup, markProcessStart } from './admin/runtime.js';
-import { buildConnector } from './connectors/index.js';
+import { liveConnector } from './connectors/index.js';
+import { acquireDataLease } from './storage/lease.js';
+import { securityHeaders, publicLimiter, loginLimiter } from './middleware/security.js';
+import { assertWalletProfileReady } from './wallet/profile.js';
+import { trustedProxies } from './middleware/proxy.js';
+import { errorHandler } from './middleware/errors.js';
 import { getTemplate, listTemplates } from './credentials/registry.js';
 
 // Register all built-in templates (side-effect imports)
@@ -22,22 +28,23 @@ import './credentials/templates/age.js';
 import './credentials/templates/employee.js';
 import './credentials/templates/membership.js';
 
-try {
-  const explicitEnv = { ...process.env };
-  process.loadEnvFile();
-  for (const [key, value] of Object.entries(explicitEnv)) {
-    if (value !== undefined) process.env[key] = value;
-  }
-} catch {
-  // Ignore error if .env file is missing
-}
-
+const releaseLease = process.env.NODE_ENV === 'test' ? async () => {} : await acquireDataLease();
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.disable('x-powered-by');
+app.set('trust proxy', trustedProxies());
+app.use(securityHeaders(process.env.FRONTEND_DIST_PATH || 'stitch-out/dist'));
+if (process.env.NODE_ENV !== 'test') {
+  app.use(['/token', '/credentials', '/nonce', '/api/oid4vp', '/status'], publicLimiter());
+  app.use('/admin/login', loginLimiter());
+}
+app.use(['/admin/api', '/offer'], (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
+app.use(express.json({ limit: '128kb' }));
+app.use(express.urlencoded({ extended: false, limit: '128kb' }));
 
+if (process.env.NODE_ENV === 'production' && process.env.DEMO_MODE === 'true') throw new Error('DEMO_MODE is forbidden in production');
 const config = loadConfig();
 const secrets = loadSecrets();
+await assertWalletProfileReady(config.issuer.url, config.credential.format);
 const dataPath = config.dataSource.path ?? './data/holders.json';
 
 // --- Startup: fail-fast template validation ---
@@ -57,7 +64,7 @@ const dataPath = config.dataSource.path ?? './data/holders.json';
 
   if (template) {
     // 2. Check field mappings cover required fields
-    const mappingErrors = template.validateMappings(config.fieldMappings);
+    const mappingErrors = template.validateMappings(config.templateMappings?.[config.credential.type] ?? config.fieldMappings);
     if (mappingErrors.length > 0) {
       console.error('[startup] FATAL: Field mapping errors for ' + config.credential.type + ':');
       for (const err of mappingErrors) console.error('  - ' + err);
@@ -66,7 +73,7 @@ const dataPath = config.dataSource.path ?? './data/holders.json';
 
     // 3. Check templateOptions (if template supports it)
     if (template.validateOptions) {
-      const optErrors = template.validateOptions(config.templateOptions ?? {});
+      const optErrors = template.validateOptions(config.templateOptionsByType?.[config.credential.type] ?? config.templateOptions ?? {});
       if (optErrors.length > 0) {
         console.error('[startup] FATAL: templateOptions errors for ' + config.credential.type + ':');
         for (const err of optErrors) console.error('  - ' + err);
@@ -91,7 +98,7 @@ const dataPath = config.dataSource.path ?? './data/holders.json';
 
 // Startup
 markProcessStart();
-const sessionId = logStartup(5);
+const sessionId = logStartup(process.env.DEMO_MODE === 'true' ? 5 : 0);
 
 // Synthetic holders only in DEMO_MODE - never in production
 if (process.env['DEMO_MODE'] === 'true') {
@@ -102,7 +109,7 @@ if (process.env['DEMO_MODE'] === 'true') {
 }
 
 // Data connector
-const connector = buildConnector(config);
+const connector = liveConnector();
 const lookup = (id: string) => connector.lookup(id);
 
 // Public routes (wallet-facing)
@@ -171,8 +178,8 @@ if (process.env['NODE_ENV'] === 'development') {
 }
 
 // Protected routes (admin only)
-app.use('/offer', requireAdmin);
-app.use(createOfferRouter(lookup));
+app.use('/offer', requireAdmin, requireCsrf);
+app.use(createOfferRouter(lookup, connector.lookupForConfig));
 app.use(createRevocationRouter());
 app.use(createAdminRouter(connector));
 
@@ -181,7 +188,7 @@ const distPath = process.env.FRONTEND_DIST_PATH || 'stitch-out/dist';
 app.use(express.static(path.resolve(distPath)));
 
 // Health (public, no PII)
-app.get('/health', (_req, res) => res.json({ status: 'ok', issuer: config.issuer.did }));
+app.get('/health', (_req, res) => res.json({ status: 'ok', issuer: loadConfig().issuer.did }));
 
 // Public Info (for white-label landing page)
 app.get('/api/info', (_req, res) => {
@@ -195,12 +202,13 @@ app.get('/api/info', (_req, res) => {
   });
 });
 
+app.use(errorHandler);
 const PORT = process.env['PORT'] ?? 3100;
 export const SERVER_STARTED_AT = new Date();
 
 await getIssuerKeyPair();
 
-app.listen(PORT, () => {
+export const server = app.listen(Number(PORT), process.env.HOST ?? '0.0.0.0', () => {
   console.log('');
   console.log('VeriCred running at ' + config.issuer.url);
   console.log('  Admin:    ' + config.issuer.url + '/admin');
@@ -208,3 +216,9 @@ app.listen(PORT, () => {
   console.log('  Metadata: ' + config.issuer.url + '/.well-known/openid-credential-issuer');
   console.log('');
 });
+
+async function shutdown() {
+  server.close(async () => { await connector.close?.(); await releaseLease(); process.exit(0); });
+  setTimeout(() => process.exit(1), 10000).unref();
+}
+if (process.env.NODE_ENV !== "test") { process.once("SIGTERM", shutdown); process.once("SIGINT", shutdown); }

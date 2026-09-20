@@ -1,3 +1,5 @@
+> Historical material: claims and examples below describe an earlier prototype or plan. See [current production handover](docs/PRODUCTION_HANDOVER.md) for implementation and acceptance status.
+
 # Walkthrough Guide - VeriCred: miTch Evidence-Bridge & Credential Extension Gateway
 
 Welcome to **VeriCred**, a decentralized, trustless, and privacy-preserving professional qualification gateway. VeriCred acts as a standard-conforming **miTch Evidence-Bridge**, validating secure, European Union Digital Identity (EUDI) compliant identity proofs and extending them with verifiable professional credentials.

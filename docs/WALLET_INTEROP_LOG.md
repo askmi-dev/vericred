@@ -1,35 +1,25 @@
-# Wallet Interoperability Log - Troubleshooting
+# Wallet acceptance record
 
-This log is captured dynamically by the VeriCred Gateway. Below are common categories of interoperability alerts and how to resolve them.
+Independent Android, iOS and miTch execution: **NOT RUN**.
 
-## Category: `proof` (Holder Proof of Possession)
+Attested-key issuance is implemented and tested with synthetic provider/status certificates.
+Actual provider policy material and independent Android acceptance remain **NOT RUN**.
+[Attestation implementation and trust boundaries](WALLET_ATTESTATION.md).
+Registration ON trust/status/binding/scope remains unverified.
 
-These errors occur when the wallet's proof-of-possession JWT (sent to the `/credentials` endpoint) fails validation.
+| Field | Current evidence, 2026-09-19 |
+| --- | --- |
+| Proposed first wallet | Android 2026.08.41-Demo build41, app50828c2, core0.30.2; installed binary digest not yet recorded |
+| Second platforms | iOS and miTch; exact builds and runs pending |
+| Public issuer/image digest | Not deployed |
+| Credential/trust/status | Custom VCT proposal and implemented EUDI transport/status profile; ecosystem agreement and certificates pending |
+| Automated protocol | 7 synthetic-certificate tests, 49 wallet-attestation tests and 19 registration-integrity tests passed, including encrypted issuance/presentation, revocation and Token Status List recovery |
+| HTTPS preflight | 2 metadata TLS tests and 2 attestation-status TLS tests passed; public endpoint not tested |
+| Backup/restoration | 8 filesystem/HTTP/crypto tests plus Token Status List recovery passed; separate-volume Docker drill passed, including cleanup |
+| Live connectors | Actual PostgreSQL 16 Alpine and MySQL 8.4 passed, including service-outage checks; hosted CI remains unrun |
+| Local app/browser | Synthetic HTTP flow and actual desktop/mobile Edge browser checks passed; no independent wallet claim |
+| Independent issuance/presentation/revocation | Not run |
 
-| Message | Potential Cause | Fix |
-|---------|-----------------|-----|
-| `Proof JWT typ must be "openid4vci-proof+jwt", got "..."` | Wallet is using an older or incorrect `typ` header value. | Ensure the wallet is OID4VCI draft-13 compliant. |
-| `Proof JWT verification failed: ...` | Cryptographic signature validation failed. | Check if the wallet used a different key than the one in the `jwk` header. |
-| `Proof JWT nonce does not match c_nonce` | Replay protection triggered or wallet used an expired nonce. | The wallet must use the `c_nonce` received from the `/token` response. |
-
-## Category: `token` (Access Token Request)
-
-These alerts occur at the `/token` endpoint.
-
-| Message | Potential Cause | Fix |
-|---------|-----------------|-----|
-| `Unsupported grant type` | Wallet tried to use Authorization Code or another grant type. | VeriCred currently defaults to `urn:ietf:params:oauth:grant-type:pre-authorized_code`. |
-| `Invalid or expired pre-authorized code` | The QR code was scanned twice or the code timed out (10 min). | Generate a fresh Credential Offer in the Issuance Monitor. |
-
-## Category: `issuance` (Mapping & Building)
-
-These alerts occur after proof validation, during the assembly of the SD-JWT-VC.
-
-| Message | Potential Cause | Fix |
-|---------|-----------------|-----|
-| `Field mapping failed` | The data source is missing a required field (e.g., `dateOfBirth`). | Check the **Schema Mapping** tab and ensure all required fields are mapped to existing database columns. |
-| `Issued ...` | **Success!** | No action needed. |
-
----
-
-*Note: For real-time debugging, use the **Issuance Monitor** in the Admin Console.*
+Follow [the contract and acceptance gates](EUDI_ACCEPTANCE_CONTRACT.md).
+Record PASS/FAIL/BLOCKED with redacted evidence per actual wallet run.
+Custom simulations and synthetic-certificate tests cannot change the independent acceptance status.

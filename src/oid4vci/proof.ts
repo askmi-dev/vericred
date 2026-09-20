@@ -1,22 +1,11 @@
 /**
- * OID4VCI Holder Proof Verification
- *
- * Verifies a proof-of-possession JWT per OpenID for VCI spec.
- *
- * Expected holder proof JWT:
- *   Header: { "typ": "openid4vci-proof+jwt", "alg": "ES256", "jwk": { ...holder_public_jwk } }
- *   Payload: { "iss": "<holder_did>", "aud": "<issuer_url>", "iat": <unix_ts>, "nonce": "<c_nonce>" }
- *
- * Verification steps:
- *   1. Header typ === "openid4vci-proof+jwt"
- *   2. Header contains a jwk (holder public key — no DID resolution needed)
- *   3. JWT signature is valid against the header JWK
- *   4. aud matches the issuer URL
- *   5. iat is fresh (max MAX_PROOF_AGE_SECONDS old)
- *   6. nonce matches the c_nonce issued with the access token
- *   7. JWK thumbprint is computed (RFC 7638) → used as pairwise pseudonym input
+ * Verify an ES256 holder proof, audience, freshness and one-use issuer nonce binding.
+ * Custom mode uses an embedded public JWK. EUDI requires kid=0 plus an authenticated
+ * key attestation, configured provider/assurance trust and a valid signed storage status.
+ * The caller consumes the nonce atomically after this verification succeeds.
  */
 
+import { validateKeyAttestation } from '../wallet/attestation.js';
 import { jwtVerify, importJWK, calculateJwkThumbprint } from 'jose';
 import type { JWK } from 'jose';
 
@@ -25,8 +14,9 @@ const MAX_PROOF_AGE_SECONDS = 300; // 5 minutes
 export interface HolderProofResult {
   /** RFC 7638 JWK thumbprint — used as input to pairwise pseudonym */
   holderThumbprint: string;
-  /** Holder public JWK — stored in cnf.jkt of the issued credential */
+  /** Holder public JWK — stored in cnf.jwk of the issued credential */
   jwk: JWK;
+  keyStorageExpiresAt?: number;
 }
 
 export class ProofVerificationError extends Error {
@@ -43,8 +33,10 @@ export async function verifyHolderProofJwt(
   proofJwt: string,
   expectedAudience: string,
   expectedNonce: string,
+  attestedCredentialLifetimeSeconds?: number,
 ): Promise<HolderProofResult> {
   // 1. Decode header without verification
+  if (typeof proofJwt !== 'string' || proofJwt.length > 128 * 1024) throw new ProofVerificationError('invalid_proof', 'Invalid proof size');
   const parts = proofJwt.split('.');
   if (parts.length !== 3) {
     throw new ProofVerificationError('invalid_proof', 'Proof JWT must have three parts');
@@ -61,16 +53,33 @@ export async function verifyHolderProofJwt(
   if (header['typ'] !== 'openid4vci-proof+jwt') {
     throw new ProofVerificationError(
       'invalid_proof',
-      `Proof JWT typ must be "openid4vci-proof+jwt", got "${header['typ']}"`,
+      'Proof JWT has an unsupported type',
     );
   }
 
-  // 3. Extract holder JWK from header
-  const jwk = header['jwk'] as JWK | undefined;
-  if (!jwk || typeof jwk !== 'object') {
-    throw new ProofVerificationError('invalid_proof', 'Proof JWT header must include holder public key as "jwk"');
+  let attestation: Awaited<ReturnType<typeof validateKeyAttestation>> | undefined;
+  let jwk: JWK | undefined;
+  if (attestedCredentialLifetimeSeconds !== undefined) {
+    // The pinned ETSI profile signs with attested_keys[0], selected by the literal kid "0".
+    if (header.alg !== 'ES256' || header.kid !== '0' || typeof header.key_attestation !== 'string' ||
+        header.jwk !== undefined || header.x5c !== undefined || header.jku !== undefined || header.x5u !== undefined) {
+      throw new ProofVerificationError('invalid_proof', 'A key-attested ES256 proof with kid 0 is required');
+    }
+    try {
+      attestation = await validateKeyAttestation(header.key_attestation, expectedNonce, attestedCredentialLifetimeSeconds);
+      jwk = attestation.jwk;
+    } catch { throw new ProofVerificationError('invalid_proof', 'Wallet key attestation could not be validated'); }
+  } else {
+    if (header.key_attestation !== undefined || header.kid !== undefined || header.x5c !== undefined || header.jku !== undefined || header.x5u !== undefined) {
+      throw new ProofVerificationError('invalid_proof', 'Attested or certificate-selected proofs are not supported by this adapter');
+    }
+    jwk = header.jwk as JWK | undefined;
   }
+  if (!jwk || typeof jwk !== 'object') throw new ProofVerificationError('invalid_proof', 'Proof JWT header must include holder public key as "jwk"');
 
+  if (header.alg !== 'ES256' || jwk.kty !== 'EC' || jwk.crv !== 'P-256' || jwk.d) {
+    throw new ProofVerificationError('invalid_proof', 'A public P-256 key and ES256 are required');
+  }
   const alg = (header['alg'] as string | undefined) ?? 'ES256';
 
   // 4. Import key and verify signature + audience
@@ -78,6 +87,7 @@ export async function verifyHolderProofJwt(
   try {
     const key = await importJWK(jwk, alg);
     const result = await jwtVerify(proofJwt, key, {
+      algorithms: ['ES256'],
       audience: expectedAudience,
       clockTolerance: 30,
     });
@@ -95,7 +105,7 @@ export async function verifyHolderProofJwt(
     throw new ProofVerificationError('invalid_proof', 'Proof JWT missing iat');
   }
   const ageSeconds = Math.floor(Date.now() / 1000) - iat;
-  if (ageSeconds > MAX_PROOF_AGE_SECONDS) {
+  if (ageSeconds < -30 || ageSeconds > MAX_PROOF_AGE_SECONDS) {
     throw new ProofVerificationError(
       'invalid_proof',
       `Proof JWT is too old (${ageSeconds}s > ${MAX_PROOF_AGE_SECONDS}s)`,
@@ -111,6 +121,11 @@ export async function verifyHolderProofJwt(
     throw new ProofVerificationError('invalid_nonce', 'Proof JWT nonce does not match c_nonce');
   }
 
+  if (attestation) {
+    try { await attestation.verifyStatus(); }
+    catch { throw new ProofVerificationError('invalid_proof', 'Wallet key attestation status could not be validated'); }
+  }
+
   // 7. Compute JWK thumbprint (RFC 7638)
   let holderThumbprint: string;
   try {
@@ -122,5 +137,5 @@ export async function verifyHolderProofJwt(
     );
   }
 
-  return { holderThumbprint, jwk };
+  return { holderThumbprint, jwk, ...(attestation ? { keyStorageExpiresAt: attestation.storageExpiresAt } : {}) };
 }

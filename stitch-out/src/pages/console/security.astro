@@ -109,13 +109,10 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
     </div>
 
     <!-- Client Script -->
-    <script is:inline>
-        let csrfToken = '';
+    <script>
+        import { adminMutation, escapeHtml } from '../../admin-client';
 
-        // Fetch CSRF
-        fetch('/admin/api/csrf-handshake')
-            .then(res => res.json())
-            .then(data => csrfToken = data.csrfToken);
+
 
         function loadKeyStatus() {
             fetch('/admin/api/keys-status')
@@ -134,9 +131,9 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
         document.getElementById('btn-rotate-keys').addEventListener('click', () => {
             if (!confirm('WARNING: Rotating keys is a major security operation. Are you sure you want to proceed?')) return;
 
-            fetch('/admin/api/rotate-keys', {
+            adminMutation('/admin/api/rotate-keys', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken }
+                headers: { 'Content-Type': 'application/json' }
             })
             .then(res => res.json())
             .then(data => {

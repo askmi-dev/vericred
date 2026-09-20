@@ -9,11 +9,11 @@
  *  - Stale iat rejected
  *  - Wrong nonce rejected
  *  - Invalid signature rejected
- *  - JWT payload contains cnf.jkt after issuance
+ *  - JWT payload contains cnf.jwk after issuance
  *  - Missing proof fails outside DEMO_MODE
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { generateKeyPair, exportJWK, SignJWT, calculateJwkThumbprint } from 'jose';
 import type { KeyLike } from 'jose';
 import { verifyHolderProofJwt, ProofVerificationError } from '../proof.js';
@@ -71,7 +71,7 @@ describe('verifyHolderProofJwt — valid proof', () => {
 describe('verifyHolderProofJwt — typ check', () => {
   it('rejects wrong typ', async () => {
     const { jwt } = await makeProofJwt({ typ: 'JWT', nonce: 'n' });
-    await expect(verifyHolderProofJwt(jwt, ISSUER_URL, 'n')).rejects.toThrow('openid4vci-proof+jwt');
+    await expect(verifyHolderProofJwt(jwt, ISSUER_URL, 'n')).rejects.toBeInstanceOf(ProofVerificationError);
   });
 });
 
@@ -139,5 +139,45 @@ describe('ProofVerificationError', () => {
       expect(e).toBeInstanceOf(ProofVerificationError);
       expect((e as ProofVerificationError).code).toBe('invalid_nonce');
     }
+  });
+});
+
+describe('verifyHolderProofJwt — constrained algorithms and timestamps', () => {
+  it('rejects a proof issued beyond permitted future clock skew', async () => {
+    const { jwt } = await makeProofJwt({ iatOffset: 120 });
+    await expect(verifyHolderProofJwt(jwt, ISSUER_URL, 'test-nonce')).rejects.toBeInstanceOf(ProofVerificationError);
+  });
+  it('accepts a proof within the 30-second clock-skew allowance', async () => {
+    const { jwt } = await makeProofJwt({ iatOffset: 20 });
+    await expect(verifyHolderProofJwt(jwt, ISSUER_URL, 'test-nonce')).resolves.toBeDefined();
+  });
+  it.each(['ES384', 'RS256'])('rejects correctly signed but unadvertised %s proofs', async alg => {
+    const { jwt } = await makeProofJwt({ alg });
+    await expect(verifyHolderProofJwt(jwt, ISSUER_URL, 'test-nonce')).rejects.toBeInstanceOf(ProofVerificationError);
+  });
+  it('rejects a JWK carrying private key material', async () => {
+    const keys = await generateKeyPair('ES256', { extractable: true });
+    const privateJwk = await exportJWK(keys.privateKey);
+    const jwt = await new SignJWT({ aud: ISSUER_URL, nonce: 'test-nonce', iat: Math.floor(Date.now() / 1000) })
+      .setProtectedHeader({ alg: 'ES256', typ: 'openid4vci-proof+jwt', jwk: privateJwk }).sign(keys.privateKey);
+    await expect(verifyHolderProofJwt(jwt, ISSUER_URL, 'test-nonce')).rejects.toBeInstanceOf(ProofVerificationError);
+  });
+  it('does not echo attacker-controlled header markup into the error message', async () => {
+    const marker = '<img src=x onerror=alert(1)>';
+    const { jwt } = await makeProofJwt({ typ: marker });
+    const error = await verifyHolderProofJwt(jwt, ISSUER_URL, 'test-nonce').catch(error => error);
+    expect(error).toBeInstanceOf(ProofVerificationError);
+    expect(error.message).not.toContain(marker);
+  });
+});
+
+
+describe('embedded-JWK adapter rejects unsupported attestation selectors', () => {
+  it.each(['key_attestation', 'kid', 'x5c'])('does not ignore %s beside a valid JWK', async selector => {
+    const keys = await generateKeyPair('ES256');
+    const jwt = await new SignJWT({ aud: ISSUER_URL, nonce: 'test-nonce', iat: Math.floor(Date.now() / 1000) })
+      .setProtectedHeader({ alg: 'ES256', typ: 'openid4vci-proof+jwt', jwk: await exportJWK(keys.publicKey),
+        [selector]: selector === 'x5c' ? ['untrusted'] : 'untrusted' }).sign(keys.privateKey);
+    await expect(verifyHolderProofJwt(jwt, ISSUER_URL, 'test-nonce')).rejects.toThrow('not supported');
   });
 });

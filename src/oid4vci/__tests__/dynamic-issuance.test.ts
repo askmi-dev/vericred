@@ -4,15 +4,14 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import { loadSecrets } from '../../config/secrets.js';
 import { decodeDisclosure } from '../../sdjwt/disclosures.js';
 
-describe('Task 4: Dynamic Issuance and Smart Mapping E2E Integration', () => {
+describe('Task 4: Dynamic Issuance and Explicit Mapping E2E Integration', () => {
   let serverUrl: string;
   const adminApiKey = loadSecrets().adminApiKey;
   let holderKeys: { privateKey: import('jose').KeyLike; publicKey: import('jose').KeyLike };
 
   beforeAll(async () => {
     // Isolated environment setup
-    const tempDir = './src/oid4vci/__tests__/temp-data';
-    if (existsSync(tempDir)) rmSync(tempDir, { recursive: true, force: true });
+    const tempDir = process.env.DATA_DIR!;
     mkdirSync(tempDir, { recursive: true });
 
     writeFileSync(`${tempDir}/holders.json`, JSON.stringify([
@@ -38,6 +37,7 @@ describe('Task 4: Dynamic Issuance and Smart Mapping E2E Integration', () => {
         type: 'AgeCredential',
         expiresInDays: 30
       },
+      templateMappings: { EmployeeCredential: { given_name: 'givenName', family_name: 'familyName', organization: 'organization', role: 'role' } },
       templateOptions: {
         ageThresholds: [18, 21],
         jurisdiction: 'EU'
@@ -98,7 +98,7 @@ describe('Task 4: Dynamic Issuance and Smart Mapping E2E Integration', () => {
     expect(data.error).toContain('Unknown credential type: "RogueCredential"');
   });
 
-  it('executes a complete pre-auth and issuance flow for a dynamically requested type (EmployeeCredential) with smart mapping fallback', async () => {
+  it('executes a complete pre-auth and issuance flow for a dynamically requested type (EmployeeCredential) with explicit template mappings', async () => {
     // 1. Request an offer for EmployeeCredential
     const offerRes = await fetch(`${serverUrl}/offer`, {
       method: 'POST',
@@ -178,9 +178,9 @@ describe('Task 4: Dynamic Issuance and Smart Mapping E2E Integration', () => {
 
     // Decode signed JWT header and payload
     const claims = decodeJwt(jwtPart) as any;
-    expect(claims.vct).toBe('EmployeeCredential'); // Purpose limitation enforced!
+    expect(claims.vct).toBe('urn:vericred:credential:EmployeeCredential:1'); // Purpose limitation enforced!
     expect(claims.iss).toBe('did:web:localhost%3A3513');
-    expect(claims.cnf).toEqual({ jkt: expect.any(String) });
+    expect(claims.cnf).toEqual({ jwk: publicJwk });
 
     // Verify selective disclosure hashes exist in the payload
     expect(claims._sd).toBeInstanceOf(Array);
@@ -205,7 +205,7 @@ describe('Task 4: Dynamic Issuance and Smart Mapping E2E Integration', () => {
     expect(decryptedClaims.organization).toBe('ACME Corp');
     // "role" matched directly (Software Engineer)
     expect(decryptedClaims.role).toBe('Software Engineer');
-    // Optional "department" matched directly (R&D)
-    expect(decryptedClaims.department).toBe('R&D');
+    // Optional fields are not disclosed without an explicit mapping.
+    expect(decryptedClaims.department).toBeUndefined();
   });
 });

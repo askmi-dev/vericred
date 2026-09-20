@@ -1,6 +1,7 @@
 /**
  * Runtime log — tracks server restarts and daily stats.
  */
+import { atomicWrite } from '../storage/atomic.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { randomUUID } from 'crypto';
 
@@ -20,7 +21,7 @@ export function logStartup(holdersSpawned: number): string {
     : [];
 
   entries.push({ sessionId, startedAt: new Date().toISOString(), holdersSpawned });
-  writeFileSync(RUNTIME_PATH, JSON.stringify(entries, null, 2));
+  atomicWrite(RUNTIME_PATH, JSON.stringify(entries.slice(-1000), null, 2));
   return sessionId;
 }
 

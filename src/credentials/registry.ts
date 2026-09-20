@@ -40,10 +40,14 @@ export function getTemplate(type: string): CredentialTemplate {
   return t;
 }
 
-export function listTemplates(): { id: string; displayName: string; requiredFields: string[] }[] {
+export function listTemplates(): { id: string; displayName: string; requiredFields: string[]; optionalFields: string[] }[] {
   return [...registry.values()].map(t => ({
     id: t.id,
     displayName: t.displayName,
     requiredFields: t.requiredFields,
+    optionalFields: t.optionalFields,
   }));
 }
+
+/** Stable custom schema identifiers; these are not EUDI PID attestations. */
+export function credentialVct(type: string): string { return 'urn:vericred:credential:' + encodeURIComponent(type) + ':1'; }

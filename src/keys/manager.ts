@@ -1,92 +1,62 @@
-/**
- * Key Manager — generates and persists the issuer P-256 keypair.
- * Keys are stored in ./keys/issuer-key.json (not env vars — orgs need rotation).
- */
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
-import { generateKeyPair, exportJWK, importJWK } from 'jose';
-import type { KeyLike, JWK } from 'jose';
-
-const KEY_DIR = process.env.DATA_DIR ?? './keys';
-const KEY_PATH = `${KEY_DIR}/issuer-key.json`;
-const HISTORY_PATH = `${KEY_DIR}/key-history.json`;
-
-interface StoredKeyPair {
-  privateKey: JWK;
-  publicKey: JWK;
-  kid: string;
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { generateKeyPair, exportJWK, importJWK, type KeyLike, type JWK } from 'jose';
+import { atomicWrite } from '../storage/atomic.js';
+import { audit } from '../storage/audit.js';
+interface Stored { publicKey: JWK; privateKey: JWK; kid: string; }
+interface PublicKey { publicKey: JWK; kid: string; }
+interface Active { publicKey: KeyLike; privateKey: KeyLike; kid: string; }
+const cached = new Map<string, Active>();
+const rotations = new Map<string, Promise<Active>>();
+const paths = () => {
+  const dir = process.env.DATA_DIR ?? './keys';
+  return { key: join(dir, 'issuer-key.json'), history: join(dir, 'key-history.json') };
+};
+async function importStored(stored: Stored): Promise<Active> {
+  return { kid: stored.kid, privateKey: await importJWK(stored.privateKey, 'ES256') as KeyLike, publicKey: await importJWK(stored.publicKey, 'ES256') as KeyLike };
 }
-
-let cached: { privateKey: KeyLike; publicKey: KeyLike; kid: string } | null = null;
-
-export async function getIssuerKeyPair() {
-  if (cached) return cached;
-
-  if (!existsSync(KEY_DIR)) mkdirSync(KEY_DIR, { recursive: true });
-
-  if (existsSync(KEY_PATH)) {
-    const stored = JSON.parse(readFileSync(KEY_PATH, 'utf-8')) as StoredKeyPair;
-    const privateKey = await importJWK(stored.privateKey, 'ES256') as KeyLike;
-    const publicKey = await importJWK(stored.publicKey, 'ES256') as KeyLike;
-    cached = { privateKey, publicKey, kid: stored.kid };
-    console.log(`[keys] Loaded existing issuer keypair (kid: ${stored.kid})`);
-    return cached;
-  }
-
-  return rotateIssuerKeyPair();
+export async function getIssuerKeyPair(): Promise<Active> {
+  const p = paths();
+  if (rotations.has(p.key)) return rotations.get(p.key)!;
+  const existing = cached.get(p.key);
+  if (existing) return existing;
+  if (!existsSync(p.key)) return rotateIssuerKeyPair();
+  const result = await importStored(JSON.parse(readFileSync(p.key, 'utf8')));
+  cached.set(p.key, result);
+  return result;
 }
-
-/**
- * Generate a fresh P-256 keypair, archiving the current one (if any) to history.
- */
-export async function rotateIssuerKeyPair() {
-  if (!existsSync(KEY_DIR)) mkdirSync(KEY_DIR, { recursive: true });
-
-  // Archive current key if it exists
-  if (existsSync(KEY_PATH)) {
-    const current = JSON.parse(readFileSync(KEY_PATH, 'utf-8')) as StoredKeyPair;
-    const history: StoredKeyPair[] = existsSync(HISTORY_PATH) 
-      ? JSON.parse(readFileSync(HISTORY_PATH, 'utf-8')) 
-      : [];
-    history.push(current);
-    writeFileSync(HISTORY_PATH, JSON.stringify(history, null, 2));
-    console.log(`[keys] Archived key ${current.kid} to history.`);
-  }
-
-  console.log('[keys] Generating new P-256 issuer keypair...');
-  const { privateKey, publicKey } = await generateKeyPair('ES256', { extractable: true });
-  const kid = crypto.randomUUID();
-  const stored: StoredKeyPair = {
-    privateKey: await exportJWK(privateKey),
-    publicKey: await exportJWK(publicKey),
-    kid,
-  };
-  writeFileSync(KEY_PATH, JSON.stringify(stored, null, 2));
-  console.log(`[keys] Keypair generated and saved (kid: ${kid})`);
-  cached = { 
-    privateKey: await importJWK(stored.privateKey, 'ES256') as KeyLike, 
-    publicKey: await importJWK(stored.publicKey, 'ES256') as KeyLike, 
-    kid 
-  };
-  return cached;
+export async function rotateIssuerKeyPair(actor = 'system'): Promise<Active> {
+  const p = paths();
+  if (rotations.has(p.key)) return rotations.get(p.key)!;
+  const operation = (async () => {
+    const pair = await generateKeyPair('ES256', { extractable: true });
+    const stored: Stored = { kid: randomUUID(), privateKey: await exportJWK(pair.privateKey), publicKey: await exportJWK(pair.publicKey) };
+    const history: PublicKey[] = existsSync(p.history) ? JSON.parse(readFileSync(p.history, 'utf8')).map((k: PublicKey) => ({ kid: k.kid, publicKey: k.publicKey })) : [];
+    if (existsSync(p.key)) {
+      const old: Stored = JSON.parse(readFileSync(p.key, 'utf8'));
+      if (!history.some(k => k.kid === old.kid)) history.push({ kid: old.kid, publicKey: old.publicKey });
+    }
+    audit('key.rotation.requested', actor, stored.kid);
+    atomicWrite(p.history, JSON.stringify(history));
+    atomicWrite(p.key, JSON.stringify(stored));
+    const result = await importStored(stored);
+    cached.set(p.key, result);
+    audit('key.rotated', actor, stored.kid);
+    return result;
+  })();
+  rotations.set(p.key, operation);
+  try { return await operation; } finally { rotations.delete(p.key); }
 }
-
-/**
- * Returns all public keys (current + history) for DID document generation.
- */
-export async function getAllPublicKeys(): Promise<Array<{ publicKey: JWK; kid: string }>> {
-  const keys: Array<{ publicKey: JWK; kid: string }> = [];
-  
-  if (existsSync(KEY_PATH)) {
-    const current = JSON.parse(readFileSync(KEY_PATH, 'utf-8')) as StoredKeyPair;
-    keys.push({ publicKey: current.publicKey, kid: current.kid });
-  }
-
-  if (existsSync(HISTORY_PATH)) {
-    const history = JSON.parse(readFileSync(HISTORY_PATH, 'utf-8')) as StoredKeyPair[];
-    for (const h of history) {
-      keys.push({ publicKey: h.publicKey, kid: h.kid });
+export async function getAllPublicKeys(): Promise<PublicKey[]> {
+  const p = paths();
+  const keys: PublicKey[] = [];
+  for (const file of [p.key, p.history]) {
+    if (!existsSync(file)) continue;
+    const data = JSON.parse(readFileSync(file, 'utf8'));
+    for (const k of Array.isArray(data) ? data : [data]) {
+      if (!keys.some(existing => existing.kid === k.kid)) keys.push({ kid: k.kid, publicKey: k.publicKey });
     }
   }
-
   return keys;
 }

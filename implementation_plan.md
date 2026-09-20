@@ -1,3 +1,5 @@
+> Historical material: claims and examples below describe an earlier prototype or plan. See [current production handover](docs/PRODUCTION_HANDOVER.md) for implementation and acceptance status.
+
 # Implementation Plan - VeriCred: Astro + Express Gateway Migration
 
 This plan transforms VeriCred into a production-ready, compliance-first, self-hosted/edge Issuer Gateway. It replaces the legacy client-side browser simulator with a clean Astro + Express dual-architecture, securely partitioning internal Work-In-Progress (WIP) assets, isolating legacy components, and integrating with the real TypeScript OID4VCI/SD-JWT-VC backend.

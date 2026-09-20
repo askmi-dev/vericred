@@ -1,69 +1,49 @@
-/**
- * PostgreSQL connector — queries holder data by identifier (email, studentId, or custom field).
- * Install: npm install pg @types/pg
- */
 import { deriveHolderPassword } from '../config/secrets.js';
 import type { Connector } from './index.js';
+import { pageBounds, sqlIdentifier } from './sql.js';
 
-export interface PostgresConfig {
-  connectionString: string;
-  table: string;                // e.g. "students"
-  identifierColumn: string;    // e.g. "email" or "student_id"
-}
+export interface PostgresConfig { connectionString: string; table: string; identifierColumn: string; }
 
-// Dynamic import so the package is optional — only needed if Postgres connector is active
 async function getPool(connectionString: string) {
-  const { default: pg } = await import('pg') as { default: { Pool: new (opts: { connectionString: string }) => { query: (sql: string, params: unknown[]) => Promise<{ rows: Record<string, unknown>[] }> } } };
-  return new pg.Pool({ connectionString });
+  const { default: pg } = await import('pg');
+  // DATE is a calendar date, not a timestamp. Preserve the server's YYYY-MM-DD text.
+  const getTypeParser = ((oid: number, format?: 'text' | 'binary') =>
+    oid === 1082 && format !== 'binary' ? (value: string) => value : pg.types.getTypeParser(oid, format as 'text')
+  ) as typeof pg.types.getTypeParser;
+  const pool = new pg.Pool({ connectionString, connectionTimeoutMillis: 5000, query_timeout: 10000, max: 5, types: { getTypeParser } });
+  // The pool removes failed idle clients; handle its event so an outage cannot terminate the issuer.
+  pool.on('error', () => console.error('[connector:postgres] Idle database connection failed'));
+  return pool;
 }
 
-export function loadPostgresConnector(
-  config: PostgresConfig,
-  pseudonymSecret: string
-): Connector {
-  let poolPromise: ReturnType<typeof getPool> | null = null;
-
-  const getConn = () => {
-    if (!poolPromise) poolPromise = getPool(config.connectionString);
-    return poolPromise;
+export function loadPostgresConnector(config: PostgresConfig, pseudonymSecret: string): Connector {
+  const table = sqlIdentifier(config.table, '"', true);
+  const identifierColumn = sqlIdentifier(config.identifierColumn, '"');
+  let poolPromise: ReturnType<typeof getPool> | undefined;
+  const getConn = () => poolPromise ??= getPool(config.connectionString);
+  const decorate = (row: Record<string, unknown>, fallback = '') => {
+    const id = String(row['id'] ?? row[config.identifierColumn] ?? fallback);
+    return { ...row, id, _lookupIdentifier: String(row[config.identifierColumn] ?? fallback), defaultPassword: deriveHolderPassword(id, pseudonymSecret), _source: 'postgres' };
   };
-
+  const getSchema = async () => {
+    const result = await (await getConn()).query(`SELECT * FROM ${table} LIMIT 0`);
+    return result.fields.map(field => field.name);
+  };
   return {
-    lookup: async (identifier: string) => {
-      try {
-        const pool = await getConn();
-        const result = await pool.query(
-          `SELECT * FROM ${config.table} WHERE ${config.identifierColumn} = $1 LIMIT 1`,
-          [identifier]
-        );
-        if (result.rows.length === 0) return null;
-
-        const row = result.rows[0];
-        const id = String(row['id'] ?? identifier);
-
-        return {
-          ...row,
-          id,
-          defaultPassword: deriveHolderPassword(id, pseudonymSecret),
-          _source: 'postgres',
-        };
-      } catch (err) {
-        console.error('[connector:postgres] Query failed:', err);
-        return null;
-      }
+    lookup: async identifier => {
+      const result = await (await getConn()).query(`SELECT * FROM ${table} WHERE ${identifierColumn} = $1 LIMIT 1`, [identifier]);
+      return result.rows.length ? decorate(result.rows[0], identifier) : null;
     },
-    getSchema: async () => {
-      try {
-        const pool = await getConn();
-        const result = await pool.query(
-          `SELECT column_name FROM information_schema.columns WHERE table_name = $1 ORDER BY ordinal_position`,
-          [config.table]
-        );
-        return result.rows.map(r => String(r['column_name']));
-      } catch (err) {
-        console.error('[connector:postgres] getSchema failed:', err);
-        return ['id', 'email', 'firstName', 'lastName']; // fallback
-      }
-    }
+    list: async options => {
+      const { limit, offset } = pageBounds(options);
+      const result = await (await getConn()).query(`SELECT * FROM ${table} ORDER BY ${identifierColumn} LIMIT $1 OFFSET $2`, [limit, offset]);
+      return result.rows.map(row => decorate(row));
+    },
+    getSchema,
+    healthCheck: async () => {
+      const columns = await getSchema();
+      if (!columns.includes(config.identifierColumn)) throw new Error('Identifier column does not exist in the source');
+    },
+    close: async () => { if (poolPromise) await (await poolPromise).end(); },
   };
 }

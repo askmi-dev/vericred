@@ -1,89 +1,34 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { loadRestConnector } from '../rest.js';
-
-describe('REST API Connector', () => {
-  const pseudonymSecret = 'test_pseudonym_secret_32_bytes_long_!!!';
-
-  beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn());
+describe('REST source', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  it('encodes identifiers, authenticates and bounds requests', async () => {
+    const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: '001', email: 'a@test.com' }) });
+    vi.stubGlobal('fetch', fetch);
+    const connector = loadRestConnector({ endpoint: 'https://example.com/{id}', authHeader: 'Bearer test' }, 'secret');
+    expect((await connector.lookup('a@test.com'))?.id).toBe('001');
+    expect(fetch).toHaveBeenCalledWith('https://example.com/a%40test.com', expect.objectContaining({ headers: { Accept: 'application/json', Authorization: 'Bearer test' }, signal: expect.any(AbortSignal), redirect: 'error' }));
+    expect(connector.list).toBeUndefined();
   });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
+  it('only treats 404 as missing and propagates service/network failures', async () => {
+    const fetch = vi.fn().mockResolvedValueOnce({ status: 404 }).mockResolvedValueOnce({ status: 500, ok: false }).mockRejectedValueOnce(new Error('offline'));
+    vi.stubGlobal('fetch', fetch);
+    const connector = loadRestConnector({ endpoint: 'https://example.com/{id}' }, 'secret');
+    expect(await connector.lookup('missing')).toBeNull();
+    await expect(connector.lookup('error')).rejects.toThrow('unsuccessful');
+    await expect(connector.lookup('error')).rejects.toThrow('offline');
   });
-
-  it('correctly formats url and sends fetch request with authorization headers', async () => {
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        id: 'user_123',
-        name: 'Jane Doe',
-        email: 'jane@example.com',
-      }),
-    });
-    vi.stubGlobal('fetch', mockFetch);
-
-    const connector = loadRestConnector(
-      {
-        endpoint: 'https://api.example.com/students/{id}/details',
-        authHeader: 'Bearer my_secret_token_abc123',
-      },
-      pseudonymSecret
-    );
-
-    const result = await connector.lookup('jane@example.com');
-
-    expect(mockFetch).toHaveBeenCalledWith(
-      'https://api.example.com/students/jane%40example.com/details',
-      {
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': 'Bearer my_secret_token_abc123',
-        },
-      }
-    );
-
-    expect(result).not.toBeNull();
-    expect(result?.['email']).toBe('jane@example.com');
-    expect(result?.['name']).toBe('Jane Doe');
-    expect(result?.['id']).toBe('user_123');
-    expect(result?.['defaultPassword']).toBeDefined();
-    expect(result?.['_source']).toBe('rest');
+  it('derives schema from an explicit existing holder', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ email: 'a@test.com', department: 'Law' }) }));
+    const connector = loadRestConnector({ endpoint: 'https://example.com/{id}', healthCheckIdentifier: 'a@test.com' }, 'secret');
+    await connector.healthCheck!();
+    expect(await connector.getSchema()).toEqual(['email', 'department']);
+    await expect(loadRestConnector({ endpoint: 'https://example.com/{id}' }, 'secret').getSchema()).rejects.toThrow('healthCheckIdentifier');
   });
-
-  it('returns null if response is not ok', async () => {
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok: false,
-    });
-    vi.stubGlobal('fetch', mockFetch);
-
-    const connector = loadRestConnector(
-      {
-        endpoint: 'https://api.example.com/students/{id}',
-      },
-      pseudonymSecret
-    );
-
-    const result = await connector.lookup('non_existent');
-    expect(result).toBeNull();
-  });
-
-  it('logs error and returns null on fetch exception', async () => {
-    const mockFetch = vi.fn().mockRejectedValue(new Error('Network offline'));
-    vi.stubGlobal('fetch', mockFetch);
-
-    const connector = loadRestConnector(
-      {
-        endpoint: 'https://api.example.com/students/{id}',
-      },
-      pseudonymSecret
-    );
-
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const result = await connector.lookup('err_id');
-
-    expect(result).toBeNull();
-    expect(consoleSpy).toHaveBeenCalled();
-    consoleSpy.mockRestore();
+  it('rejects malformed holder responses and endpoints', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => [] }));
+    await expect(loadRestConnector({ endpoint: 'https://example.com/{id}' }, 'secret').lookup('id')).rejects.toThrow('one holder object');
+    expect(() => loadRestConnector({ endpoint: 'https://example.com/users' }, 'secret')).toThrow('{id}');
+    expect(() => loadRestConnector({ endpoint: 'file:///{id}' }, 'secret')).toThrow('Invalid REST');
   });
 });
