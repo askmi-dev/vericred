@@ -288,6 +288,21 @@ PR baseline review: GitHub agent/add-oid4vp-flow still points to f7db672. Its PR
 main. The next candidate PR should therefore be stacked on that branch to isolate these changes.
 No production deployment or live trust registration has been performed.
 
+## Published draft PR (2026-09-21)
+
+[Draft PR #4](https://github.com/askmi-dev/vericred/pull/4) contains the production candidate on
+codex/Production-readyImplementation, stacked on agent/add-oid4vp-flow (open PR #1).
+The implementation commit is 0fe93576da36fe9a0693b3871ce6105297b00008. Its file tree is identical to
+the locally validated 891b8c5 commit; only commit identity metadata changed to use the authenticated
+GitHub account's noreply address after GitHub rejected publication of a private email address.
+The user explicitly approved continuing the previously requested push and draft PR.
+
+Hosted build/audit/tests, Docker restoration and live connector jobs are available in the
+[PR checks](https://github.com/askmi-dev/vericred/pull/4/checks). Inspect the latest head's check results;
+the local evidence above is separate from hosted CI and independent release acceptance. The draft
+has not been merged and no production deployment has occurred. Further merge/deploy actions require
+user instruction.
+
 ## Next implementation and external actions
 
 1. Provision independently verified wallet-provider/status signer pins and agree assurance, certification,
@@ -318,7 +333,8 @@ prevents generated tests from running.
 
 > Treat Übergabe.md as historical background and docs/PRODUCTION_HANDOVER.md as the current record.
 > Continue the production candidate on codex/Production-readyImplementation based on f7db672.
-> Inspect current Git status and the draft PR before editing; do not assume the candidate is uncommitted.
+> Inspect current Git status and draft PR #4 (https://github.com/askmi-dev/vericred/pull/4) before editing;
+> do not assume the candidate is uncommitted. Check hosted CI on its latest head.
 > Use docs/EUDI_ACCEPTANCE_CONTRACT.md for Android-first EUDI and the shared miTch contract.
 > Preserve the distinction between automated synthetic/local TLS/restoration evidence and independent
 > wallet, public HTTPS, live database and Docker-volume acceptance. Do not commit, push or deploy without
