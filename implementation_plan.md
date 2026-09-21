@@ -193,7 +193,7 @@ The OID4VCI Offer Generator inside `/console/monitor` will operate with full hol
 - **CSRF Token Guard Test**:
   - Attempt to POST to mutating endpoints like `/admin/revoke` or `/offer` without a valid `x-csrf-token` header. Verify that the request is strictly blocked with a `403 Forbidden` response.
 - **Backend Cryptographic Regression Tests**:
-  - Run the existing backend test suite (`npm run test`) to verify that all 81 unit tests (covering SD-JWT VC generation, signature verification, token routing) remain completely green.
+  - Run the existing backend test suite (`npm run test`) to verify that all 151 unit tests (covering SD-JWT VC generation, signature verification, token routing, and OID4VP presentation verification) remain completely green.
 - **Frontend Astro Compilation Test**:
   - Run `npm run build` inside the Astro workspace `stitch-out/` to ensure flawless generation of the public static and private assets.
 

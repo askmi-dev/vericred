@@ -41,7 +41,7 @@
 
 - [x] **Task 7: Regression Tests & Build Verification**
   - [x] Build the Astro frontend project via `npm run build` inside `stitch-out/` to verify compiler integrity
-  - [x] Run the complete backend test suite (`npm run test`) to ensure all 81 cryptographic and routing unit tests remain 100% green
+  - [x] Run the complete backend test suite (`npm run test`) to ensure all 151 cryptographic and routing unit tests remain 100% green
   - [x] Perform a manual auth-bypass and security audit in the browser to prove that the MVP is robustly secured
 
 # Task Checklist: VeriCred Phase 2 (Sprint 2 & EUDI Interoperability)
