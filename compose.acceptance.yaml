@@ -1,0 +1,69 @@
+services:
+  gateway:
+    build:
+      context: .
+      target: runtime
+    image: vericred:acceptance
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 20s
+    environment:
+      NODE_ENV: production
+      PORT: 3100
+      DATA_DIR: /app/data
+      ISSUER_URL: https://${ACCEPTANCE_HOST:?Set a hostname you control}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:?Set the persistent admin secret}
+      PSEUDO_SECRET: ${PSEUDO_SECRET:?Set the persistent encryption secret}
+      WALLET_PROFILE: eudi-android
+      EUDI_WALLET_ATTESTATION_POLICY_PATH: /run/eudi/wallet-attestation-policy.json
+      EUDI_ISSUER_REGISTRAR_DATASET_PATH: /run/eudi/issuer-registrar-dataset.json
+      EUDI_VERIFIER_REGISTRAR_DATASET_PATH: /run/eudi/verifier-registrar-dataset.json
+      EUDI_REGISTRATION_POLICY: required
+      EUDI_ISSUER_REGISTRATION_CERT_PATH: /run/eudi/issuer-registration.jwt
+      EUDI_VERIFIER_REGISTRATION_CERT_PATH: /run/eudi/verifier-registration.jwt
+      EUDI_ISSUER_CERT_CHAIN_PATH: /run/eudi/issuer-chain.pem
+      EUDI_VERIFIER_CERT_CHAIN_PATH: /run/eudi/verifier-chain.pem
+      EUDI_VERIFIER_KEY_PATH: /run/eudi/verifier-key.pem
+      TRUSTED_PROXY_CIDRS: 172.31.253.2/32
+    volumes:
+      - issuer-data:/app/data
+      - ${EUDI_MATERIAL_DIR:?Set the certificate directory}:/run/eudi:ro
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 256
+    networks:
+      acceptance:
+        ipv4_address: 172.31.253.3
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}
+  https:
+    image: caddy:2.11.4-alpine
+    restart: unless-stopped
+    environment:
+      ACCEPTANCE_HOST: ${ACCEPTANCE_HOST:?Set a hostname you control}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./deploy/Caddyfile.acceptance:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      gateway:
+        condition: service_healthy
+    networks:
+      acceptance:
+        ipv4_address: 172.31.253.2
+networks:
+  acceptance:
+    ipam:
+      config:
+        - subnet: 172.31.253.0/29
+volumes:
+  issuer-data:
+    external: true
+    name: ${ACCEPTANCE_DATA_VOLUME:?Set an isolated pre-provisioned data volume}
+  caddy-data:
+  caddy-config:

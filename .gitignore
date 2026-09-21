@@ -14,3 +14,6 @@ SESSION_SUMMARY.md
 runtime.json
 src/**/temp-data*/
 
+
+# Local validation/recovery artifacts
+.validation-artifacts/

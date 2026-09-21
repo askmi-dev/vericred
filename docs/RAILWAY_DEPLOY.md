@@ -1,3 +1,5 @@
+> Historical deployment notes. The current acceptance target is [single-instance Docker](docker.md); this Railway recipe has not been validated for the current release candidate.
+
 # VeriCred — Railway Deployment Guide
 
 ## Prerequisites

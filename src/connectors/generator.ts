@@ -1,3 +1,4 @@
+import { scryptSync, randomBytes } from 'node:crypto';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync } from 'fs';
 import { randomUUID } from 'crypto';
 import { deriveHolderPassword } from '../config/secrets.js';
@@ -100,7 +101,8 @@ export function setHolderPassword(dataPath: string, holderId: string, newPasswor
   const holders = readHolders(dataPath);
   const holder = holders.find(h => h.id === holderId);
   if (!holder) return false;
-  holder.customPassword = newPassword;
+  const salt = randomBytes(16).toString('hex');
+  holder.customPassword = 'scrypt$' + salt + '$' + scryptSync(newPassword, salt, 64).toString('hex');
   atomicWrite(dataPath, JSON.stringify(holders, null, 2));
   return true;
 }

@@ -1,93 +1,48 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { loadMySQLConnector } from '../mysql.js';
-
-const mockExecute = vi.fn();
-
-vi.mock('mysql2/promise', () => {
-  return {
-    createPool: () => ({
-      execute: mockExecute,
-    }),
-  };
-});
-
-describe('MySQL Connector', () => {
-  const pseudonymSecret = 'test_pseudonym_secret_32_bytes_long_!!!';
-
-  beforeEach(() => {
-    vi.clearAllMocks();
+const { execute, end, poolOptions } = vi.hoisted(() => ({ execute: vi.fn(), end: vi.fn(), poolOptions: vi.fn() }));
+vi.mock('mysql2/promise', () => ({ createPool: (options: unknown) => { poolOptions(options); return { execute, end }; } }));
+const config = { connectionString: 'mysql://localhost/test', table: 'users', identifierColumn: 'email' };
+describe('MySQL source', () => {
+  beforeEach(() => vi.clearAllMocks());
+  it('quotes identifiers and binds lookup values', async () => {
+    execute.mockResolvedValue([[{ id: '001', email: 'a@test.com' }], []]);
+    const connector = loadMySQLConnector(config, 'secret');
+    expect((await connector.lookup("a' OR 1=1--"))?.id).toBe('001');
+    expect(execute).toHaveBeenCalledWith('SELECT * FROM `users` WHERE `email` = ? LIMIT 1', ["a' OR 1=1--"]);
+  });
+  it('rejects unsafe identifiers', () => {
+    expect(() => loadMySQLConnector({ ...config, table: 'users; DROP TABLE users' }, 'secret')).toThrow('Invalid SQL identifier');
+    expect(() => loadMySQLConnector({ ...config, identifierColumn: 'email OR true' }, 'secret')).toThrow();
+    expect(execute).not.toHaveBeenCalled();
+  });
+  it('distinguishes missing holders from connection errors', async () => {
+    const connector = loadMySQLConnector(config, 'secret');
+    execute.mockResolvedValueOnce([[], []]);
+    expect(await connector.lookup('missing')).toBeNull();
+    execute.mockRejectedValueOnce(new Error('offline'));
+    await expect(connector.lookup('missing')).rejects.toThrow('offline');
+  });
+  it('probes schema, lists a page, and releases its pool', async () => {
+    const connector = loadMySQLConnector(config, 'secret');
+    execute.mockResolvedValueOnce([[{ Field: 'email' }], []]);
+    await connector.healthCheck!();
+    execute.mockResolvedValueOnce([[{ id: '002' }], []]);
+    expect(await connector.list!({ limit: 10, offset: 20 })).toEqual([expect.objectContaining({ id: '002' })]);
+    expect(execute).toHaveBeenCalledWith('SELECT * FROM `users` ORDER BY `email` LIMIT ? OFFSET ?', [10, 20]);
+    await connector.close!();
+    expect(end).toHaveBeenCalledOnce();
+    execute.mockRejectedValueOnce(new Error('schema offline'));
+    await expect(connector.getSchema()).rejects.toThrow('schema offline');
   });
 
-  it('correctly retrieves and maps a holder record from MySQL pool', async () => {
-    mockExecute.mockResolvedValueOnce([
-      [
-        {
-          id: 'holder_45',
-          email: 'alice@example.com',
-          name: 'Alice Cooper',
-          age: 32,
-        }
-      ],
-      null // second value in tuple is schema fields
-    ]);
-
-    const connector = loadMySQLConnector(
-      {
-        connectionString: 'mysql://localhost:3306/mydb',
-        table: 'users',
-        identifierColumn: 'email',
-      },
-      pseudonymSecret
-    );
-
-    const result = await connector.lookup('alice@example.com');
-
-    expect(mockExecute).toHaveBeenCalledWith(
-      'SELECT * FROM users WHERE email = ? LIMIT 1',
-      ['alice@example.com']
-    );
-
-    expect(result).not.toBeNull();
-    expect(result?.['email']).toBe('alice@example.com');
-    expect(result?.['name']).toBe('Alice Cooper');
-    expect(result?.['id']).toBe('holder_45');
-    expect(result?.['defaultPassword']).toBeDefined();
-    expect(result?.['_source']).toBe('mysql');
-  });
-
-  it('returns null if the execution returns zero rows', async () => {
-    mockExecute.mockResolvedValueOnce([[], null]);
-
-    const connector = loadMySQLConnector(
-      {
-        connectionString: 'mysql://localhost:3306/mydb',
-        table: 'users',
-        identifierColumn: 'email',
-      },
-      pseudonymSecret
-    );
-
-    const result = await connector.lookup('not_found@example.com');
-    expect(result).toBeNull();
-  });
-
-  it('logs error and returns null on execution failure', async () => {
-    mockExecute.mockRejectedValueOnce(new Error('Connection lost'));
-
-    const connector = loadMySQLConnector(
-      {
-        connectionString: 'mysql://localhost:3306/mydb',
-        table: 'users',
-        identifierColumn: 'email',
-      },
-      pseudonymSecret
-    );
-
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const result = await connector.lookup('error@example.com');
-
-    expect(result).toBeNull();
-    expect(consoleSpy).toHaveBeenCalled();
-    consoleSpy.mockRestore();
+  it('preserves SQL DATE strings and roundtrips listed records through the configured identifier', async () => {
+    execute.mockResolvedValue([[{ id: '0001', email: 'holder@example.org', dateOfBirth: '2000-02-29' }], []]);
+    const source = loadMySQLConnector(config, 'secret');
+    const [holder] = await source.list!();
+    expect(poolOptions.mock.calls[0][0].dateStrings).toEqual(['DATE']);
+    expect(holder).toMatchObject({ id: '0001', _lookupIdentifier: 'holder@example.org', dateOfBirth: '2000-02-29' });
+    expect(await source.lookup(holder._lookupIdentifier!)).toMatchObject({ id: '0001' });
+    expect(execute).toHaveBeenLastCalledWith('SELECT * FROM `users` WHERE `email` = ? LIMIT 1', ['holder@example.org']);
   });
 });

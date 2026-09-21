@@ -1,104 +1,95 @@
-import type { Router } from 'express';
-import { Router as createRouter } from 'express';
+import { attestationRequirements } from '../wallet/attestation.js';
+import { registrationInfo } from '../wallet/registration.js';
+import { Router } from 'express';
+import { SignJWT } from 'jose';
+import { resolveTemplateConfig } from '../config/template.js';
+import { certificateSigner, getWalletProfile } from '../wallet/profile.js';
+import { issuerEncryptionKey, encryptionAlgorithm, encryptionMethods } from '../wallet/encryption.js';
 import { loadConfig } from '../config/loader.js';
-import { listTemplates, getTemplate } from '../credentials/registry.js';
-
-// Templates must be registered before metadata is served
+import { credentialVct, getTemplate, listTemplates } from '../credentials/registry.js';
+import { getAllPublicKeys } from '../keys/manager.js';
+import { asyncHandler } from '../middleware/errors.js';
 import '../credentials/templates/age.js';
 import '../credentials/templates/employee.js';
 import '../credentials/templates/membership.js';
 
-/**
- * OID4VCI Issuer Metadata
- * draft-ietf-oauth-openid4vci — /.well-known/openid-credential-issuer
- *
- * credential_configurations_supported: one entry per registered template,
- * using the configured credential type as the credential_configuration_id.
- *
- * Wallets read this to know:
- *   - which credential types are available
- *   - which format to request (dc+sd-jwt)
- *   - which proof types and algorithms are supported
- *   - which binding methods are supported (jwk thumbprint)
- */
-export function createMetadataRouter(): Router {
-  const router = createRouter();
+/** Advertise emitted claims, never raw source fields such as dateOfBirth. */
+function claimsFor(type: string, mappings: Record<string, string>, options: Record<string, unknown>) {
+  if (type === 'AgeCredential') {
+    const thresholds = Array.isArray(options.ageThresholds) ? options.ageThresholds : [18, 21];
+    return [...thresholds.map(t => 'age_over_' + t), 'age_attested_at',
+      ...(options.jurisdiction || mappings.jurisdiction ? ['jurisdiction'] : [])];
+  }
+  const required = type === 'EmployeeCredential'
+    ? ['given_name', 'family_name', 'organization', 'role', 'valid_until']
+    : ['organization', 'membership_type'];
+  const optional = type === 'EmployeeCredential'
+    ? { department: 'department', employeeId: 'employee_id' }
+    : { memberId: 'member_id', memberSince: 'member_since', memberUntil: 'member_until', given_name: 'given_name', family_name: 'family_name' };
+  return [...required, ...Object.entries(optional).filter(([source]) => mappings[source]).map(([, claim]) => claim),
+    ...(type === 'MembershipCredential' && options.memberUntil && !mappings.memberUntil ? ['member_until'] : [])];
+}
 
-  router.get('/.well-known/openid-credential-issuer', (_req, res) => {
+export function createMetadataRouter(): Router {
+  const router = Router();
+  router.get('/.well-known/openid-credential-issuer', asyncHandler(async (req, res) => {
     const config = loadConfig();
     const base = config.issuer.url;
-    const fmt = config.credential.format ?? 'dc+sd-jwt';
-
-    // Build one credential_configuration per registered template.
-    // Only the configured type is "active" (i.e. actually issuable right now),
-    // but wallets see all supported types so they can request the right one.
-    const credentialConfigurations: Record<string, unknown> = {};
-
-    for (const t of listTemplates()) {
-      credentialConfigurations[t.id] = {
-        /**
-         * Format identifier per OID4VCI draft-13+.
-         * "dc+sd-jwt" = SD-JWT-based Verifiable Credential (draft-ietf-oauth-sd-jwt-vc).
-         * Some wallets may still expect "vc+sd-jwt" (older drafts) — check your target wallet.
-         */
-        format: fmt,
-
-        /**
-         * Scope value a wallet can request at /token.
-         * Matches credential_configuration_id by convention.
-         */
-        scope: t.id,
-
-        /**
-         * Binding methods: jwk = holder public key embedded in proof header.
-         * Thumbprint bound via cnf.jkt claim in issued credential.
-         */
+    const configurations: Record<string, unknown> = {};
+    for (const template of listTemplates()) {
+      const { fieldMappings: mappings, templateOptions: options } = resolveTemplateConfig(config, template.id);
+      if (getTemplate(template.id).validateMappings(mappings).length) continue;
+      configurations[template.id] = {
+        format: config.credential.format ?? 'dc+sd-jwt',
+        vct: credentialVct(template.id), scope: template.id,
         cryptographic_binding_methods_supported: ['jwk'],
-
-        /** Signing algorithm used for the issuer JWT (ES256 / P-256). */
         credential_signing_alg_values_supported: ['ES256'],
-
-        /**
-         * Proof types supported for holder proof-of-possession.
-         * proof_type: "jwt" with openid4vci-proof+jwt header typ.
-         */
-        proof_types_supported: {
-          jwt: {
-            proof_signing_alg_values_supported: ['ES256'],
-          },
+        proof_types_supported: { jwt: { proof_signing_alg_values_supported: ['ES256'],
+          ...(getWalletProfile() === 'eudi-android' ? { key_attestations_required: attestationRequirements(config.credential.expiresInDays * 86400) } : {}) } },
+        credential_metadata: {
+          display: [{ name: template.displayName, locale: 'en' }],
+          claims: claimsFor(template.id, mappings, options).map(name => ({ path: [name], display: [{ name, locale: 'en' }] })),
         },
-
-        /** Claim names that will appear in the credential (via selective disclosure). */
-        claims: Object.fromEntries(
-          [...t.requiredFields, ...listTemplates().find(x => x.id === t.id)?.requiredFields ?? []].map(
-            f => [f, { mandatory: t.requiredFields.includes(f) }]
-          )
-        ),
-
-        display: [
-          {
-            name: (() => {
-              try { return getTemplate(t.id).displayName; } catch { return t.id; }
-            })(),
-            locale: 'en',
-          },
-        ],
       };
     }
-
+    const metadata = {
+      credential_issuer: base, authorization_servers: [base],
+      credential_endpoint: base + '/credentials', nonce_endpoint: base + '/nonce',
+      // Retained discovery extension for draft clients.
+      token_endpoint: base + '/token',
+      display: [{ name: config.issuer.name, locale: 'en' }],
+      credential_configurations_supported: configurations,
+      ...(getWalletProfile() === 'eudi-android' ? {
+        issuer_info: await registrationInfo('issuer'),
+        credential_request_encryption: { jwks: { keys: [(await issuerEncryptionKey()).publicKey] },
+          enc_values_supported: encryptionMethods, encryption_required: true },
+        credential_response_encryption: { alg_values_supported: [encryptionAlgorithm],
+          enc_values_supported: encryptionMethods, encryption_required: true },
+      } : {}),
+    };
+    res.vary('Accept');
+    res.setHeader('Cache-Control', 'no-store');
+    if (getWalletProfile() === 'eudi-android') {
+      const signer = await certificateSigner('issuer');
+      if (req.accepts(['application/jwt', 'application/json']) === 'application/jwt') {
+        const jwt = await new SignJWT(metadata).setProtectedHeader({ alg: 'ES256', typ: 'openidvci-issuer-metadata+jwt', x5c: signer.x5c })
+          .setIssuer(base).setSubject(base).setIssuedAt().setExpirationTime('5m').sign(signer.privateKey);
+        res.type('application/jwt').send(jwt); return;
+      }
+    }
+    res.json(metadata);
+  }));
+  router.get('/.well-known/oauth-authorization-server', (_req, res) => {
+    const base = loadConfig().issuer.url;
     res.json({
-      issuer: base,
-      credential_issuer: base,
-      credential_endpoint: `${base}/credentials`,
-      token_endpoint: `${base}/token`,
-
-      display: [
-        { name: config.issuer.name, locale: 'en' },
-      ],
-
-      credential_configurations_supported: credentialConfigurations,
+      issuer: base, token_endpoint: base + '/token', jwks_uri: base + '/.well-known/jwks.json',
+      grant_types_supported: ['urn:ietf:params:oauth:grant-type:pre-authorized_code'],
+      response_types_supported: [], token_endpoint_auth_methods_supported: ['none'],
+      'pre-authorized_grant_anonymous_access_supported': true,
     });
   });
-
+  router.get('/.well-known/jwks.json', asyncHandler(async (_req, res) => {
+    res.json({ keys: (await getAllPublicKeys()).map(k => ({ ...k.publicKey, kid: k.kid, use: 'sig', alg: 'ES256' })) });
+  }));
   return router;
 }

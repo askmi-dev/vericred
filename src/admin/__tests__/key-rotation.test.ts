@@ -5,10 +5,9 @@ import { loadSecrets } from '../../config/secrets.js';
 describe('Key Management & Rotation', () => {
   let serverUrl: string;
   const adminApiKey = loadSecrets().adminApiKey;
-  const tempDir = './src/admin/__tests__/temp-data-keys';
+  const tempDir = process.env.DATA_DIR!;
 
   beforeAll(async () => {
-    if (existsSync(tempDir)) rmSync(tempDir, { recursive: true, force: true });
     mkdirSync(tempDir, { recursive: true });
 
     process.env['DATA_DIR'] = tempDir;

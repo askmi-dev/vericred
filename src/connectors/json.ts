@@ -1,35 +1,23 @@
-/**
- * JSON data connector — Sprint 1 default.
- * Loads holder records from a local JSON file, looks up by identifier.
- */
-import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'fs';
+import { readFileSync } from 'node:fs';
+import type { Connector, Holder } from './index.js';
+import { pageBounds } from './sql.js';
 
-import type { Connector } from './index.js';
-
-const SAMPLE_DATA = [
-  { id: 'student-001', email: 'alice@example.com', firstName: 'Alice', lastName: 'Muster', studentId: 'S-2024-001', program: 'Computer Science' },
-  { id: 'student-002', email: 'bob@example.com', firstName: 'Bob', lastName: 'Beispiel', studentId: 'S-2024-002', program: 'Law' },
-];
-
+export function readHolderFile(path: string): Holder[] {
+  const data: unknown = JSON.parse(readFileSync(path, 'utf8'));
+  if (!Array.isArray(data) || data.some(row => !row || typeof row !== 'object' || Array.isArray(row))) throw new Error('Holder source must contain an array of objects');
+  return data as Holder[];
+}
 export function loadJsonConnector(path: string): Connector {
-  const dir = path.substring(0, path.lastIndexOf('/'));
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  if (!existsSync(path)) {
-    writeFileSync(path, JSON.stringify(SAMPLE_DATA, null, 2));
-    console.log(`[connector:json] Created sample data at ${path}`);
-  }
-
-  const data = JSON.parse(readFileSync(path, 'utf-8')) as Record<string, unknown>[];
-
+  const read = () => readHolderFile(path);
+  const identifierOf = (row: Holder) => [row.id, row.email, row.studentId].find(value => value !== undefined && value !== null && String(value) !== '');
+  const decorate = (row: Holder): Holder => ({ ...row, _lookupIdentifier: String(identifierOf(row) ?? '') });
   return {
-    lookup: (identifier: string) => {
-      return data.find(
-        (r) => r['id'] === identifier || r['email'] === identifier || r['studentId'] === identifier
-      ) ?? null;
+    lookup: identifier => {
+      const row = read().find(record => [record.id, record.email, record.studentId].some(value => value !== undefined && value !== null && String(value) === identifier));
+      return row ? decorate(row) : null;
     },
-    getSchema: () => {
-      if (data.length === 0) return ['id', 'email', 'firstName', 'lastName'];
-      return Object.keys(data[0]);
-    }
+    list: options => { const { limit, offset } = pageBounds(options); return read().slice(offset, offset + limit).map(decorate); },
+    getSchema: () => [...new Set(read().flatMap(Object.keys))],
+    healthCheck: () => { read(); },
   };
 }

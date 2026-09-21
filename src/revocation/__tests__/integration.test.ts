@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { generateKeyPair, exportJWK, SignJWT, jwtVerify, calculateJwkThumbprint } from 'jose';
-import { mkdirSync, existsSync, writeFileSync, rmSync } from 'fs';
+import { writeFileSync } from 'node:fs';
+import { gunzipSync } from 'node:zlib';
 import { loadSecrets } from '../../config/secrets.js';
 import { getIssuerKeyPair } from '../../keys/manager.js';
 
@@ -11,11 +12,7 @@ describe('Revocation Integration Flow', () => {
   let holderThumbprint: string;
 
   beforeAll(async () => {
-    const tempDir = './src/revocation/__tests__/temp-data-integration';
-    if (existsSync(tempDir)) {
-      rmSync(tempDir, { recursive: true, force: true });
-    }
-    mkdirSync(tempDir, { recursive: true });
+    const tempDir = process.env.DATA_DIR!;
 
     const mockHolders = [
       { id: 'rev-holder-01', email: 'rev-holder@example.com', firstName: 'Rev', lastName: 'Holder', dateOfBirth: '1990-01-01' }
@@ -83,11 +80,11 @@ describe('Revocation Integration Flow', () => {
     const statusListJwt = await statusListRes.text();
     const { payload: slPayload } = await jwtVerify(statusListJwt, publicKey);
     const encodedList = (slPayload.credentialSubject as any).encodedList;
-    const bytes = Buffer.from(encodedList, 'base64url');
+    const bytes = gunzipSync(Buffer.from(encodedList, 'base64url'));
     
     // Check if bit at statusIndex is 0 (Active)
     const byteIdx = Math.floor(statusIndex / 8);
-    const bitIdx = statusIndex % 8;
+    const bitIdx = 7 - (statusIndex % 8); // StatusList2021 indices count from the most significant bit.
     expect((bytes[byteIdx] >> bitIdx) & 1).toBe(0);
 
     // 3. Revoke Credential via Admin API
@@ -110,7 +107,7 @@ describe('Revocation Integration Flow', () => {
     const statusListJwt2 = await statusListRes2.text();
     const { payload: slPayload2 } = await jwtVerify(statusListJwt2, publicKey);
     const encodedList2 = (slPayload2.credentialSubject as any).encodedList;
-    const bytes2 = Buffer.from(encodedList2, 'base64url');
+    const bytes2 = gunzipSync(Buffer.from(encodedList2, 'base64url'));
     
     // Check if bit at statusIndex is 1 (Revoked)
     expect((bytes2[byteIdx] >> bitIdx) & 1).toBe(1);

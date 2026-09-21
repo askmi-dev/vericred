@@ -17,6 +17,7 @@
  * pseudonymSecret MUST NOT change between redeploys -- pairwise pseudonyms
  * derived from it would silently shift, breaking holder correlation across sessions.
  */
+import { atomicWrite } from '../storage/atomic.js';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { randomBytes, createHash } from 'crypto';
 
@@ -43,6 +44,7 @@ export function loadSecrets(): Secrets {
       console.error('[secrets] FATAL: ADMIN_API_KEY and PSEUDO_SECRET must both be set, or neither.');
       process.exit(1);
     }
+    if (process.env.NODE_ENV === 'production' && (envKey.length < 32 || envPseudo.length < 32)) throw new Error('Production secrets must each contain at least 32 characters of random material');
     cached = { adminApiKey: envKey, pseudonymSecret: envPseudo, createdAt: 'from-env' };
     console.log('[secrets] Loaded from environment variables.');
     return cached;
@@ -64,15 +66,9 @@ export function loadSecrets(): Secrets {
     createdAt: new Date().toISOString(),
   };
 
-  writeFileSync(SECRETS_PATH, JSON.stringify(secrets, null, 2));
+  atomicWrite(SECRETS_PATH, JSON.stringify(secrets, null, 2));
 
-  console.log('\n╔════════════════════════════════════════════════════╗');
-  console.log('║         VeriCred -- FIRST START SECRETS            ║');
-  console.log('╠════════════════════════════════════════════════════╣');
-  console.log(`║  Admin API Key : ${secrets.adminApiKey.padEnd(33)} ║`);
-  console.log(`║  Saved to      : ${SECRETS_PATH.padEnd(33)} ║`);
-  console.log('║  Save the key -- it will not be shown again.       ║');
-  console.log('╚════════════════════════════════════════════════════╝\n');
+  console.log('[secrets] Initial credentials stored in the protected secrets file.');
 
   cached = secrets;
   return cached;

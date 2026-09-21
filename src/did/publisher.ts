@@ -3,12 +3,13 @@
  */
 import { Router as createRouter, type Router } from 'express';
 import { getAllPublicKeys } from '../keys/manager.js';
+import { asyncHandler } from '../middleware/errors.js';
 import { loadConfig } from '../config/loader.js';
 
 export function createDidRouter(): Router {
   const router = createRouter();
 
-  router.get('/.well-known/did.json', async (_req, res) => {
+  router.get('/.well-known/did.json', asyncHandler(async (_req, res) => {
     const allKeys = await getAllPublicKeys();
     const config = loadConfig();
 
@@ -26,7 +27,7 @@ export function createDidRouter(): Router {
       assertionMethod: verificationMethod.map(m => m.id),
       authentication: verificationMethod.map(m => m.id),
     });
-  });
+  }));
 
   return router;
 }

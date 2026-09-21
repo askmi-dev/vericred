@@ -1,0 +1,95 @@
+import { describe, it, expect, vi } from 'vitest';
+import { liveConnector, ListingUnavailableError, type Connector } from '../index.js';
+import { DEFAULT_CONFIG } from '../../config/loader.js';
+describe('Live connector switching', () => {
+  it('routes new requests to the new source and drains an old in-flight lookup before closing', async () => {
+    let config = structuredClone(DEFAULT_CONFIG);
+    let finish!: (value: Record<string, unknown>) => void;
+    const old: Connector = { lookup: () => new Promise(resolve => { finish = resolve; }), getSchema: () => ['old'], close: vi.fn() };
+    const next: Connector = { lookup: () => ({ id: 'new' }), getSchema: () => ['new'], list: () => [{ id: 'new' }] };
+    const build = vi.fn().mockReturnValueOnce(old).mockReturnValueOnce(next);
+    const source = liveConnector(() => config, build);
+    const pending = source.lookup('old');
+    config = { ...config, dataSource: { type: 'json', path: 'new.json' } };
+    expect(await source.lookup('new')).toEqual({ id: 'new' });
+    expect(old.close).not.toHaveBeenCalled();
+    finish({ id: 'old' });
+    expect(await pending).toEqual({ id: 'old' });
+    await Promise.resolve();
+    expect(old.close).toHaveBeenCalledOnce();
+    expect(await source.list!()).toEqual([{ id: 'new' }]);
+  });
+  it('activates prevalidated candidates without rebuilding and reports unavailable listing', async () => {
+    const config = structuredClone(DEFAULT_CONFIG);
+    const candidate: Connector = { lookup: () => null, getSchema: () => [] };
+    const build = vi.fn();
+    const source = liveConnector(() => config, build);
+    source.activate!(config, candidate);
+    expect(await source.lookup('unknown')).toBeNull();
+    expect(build).not.toHaveBeenCalled();
+    await expect(source.list!()).rejects.toBeInstanceOf(ListingUnavailableError);
+  });
+
+  it('rejects a pending holder lookup when setup switches source during I/O', async () => {
+    let config = { ...structuredClone(DEFAULT_CONFIG), revision: 1 };
+    const snapshot = structuredClone(config);
+    let finish!: (value: Record<string, unknown>) => void;
+    const old: Connector = { lookup: () => new Promise(resolve => { finish = resolve; }), getSchema: () => [] };
+    const source = liveConnector(() => config, () => old);
+    const pending = source.lookupForConfig!('holder', snapshot);
+    config = { ...config, revision: 2, dataSource: { type: 'json', path: 'replacement.json' } };
+    finish({ id: 'old-source-holder' });
+    await expect(pending).rejects.toMatchObject({ name: 'ConfigConflictError' });
+  });
+  it('rejects a stale expected configuration before accessing the source', async () => {
+    const config = { ...structuredClone(DEFAULT_CONFIG), revision: 2 };
+    const build = vi.fn();
+    const source = liveConnector(() => config, build);
+    await expect(source.lookupForConfig!('holder', { ...config, revision: 1 })).rejects.toMatchObject({ name: 'ConfigConflictError' });
+    expect(build).not.toHaveBeenCalled();
+  });
+  it('rejects changed mapping policy even if the source itself is unchanged', async () => {
+    let config = { ...structuredClone(DEFAULT_CONFIG), revision: 1 };
+    const snapshot = structuredClone(config);
+    let finish!: (value: Record<string, unknown>) => void;
+    const source = liveConnector(() => config, () => ({ lookup: () => new Promise(resolve => { finish = resolve; }), getSchema: () => [] }));
+    const pending = source.lookupForConfig!('holder', snapshot);
+    config = { ...config, revision: 2, fieldMappings: { dateOfBirth: 'differentColumn' } };
+    finish({ id: 'holder', dateOfBirth: '2000-01-01' });
+    await expect(pending).rejects.toMatchObject({ name: 'ConfigConflictError' });
+  });
+  it('awaits all in-flight work and retired pool closure before shutdown completes', async () => {
+    let config = structuredClone(DEFAULT_CONFIG);
+    let finishLookup!: (value: Record<string, unknown>) => void;
+    let finishOldClose!: () => void;
+    let finishNewClose!: () => void;
+    const oldClosed = new Promise<void>(resolve => { finishOldClose = resolve; });
+    const newClosed = new Promise<void>(resolve => { finishNewClose = resolve; });
+    const old: Connector = { lookup: () => new Promise(resolve => { finishLookup = resolve; }), getSchema: () => [], close: vi.fn(() => oldClosed) };
+    const next: Connector = { lookup: () => null, getSchema: () => [], close: vi.fn(() => newClosed) };
+    const build = vi.fn().mockReturnValueOnce(old).mockReturnValueOnce(next);
+    const source = liveConnector(() => config, build);
+    const lookup = source.lookup('old');
+    config = { ...config, dataSource: { type: 'json', path: 'new.json' } };
+    await source.lookup('new');
+    let stopped = false;
+    const shutdown = Promise.resolve(source.close!()).then(() => { stopped = true; });
+    finishNewClose();
+    await Promise.resolve();
+    expect(stopped).toBe(false);
+    expect(old.close).not.toHaveBeenCalled();
+    finishLookup({ id: 'old' });
+    await lookup;
+    await Promise.resolve();
+    expect(old.close).toHaveBeenCalledOnce();
+    expect(stopped).toBe(false);
+    finishOldClose();
+    await shutdown;
+    expect(stopped).toBe(true);
+    expect(next.close).toHaveBeenCalledOnce();
+    await source.close!();
+    expect(old.close).toHaveBeenCalledOnce();
+    await expect(source.lookup('after shutdown')).rejects.toThrow('Connector is closed');
+    expect(() => source.activate!(config, next)).toThrow('Connector is closed');
+  });
+});

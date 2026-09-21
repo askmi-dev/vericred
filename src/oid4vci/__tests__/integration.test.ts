@@ -1,7 +1,7 @@
 /**
- * OID4VCI End-to-End Integration Test
+ * OID4VCI cryptographic component tests
  *
- * Simulates the full pre-authorized code flow:
+ * Exercises individual cryptographic operations (HTTP flow is covered in eudi-interop.test.ts):
  *   1. Issuer mints a pre-auth code
  *   2. Wallet exchanges code for access token + c_nonce
  *   3. Wallet builds holder proof JWT (signed with holder key)
@@ -59,20 +59,10 @@ describe('OID4VCI pre-authorized code flow — AgeCredential', () => {
     expect(code.length).toBeGreaterThan(10);
   });
 
-  it('step 2: lookupAccessToken returns holderData and c_nonce', () => {
-    const holderData = { email: 'holder@example.com', dateOfBirth: holderDob };
-    const code = issuePreAuthCode(holderData);
-
-    // Simulate token exchange by directly inserting into the token store via issuePreAuthCode
-    // (In real flow, POST /token with pre-authorized_code=code would do this)
-    // We test the token store directly here.
-    // For a real HTTP test, use supertest.
-
-    // Re-issue with known holder data, then look up by token
-    // Since we can't call POST /token directly without HTTP, we simulate by calling issuePreAuthCode
-    // and checking that lookupAccessToken works with the resulting access token.
-    // The real integration happens in the HTTP layer test below.
-    expect(code).toBeTruthy(); // Token exchange is HTTP-layer; covered in proof test above
+  it('rejects a pre-authorized code presented as an access token', () => {
+    const code = issuePreAuthCode({ email: 'holder@example.com', dateOfBirth: holderDob });
+    expect(lookupAccessToken(code)).toBeNull();
+    expect(lookupAccessToken('unissued-token')).toBeNull();
   });
 
   it('step 3+4: proof verification and thumbprint match', async () => {

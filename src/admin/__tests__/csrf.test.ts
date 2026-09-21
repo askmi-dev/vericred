@@ -7,8 +7,7 @@ describe('Session-Bound CSRF Integration', () => {
   const adminApiKey = loadSecrets().adminApiKey;
 
   beforeAll(async () => {
-    const tempDir = './src/admin/__tests__/temp-data-csrf';
-    if (existsSync(tempDir)) rmSync(tempDir, { recursive: true, force: true });
+    const tempDir = process.env.DATA_DIR!;
     mkdirSync(tempDir, { recursive: true });
     writeFileSync(`${tempDir}/holders.json`, JSON.stringify([
       {

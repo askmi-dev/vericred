@@ -1,4 +1,6 @@
 export interface VeriCredConfig {
+  /** Monotonic persisted revision for compare-and-swap configuration updates. */
+  revision?: number;
   issuer: {
     name: string;
     url: string;
@@ -24,6 +26,9 @@ export interface VeriCredConfig {
     identifierColumn?: string;
     endpoint?: string;
     authHeader?: string;
+    healthCheckIdentifier?: string;
   };
   fieldMappings: Record<string, string>;
+  templateMappings?: Record<string, Record<string, string>>;
+  templateOptionsByType?: Record<string, Record<string, unknown>>;
 }

@@ -1,3 +1,5 @@
+> Historical material: claims and examples below describe an earlier prototype or plan. See [current production handover](docs/PRODUCTION_HANDOVER.md) for implementation and acceptance status.
+
 # Task Checklist: VeriCred Phase 1 (Astro + Express Gateway MVP)
 
 - [x] **Task 1: Secure Route Partitioning & Guard Registration**

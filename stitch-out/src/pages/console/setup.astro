@@ -157,15 +157,12 @@
         <span id="toast-message">Notification</span>
     </div>
 
-    <script is:inline>
-        let csrfToken = '';
+    <script>
+        import { adminMutation, escapeHtml } from '../../admin-client';
         let currentStep = 1;
         let selectedType = 'json';
 
-        // Fetch CSRF
-        fetch('/admin/api/csrf-handshake')
-            .then(res => res.json())
-            .then(data => csrfToken = data.csrfToken);
+
 
         function triggerToast(msg) {
             const t = document.getElementById('toast');
@@ -228,7 +225,7 @@
                 container.innerHTML = `<div class="space-y-4">
                     <div>
                         <label class="block text-xs font-mono font-bold text-slate-500 uppercase tracking-wider mb-2">Connection String</label>
-                        <input id="input-ds-conn" type="text" placeholder="${type === 'postgres' ? 'postgres://user:pass@localhost:5432/db' : 'mysql://user:pass@localhost:3306/db'}" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-slate-200 focus:outline-none focus:border-emerald-500 transition-all" />
+                        <input id="input-ds-conn" type="password" autocomplete="off" placeholder="${type === 'postgres' ? 'postgres://user:pass@localhost:5432/db' : 'mysql://user:pass@localhost:3306/db'}" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-slate-200 focus:outline-none focus:border-emerald-500 transition-all" />
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
@@ -249,7 +246,12 @@
                     </div>
                     <div>
                         <label class="block text-xs font-mono font-bold text-slate-500 uppercase tracking-wider mb-2">Auth Header (Optional)</label>
-                        <input id="input-ds-auth" type="text" placeholder="Bearer TOKEN" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-slate-200 focus:outline-none focus:border-emerald-500 transition-all" />
+                        <input id="input-ds-auth" type="password" autocomplete="off" placeholder="Bearer TOKEN" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-slate-200 focus:outline-none focus:border-emerald-500 transition-all" />
+                    </div>
+                    <div>
+                        <label for="input-ds-probe" class="block text-xs font-mono font-bold text-slate-500 uppercase tracking-wider mb-2">Known Holder Identifier</label>
+                        <input id="input-ds-probe" type="text" maxlength="500" placeholder="Existing holder email or ID" class="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-slate-200 focus:outline-none focus:border-emerald-500" />
+                        <p class="text-[10px] text-slate-500 mt-2">Used to check the connection and discover available fields before saving.</p>
                     </div>
                 </div>`;
             }
@@ -268,11 +270,13 @@
             } else if (selectedType === 'rest') {
                 dataSource.endpoint = document.getElementById('input-ds-endpoint').value;
                 dataSource.authHeader = document.getElementById('input-ds-auth').value;
+                dataSource.healthCheckIdentifier = document.getElementById('input-ds-probe').value.trim();
+                if (!dataSource.healthCheckIdentifier) return triggerToast('Enter a known holder identifier to verify the REST connection.');
             }
 
-            fetch('/admin/api/setup', {
+            adminMutation('/admin/api/setup', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name, url, dataSource })
             })
             .then(res => res.json())
@@ -291,7 +295,7 @@
                     triggerToast(data.error || 'Setup failed.');
                 }
             })
-            .catch(err => triggerToast('Network error during setup.'));
+            .catch(err => triggerToast('Could not save setup: ' + err.message));
         });
 
         finish.addEventListener('click', () => {

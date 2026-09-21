@@ -1,0 +1,36 @@
+services:
+  gateway:
+    build:
+      context: .
+      target: runtime
+    image: vericred:local
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 20s
+    environment:
+      NODE_ENV: production
+      PORT: 3100
+      DATA_DIR: /app/data
+      ISSUER_URL: ${ISSUER_URL:?Set the externally reachable HTTPS issuer URL}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:?Set a persistent random admin secret}
+      PSEUDO_SECRET: ${PSEUDO_SECRET:?Set a persistent random encryption and pseudonym secret}
+    ports:
+      - "127.0.0.1:${VERICRED_PORT:-3100}:3100"
+    volumes:
+      - issuer-data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  issuer-data:
