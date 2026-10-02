@@ -119,7 +119,7 @@ app.get('/console', (_req, res) => {
   res.redirect('/console/dashboard');
 });
 
-app.get('/console/:page(dashboard|holders|schema|monitor|logo|security|setup)', (req, res) => {
+app.get('/console/:page(dashboard|holders|schema|monitor|logo|security|setup|revoke)', (req, res) => {
   const page = req.params.page;
   const distPath = process.env.FRONTEND_DIST_PATH || 'stitch-out/dist';
 
@@ -136,7 +136,7 @@ app.get('/console/:page(dashboard|holders|schema|monitor|logo|security|setup)', 
   res.sendFile(path.resolve(path.join(distPath, `console/${page}/index.html`)));
 });
 
-app.get('/console/:page(dashboard|holders|schema|monitor|logo|setup)/index.html', (req, res) => {
+app.get('/console/:page(dashboard|holders|schema|monitor|logo|security|setup|revoke)/index.html', (req, res) => {
   const page = req.params.page;
   const distPath = process.env.FRONTEND_DIST_PATH || 'stitch-out/dist';
 
