@@ -57,7 +57,5 @@ USER node
 # Expose Gateway Port
 EXPOSE 3100
 
-# Persistent volume for cryptographic keys and configuration
-VOLUME ["/app/data"]
 
 CMD ["node", "dist/server.js"]
