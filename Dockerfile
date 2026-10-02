@@ -51,8 +51,6 @@ COPY --from=builder --chown=node:node /app/package.json ./package.json
 # Copy frontend static build (Backend serves this via express.static)
 COPY --from=builder --chown=node:node /app/stitch-out/dist ./stitch-out/dist
 
-# Use non-privileged node user
-USER node
 
 # Expose Gateway Port
 EXPOSE 3100
