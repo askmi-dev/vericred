@@ -1,0 +1,366 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+---
+
+<AdminLayout title="Revocation Center">
+    <!-- Header Section -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
+        <div>
+            <h2 class="text-2xl md:text-3xl font-bold text-white tracking-tight">Revocation Center</h2>
+            <p class="text-slate-400 text-sm md:text-base mt-1">Search, manage, and revoke issued credentials. Revoked credentials will fail verification in any OID4VP-compliant verifier.</p>
+        </div>
+        <div class="flex gap-3 w-full md:w-auto">
+            <div class="relative flex-grow md:w-80">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">search</span>
+                <input type="text" id="revoke-search" placeholder="Search by credential ID, holder email..." class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs font-mono text-slate-300 focus:outline-none focus:border-emerald-500 transition-all" />
+            </div>
+            <select id="revoke-status-filter" class="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-300 focus:outline-none focus:border-emerald-500 cursor-pointer">
+                <option value="">All Status</option>
+                <option value="active">Active Only</option>
+                <option value="revoked">Revoked Only</option>
+            </select>
+            <button id="btn-refresh-revoke" class="flex items-center justify-center gap-2 px-4 py-2 bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 rounded-xl font-semibold text-xs uppercase tracking-wider transition-all">
+                <span class="material-symbols-outlined text-sm">refresh</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+        <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-md">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="material-symbols-outlined text-emerald-500 text-2xl">description</span>
+            </div>
+            <h3 class="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest mb-1">Total Issued</h3>
+            <p id="stat-total-credentials" class="text-3xl font-bold text-white tracking-tight">--</p>
+        </div>
+        <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-md">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="material-symbols-outlined text-emerald-400 text-2xl">verified</span>
+            </div>
+            <h3 class="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest mb-1">Active</h3>
+            <p id="stat-active-credentials" class="text-3xl font-bold text-emerald-400 tracking-tight">--</p>
+        </div>
+        <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-md">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="material-symbols-outlined text-red-400 text-2xl">block</span>
+            </div>
+            <h3 class="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest mb-1">Revoked</h3>
+            <p id="stat-revoked-credentials" class="text-3xl font-bold text-red-400 tracking-tight">--</p>
+        </div>
+    </div>
+
+    <!-- Main Table -->
+    <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl overflow-hidden backdrop-blur-md">
+        <div class="overflow-x-auto custom-scrollbar">
+            <table class="w-full text-left border-collapse font-mono text-xs">
+                <thead>
+                    <tr class="border-b border-slate-800 bg-slate-950/40 text-slate-500 uppercase font-semibold text-[10px] tracking-wider">
+                        <th class="p-4 w-32">Credential ID</th>
+                        <th class="p-4">Holder Email</th>
+                        <th class="p-4 w-20">Index</th>
+                        <th class="p-4 w-24">Issued</th>
+                        <th class="p-4 w-24">Revoked</th>
+                        <th class="p-4 w-20">Status</th>
+                        <th class="p-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="revoke-tbody" class="divide-y divide-slate-800/50 text-slate-300">
+                    <tr>
+                        <td colspan="7" class="p-8 text-center text-slate-500">Loading credentials list...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="revoke-confirm-modal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-[100] hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-[420px] shadow-2xl transform scale-95 transition-transform duration-300">
+            <h3 class="text-lg font-bold text-white mb-2">Confirm Revocation</h3>
+            <p class="text-slate-400 text-xs mb-6">
+                You are about to revoke credential <span id="modal-credential-id" class="text-emerald-400 font-mono"></span>.
+                <br />This action <strong class="text-red-400">cannot be undone</strong> and the credential will fail verification in all OID4VP-compliant verifiers.
+            </p>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-[10px] font-mono font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Reason (Optional)</label>
+                    <select id="revoke-reason" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-300 focus:outline-none focus:border-emerald-500">
+                        <option value="Administrative Revocation">Administrative Revocation</option>
+                        <option value="User Request">User Request</option>
+                        <option value="Data Error">Data Error</option>
+                        <option value="Security Concern">Security Concern</option>
+                        <option value="Expiration">Expiration</option>
+                    </select>
+                </div>
+                
+                <div class="flex gap-3 pt-4">
+                    <button id="btn-revoke-cancel" class="flex-1 px-4 py-2 bg-slate-950 hover:bg-slate-800 text-slate-400 border border-slate-800 rounded-xl font-bold text-xs uppercase tracking-wider transition-all">Cancel</button>
+                    <button id="btn-revoke-confirm" class="flex-1 px-4 py-2 bg-red-500 hover:bg-red-400 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all">Revoke Credential</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Toast -->
+    <div id="revoke-success-toast" class="fixed bottom-6 right-6 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 shadow-xl hidden z-[101]">
+        <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-emerald-500 text-xl">check_circle</span>
+            <div>
+                <p class="text-sm font-semibold text-emerald-400">Credential Revoked</p>
+                <p id="toast-credential-id" class="text-xs text-slate-300 font-mono"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Toast -->
+    <div id="revoke-error-toast" class="fixed bottom-6 right-6 bg-red-500/10 border border-red-500/20 rounded-xl p-4 shadow-xl hidden z-[101]">
+        <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-red-500 text-xl">error</span>
+            <div>
+                <p class="text-sm font-semibold text-red-400">Error</p>
+                <p id="toast-error-message" class="text-xs text-slate-300 font-mono"></p>
+            </div>
+        </div>
+    </div>
+
+    <script is:inline>
+        let allCredentials = [];
+        let csrfToken = '';
+        let currentRevokingId = '';
+
+        // Fetch CSRF token
+        async function fetchCsrfToken() {
+            try {
+                const res = await fetch('/admin/api/csrf-handshake', { credentials: 'include' });
+                const data = await res.json();
+                csrfToken = data.csrfToken;
+            } catch (err) {
+                console.error('Failed to fetch CSRF token:', err);
+            }
+        }
+
+        // Fetch credentials
+        async function fetchCredentials(search = '', status = '') {
+            try {
+                const params = new URLSearchParams();
+                if (search) params.set('search', search);
+                if (status) params.set('status', status);
+                
+                const res = await fetch(`/admin/api/credentials?${params.toString()}`, { 
+                    credentials: 'include' 
+                });
+                if (!res.ok) throw new Error('Failed to fetch credentials');
+                return await res.json();
+            } catch (err) {
+                console.error('Failed to fetch credentials:', err);
+                return [];
+            }
+        }
+
+        // Fetch stats
+        async function fetchStats() {
+            try {
+                const res = await fetch('/admin/api/stats', { credentials: 'include' });
+                if (!res.ok) throw new Error('Failed to fetch stats');
+                return await res.json();
+            } catch (err) {
+                console.error('Failed to fetch stats:', err);
+                return { credentials: { total: 0, active: 0, revoked: 0 } };
+            }
+        }
+
+        // Revoke credential
+        async function revokeCredential(credentialId, reason) {
+            try {
+                const res = await fetch(`/admin/api/credentials/${encodeURIComponent(credentialId)}/revoke`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-csrf-token': csrfToken
+                    },
+                    body: JSON.stringify({ reason }),
+                    credentials: 'include'
+                });
+                return await res.json();
+            } catch (err) {
+                console.error('Failed to revoke credential:', err);
+                return { success: false, error: err.message };
+            }
+        }
+
+        // Render credentials table
+        function renderCredentials(credentials) {
+            const tbody = document.getElementById('revoke-tbody');
+            if (!tbody) return;
+
+            if (credentials.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-500">No credentials found</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = credentials.map(cred => {
+                const issuedDate = cred.issuedAt ? new Date(cred.issuedAt).toLocaleString() : '--';
+                const revokedDate = cred.revokedAt ? new Date(cred.revokedAt).toLocaleString() : '--';
+                const statusBadge = cred.revoked 
+                    ? '<span class="text-xs font-bold text-red-400 bg-red-500/10 border border-red-500/20 px-2.5 py-1 rounded-full uppercase tracking-wider">Revoked</span>'
+                    : '<span class="text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full uppercase tracking-wider">Active</span>';
+                
+                const isRevoked = cred.revoked;
+                const revokeButton = isRevoked 
+                    ? '<span class="material-symbols-outlined text-slate-600 text-lg">check_circle</span>'
+                    : `<button class="revoke-btn text-red-400 hover:text-red-300 transition-colors p-1" data-id="${cred.credentialId}" title="Revoke this credential">
+                         <span class="material-symbols-outlined text-lg">block</span>
+                       </button>`;
+
+                return `
+                    <tr class="hover:bg-slate-800/50 transition-colors">
+                        <td class="p-4 font-mono text-xs">${cred.credentialId.slice(0, 16)}...</td>
+                        <td class="p-4 font-mono text-xs">${cred.holderEmail || '--'}</td>
+                        <td class="p-4 font-mono text-xs">${cred.statusIndex !== undefined ? cred.statusIndex : '--'}</td>
+                        <td class="p-4 font-mono text-xs">${issuedDate}</td>
+                        <td class="p-4 font-mono text-xs">${revokedDate}</td>
+                        <td class="p-4">${statusBadge}</td>
+                        <td class="p-4 text-right">${revokeButton}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Add click handlers to revoke buttons
+            document.querySelectorAll('.revoke-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const credentialId = btn.getAttribute('data-id');
+                    currentRevokingId = credentialId;
+                    document.getElementById('modal-credential-id').textContent = credentialId;
+                    document.getElementById('revoke-confirm-modal').classList.remove('hidden', 'opacity-0', 'scale-95');
+                    document.getElementById('revoke-confirm-modal').classList.add('opacity-100', 'scale-100');
+                });
+            });
+        }
+
+        // Update stats
+        function updateStats(stats) {
+            document.getElementById('stat-total-credentials').textContent = stats.credentials?.total || 0;
+            document.getElementById('stat-active-credentials').textContent = stats.credentials?.active || 0;
+            document.getElementById('stat-revoked-credentials').textContent = stats.credentials?.revoked || 0;
+        }
+
+        // Show toast
+        function showToast(toastId, message, credentialId = '') {
+            const toast = document.getElementById(toastId);
+            if (!toast) return;
+            
+            if (credentialId) {
+                const credElement = toast.querySelector('#toast-credential-id');
+                if (credElement) credElement.textContent = credentialId;
+                const errorElement = toast.querySelector('#toast-error-message');
+                if (errorElement) errorElement.textContent = message;
+            }
+            
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Initialize
+        async function init() {
+            await fetchCsrfToken();
+            
+            // Load initial data
+            const [credentials, stats] = await Promise.all([
+                fetchCredentials(),
+                fetchStats()
+            ]);
+            
+            allCredentials = credentials;
+            renderCredentials(credentials);
+            updateStats(stats);
+
+            // Search and filter
+            let searchTimeout;
+            const searchInput = document.getElementById('revoke-search');
+            const statusFilter = document.getElementById('revoke-status-filter');
+            const refreshBtn = document.getElementById('btn-refresh-revoke');
+
+            searchInput?.addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(async () => {
+                    const search = e.target.value;
+                    const status = statusFilter?.value || '';
+                    const filtered = await fetchCredentials(search, status);
+                    renderCredentials(filtered);
+                }, 300);
+            });
+
+            statusFilter?.addEventListener('change', async (e) => {
+                const search = searchInput?.value || '';
+                const status = e.target.value;
+                const filtered = await fetchCredentials(search, status);
+                renderCredentials(filtered);
+            });
+
+            refreshBtn?.addEventListener('click', async () => {
+                await fetchCsrfToken();
+                const search = searchInput?.value || '';
+                const status = statusFilter?.value || '';
+                const [credentials, stats] = await Promise.all([
+                    fetchCredentials(search, status),
+                    fetchStats()
+                ]);
+                renderCredentials(credentials);
+                updateStats(stats);
+            });
+
+            // Modal handlers
+            const modal = document.getElementById('revoke-confirm-modal');
+            const cancelBtn = document.getElementById('btn-revoke-cancel');
+            const confirmBtn = document.getElementById('btn-revoke-confirm');
+
+            cancelBtn?.addEventListener('click', () => {
+                modal?.classList.add('hidden', 'opacity-0', 'scale-95');
+                modal?.classList.remove('opacity-100', 'scale-100');
+                currentRevokingId = '';
+            });
+
+            confirmBtn?.addEventListener('click', async () => {
+                const reason = document.getElementById('revoke-reason')?.value || 'Administrative Revocation';
+                
+                if (!currentRevokingId) {
+                    modal?.classList.add('hidden', 'opacity-0', 'scale-95');
+                    modal?.classList.remove('opacity-100', 'scale-100');
+                    return;
+                }
+
+                const result = await revokeCredential(currentRevokingId, reason);
+                
+                if (result.success) {
+                    showToast('revoke-success-toast', 'Credential revoked successfully', currentRevokingId);
+                    // Refresh data
+                    const search = searchInput?.value || '';
+                    const status = statusFilter?.value || '';
+                    const [credentials, stats] = await Promise.all([
+                        fetchCredentials(search, status),
+                        fetchStats()
+                    ]);
+                    renderCredentials(credentials);
+                    updateStats(stats);
+                } else {
+                    showToast('revoke-error-toast', result.error || 'Failed to revoke credential', currentRevokingId);
+                }
+
+                modal?.classList.add('hidden', 'opacity-0', 'scale-95');
+                modal?.classList.remove('opacity-100', 'scale-100');
+                currentRevokingId = '';
+            });
+        }
+
+        // Initialize on DOM ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>

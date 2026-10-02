@@ -90,11 +90,20 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
   res.status(401).json({ error: 'unauthorized' });
 }
 
-/** Middleware: reject POST/PUT/DELETE without valid CSRF token in body. */
+/**
+ * Middleware: reject POST/PUT/DELETE without valid CSRF token.
+ * 
+ * CSRF protection is REQUIRED for browser-based session auth (admin_session cookie).
+ * CSRF is SKIPPED for Bearer token auth (Authorization: Bearer <apiKey>) because:
+ *   - Bearer tokens are used for server-to-server communication
+ *   - There is no cookie context, so CSRF attacks are not applicable
+ *   - API keys are long, random strings that cannot be guessed/forced by an attacker
+ */
 export function requireCsrf(req: Request, res: Response, next: NextFunction): void {
   if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
     const secrets = loadSecrets();
     const bearer = req.headers.authorization?.replace('Bearer ', '').trim();
+    // Skip CSRF for Bearer token (server-to-server): no cookie context, CSRF not applicable
     if (bearer && bearer === secrets.adminApiKey) {
       next();
       return;

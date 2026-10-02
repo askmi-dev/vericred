@@ -10,6 +10,7 @@ import { createCredentialRouter } from './oid4vci/issuer.js';
 import { createOfferRouter } from './oid4vci/offer.js';
 import { createAdminRouter } from './admin/router.js';
 import { createRevocationRouter } from './revocation/router.js';
+import { createOid4vpRouter } from './oid4vp/router.js';
 import { requireAdmin } from './middleware/auth.js';
 import { generateHolders } from './connectors/generator.js';
 import { logStartup, markProcessStart } from './admin/runtime.js';
@@ -109,6 +110,7 @@ app.use(createDidRouter());
 app.use(createMetadataRouter());
 app.use(createTokenRouter());
 app.use(createCredentialRouter(secrets.pseudonymSecret));
+app.use(createOid4vpRouter());
 
 // Console routes (Admin only)
 app.use('/console', requireAdmin);
@@ -117,7 +119,7 @@ app.get('/console', (_req, res) => {
   res.redirect('/console/dashboard');
 });
 
-app.get('/console/:page(dashboard|holders|schema|monitor|logo|security|setup)', (req, res) => {
+app.get('/console/:page(dashboard|holders|schema|monitor|logo|security|setup|revoke)', (req, res) => {
   const page = req.params.page;
   const distPath = process.env.FRONTEND_DIST_PATH || 'stitch-out/dist';
 
@@ -134,7 +136,7 @@ app.get('/console/:page(dashboard|holders|schema|monitor|logo|security|setup)', 
   res.sendFile(path.resolve(path.join(distPath, `console/${page}/index.html`)));
 });
 
-app.get('/console/:page(dashboard|holders|schema|monitor|logo|setup)/index.html', (req, res) => {
+app.get('/console/:page(dashboard|holders|schema|monitor|logo|security|setup|revoke)/index.html', (req, res) => {
   const page = req.params.page;
   const distPath = process.env.FRONTEND_DIST_PATH || 'stitch-out/dist';
 
