@@ -15,19 +15,29 @@ export interface RuntimeEntry {
 
 export function logStartup(holdersSpawned: number): string {
   const sessionId = randomUUID();
-  const entries: RuntimeEntry[] = existsSync(RUNTIME_PATH)
-    ? JSON.parse(readFileSync(RUNTIME_PATH, 'utf-8'))
-    : [];
+  try {
+    const entries: RuntimeEntry[] = existsSync(RUNTIME_PATH)
+      ? JSON.parse(readFileSync(RUNTIME_PATH, 'utf-8'))
+      : [];
 
-  entries.push({ sessionId, startedAt: new Date().toISOString(), holdersSpawned });
-  writeFileSync(RUNTIME_PATH, JSON.stringify(entries, null, 2));
+    entries.push({ sessionId, startedAt: new Date().toISOString(), holdersSpawned });
+    writeFileSync(RUNTIME_PATH, JSON.stringify(entries, null, 2));
+  } catch (err) {
+    // Runtime stats are diagnostic-only; losing them must never block startup.
+    console.warn(`[runtime] Could not persist startup log to ${RUNTIME_PATH}:`, (err as Error).message);
+  }
   return sessionId;
 }
 
 export function getRuntimeStats() {
-  const entries: RuntimeEntry[] = existsSync(RUNTIME_PATH)
-    ? JSON.parse(readFileSync(RUNTIME_PATH, 'utf-8'))
-    : [];
+  let entries: RuntimeEntry[] = [];
+  try {
+    entries = existsSync(RUNTIME_PATH)
+      ? JSON.parse(readFileSync(RUNTIME_PATH, 'utf-8'))
+      : [];
+  } catch (err) {
+    console.warn(`[runtime] Could not read runtime log from ${RUNTIME_PATH}:`, (err as Error).message);
+  }
 
   const today = new Date().toISOString().slice(0, 10);
   const todayEntries = entries.filter(e => e.startedAt.startsWith(today));
