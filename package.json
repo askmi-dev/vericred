@@ -1,36 +1,24 @@
 {
   "name": "vericred",
+  "private": true,
   "version": "0.1.0",
-  "description": "Lightweight OID4VCI issuer gateway — connect your database, issue W3C Verifiable Credentials",
-  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "stitch-out"
+  ],
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "build:backend": "tsc -p tsconfig.json",
-    "build:frontend": "npm --prefix stitch-out run build",
-    "build": "npm run build:frontend && npm run build:backend",
-    "start": "node dist/server.js",
-    "test": "vitest run",
-    "test:watch": "vitest"
-  },
-  "dependencies": {
-    "@askmi/revocation-statuslist": "^0.1.0",
-    "@askmi/shared-crypto": "^0.1.0",
-    "@askmi/shared-types": "^0.1.0",
-    "@noble/curves": "^2.0.1",
-    "@noble/hashes": "^2.0.1",
-    "express": "^4.18.2",
-    "jose": "^5.2.0",
-    "qrcode": "^1.5.4",
-    "uuid": "^14.0.2",
-    "zod": "^3.22.4"
+    "dev:api": "npm --workspace @vericred/api run dev",
+    "dev:admin": "npm --workspace @vericred/admin-ui run dev",
+    "dev:website": "npm --workspace stitch-site run dev",
+    "build:shared": "npm --workspace @vericred/shared run build",
+    "build:api": "npm --workspace @vericred/api run build",
+    "build:admin": "npm --workspace @vericred/admin-ui run build",
+    "build:website": "npm --workspace stitch-site run build",
+    "build": "npm run build:shared && npm run build:api && npm run build:admin && npm run build:website",
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:admin\" \"npm run dev:website\"",
+    "test": "npm --workspace @vericred/api run test"
   },
   "devDependencies": {
-    "@types/express": "^4.17.21",
-    "@types/node": "^22.20.5",
-    "@types/qrcode": "^1.5.6",
-    "tsx": "^4.7.0",
-    "typescript": "^5.3.0",
-    "vite": "^7.3.6",
-    "vitest": "^5.0.3"
+    "concurrently": "^9.2.0"
   }
 }

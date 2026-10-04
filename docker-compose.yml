@@ -1,0 +1,57 @@
+version: '3.9'
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: vericred-postgres
+    environment:
+      POSTGRES_DB: vericred
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: vericred-redis
+    ports:
+      - "6379:6379"
+
+  api:
+    build:
+      context: ./packages/api
+    container_name: vericred-api
+    environment:
+      NODE_ENV: development
+      PORT: 3100
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/vericred
+      REDIS_URL: redis://redis:6379
+      CORS_ORIGIN: http://localhost:5173
+    depends_on:
+      - postgres
+      - redis
+    ports:
+      - "3100:3100"
+
+  admin-ui:
+    build:
+      context: ./packages/admin-ui
+    container_name: vericred-admin-ui
+    environment:
+      VITE_API_URL: http://localhost:3100
+    ports:
+      - "5173:5173"
+
+  website:
+    image: node:22-alpine
+    container_name: vericred-website
+    working_dir: /app
+    volumes:
+      - ./stitch-out:/app
+    command: sh -lc "npm install && npm run dev -- --host 0.0.0.0 --port 4321"
+    ports:
+      - "4321:4321"
+
+volumes:
+  postgres_data:
