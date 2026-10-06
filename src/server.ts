@@ -122,16 +122,21 @@ app.use(createConsentRouter());
 // :id is constrained to the exact format createConsentRecord generates
 // (32 hex chars); it is never read below -- the file served is a static
 // SPA shell regardless of :id -- but the constraint rejects malformed ids
-// with a plain 404 up front instead of reaching sendFile at all. The
-// filename passed to sendFile is a literal, resolved against the `root`
-// option rather than path.join'd by hand, so it can't escape distPath.
+// with a plain 404 up front instead of reaching sendFile at all.
+//
 // FRONTEND_DIST_PATH (deploy-time server config, not request data) is
-// allow-listed to a safe charset before use, same as :id above.
-const SAFE_DIST_PATH = /^[\w./-]+$/;
+// resolved and then checked with startsWith against PROJECT_ROOT before
+// use -- the exact normalize-then-verify shape CodeQL's path-injection
+// query documents as its own recommended fix for TaintedPath.ql.
+const PROJECT_ROOT = path.resolve('.');
 app.get('/consent/:id([0-9a-f]{32})', (_req, res) => {
   const envDistPath = process.env.FRONTEND_DIST_PATH;
-  const distPath = envDistPath && SAFE_DIST_PATH.test(envDistPath) ? envDistPath : 'stitch-out/dist';
-  res.sendFile('consent/index.html', { root: path.resolve(distPath) });
+  const resolvedDistPath = path.resolve(envDistPath || 'stitch-out/dist');
+  if (!resolvedDistPath.startsWith(PROJECT_ROOT)) {
+    res.status(500).json({ error: 'invalid_frontend_dist_path' });
+    return;
+  }
+  res.sendFile('consent/index.html', { root: resolvedDistPath });
 });
 
 // Console routes (Admin only)
