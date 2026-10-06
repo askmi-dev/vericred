@@ -55,12 +55,18 @@ const claimLabels: Record<string, string> = {
   organization: 'Your organization',
   role: 'Your role',
   department: 'Your department',
-  employeeId: 'Your employee ID',
-  validUntil: 'Valid until date',
-  membershipType: 'Your membership type',
-  memberId: 'Your member ID',
-  memberSince: 'Member since date',
-  memberUntil: 'Member until date',
+  // Keys below are the templates' actual *output* claim names (snake_case,
+  // from buildClaims()'s return value) -- not their input/requiredFields
+  // names (e.g. EmployeeCredential's input is `employeeId`, but its output
+  // claim is `employee_id`). Using the wrong one here would only ever
+  // silently fall back to the raw key, never error, so this is easy to
+  // get wrong without a template actually exercised through the gate.
+  employee_id: 'Your employee ID',
+  valid_until: 'Valid until date',
+  membership_type: 'Your membership type',
+  member_id: 'Your member ID',
+  member_since: 'Member since date',
+  member_until: 'Member until date',
 };
 
 /**

@@ -55,7 +55,13 @@ describe('Pre-issuance consent gate', () => {
     mkdirSync(tempDir, { recursive: true });
 
     writeFileSync(`${tempDir}/holders.json`, JSON.stringify([
-      { id: 'consent-holder-01', givenName: 'Alex', dateOfBirth: '1990-01-01' },
+      {
+        id: 'consent-holder-01',
+        givenName: 'Alex',
+        dateOfBirth: '1990-01-01',
+        organization: 'ACME Guild',
+        membershipType: 'supporter',
+      },
     ], null, 2));
 
     writeFileSync(`${tempDir}/vericred.config.json`, JSON.stringify({
@@ -121,6 +127,64 @@ describe('Pre-issuance consent gate', () => {
     expect(data.consent_required).toBeUndefined();
     expect(data.offer.credential_configuration_ids).toEqual(['AgeCredential']);
     expect(data.offer_uri).toContain('openid-credential-offer://');
+  });
+
+  it('MembershipCredential (the first real template on the gate) shows correctly labeled claims and redeems end to end', async () => {
+    const { res, data } = await createOffer('MembershipCredential');
+    expect(res.status).toBe(200);
+    expect(data.consent_required).toBe(true);
+    const consentId = data.consent_url.split('/').pop();
+
+    const claimsRes = await fetch(`${serverUrl}/consent/${consentId}/claims`);
+    const claimsData = (await claimsRes.json()) as any;
+    // Labels must key off the template's actual *output* claim names
+    // (membership_type, snake_case) -- not its input field name
+    // (membershipType) -- or they silently fall back to the raw key.
+    expect(claimsData.claims).toEqual(
+      expect.arrayContaining([
+        { key: 'organization', label: 'Your organization', value: 'ACME Guild', required: true },
+        { key: 'membership_type', label: 'Your membership type', value: 'supporter', required: true },
+      ])
+    );
+
+    const decideRes = await fetch(`${serverUrl}/consent/${consentId}/decide`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ approved: true }),
+    });
+    expect(decideRes.status).toBe(200);
+    const decideData = (await decideRes.json()) as any;
+    const preAuthCode =
+      decideData.offer.grants['urn:ietf:params:oauth:grant-type:pre-authorized_code']['pre-authorized_code'];
+
+    const tokenRes = await fetch(`${serverUrl}/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        grant_type: 'urn:ietf:params:oauth:grant-type:pre-authorized_code',
+        'pre-authorized_code': preAuthCode,
+      }),
+    });
+    const tokenData = (await tokenRes.json()) as any;
+
+    const publicJwk = await exportJWK(holderKeys.publicKey);
+    const proofJwt = await new SignJWT({
+      aud: serverUrl,
+      iat: Math.floor(Date.now() / 1000),
+      nonce: tokenData.c_nonce,
+    })
+      .setProtectedHeader({ alg: 'ES256', typ: 'openid4vci-proof+jwt', jwk: publicJwk })
+      .sign(holderKeys.privateKey);
+
+    const credentialRes = await fetch(`${serverUrl}/credentials`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenData.access_token}` },
+      body: JSON.stringify({ format: 'dc+sd-jwt', proof: { proof_type: 'jwt', jwt: proofJwt } }),
+    });
+    expect(credentialRes.status).toBe(200);
+    const credData = (await credentialRes.json()) as any;
+    const claims = decodeJwt(credData.credential.split('~')[0]) as any;
+    expect(claims.vct).toBe('MembershipCredential');
   });
 
   it('GET /consent/:id/claims returns human-readable claim labels, never the raw pre-auth secret', async () => {

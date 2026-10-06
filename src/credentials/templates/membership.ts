@@ -14,6 +14,13 @@ registerTemplate({
   displayName: 'Membership Credential',
   requiredFields: ['organization', 'membershipType'],
   optionalFields: ['memberId', 'memberSince', 'memberUntil', 'given_name', 'family_name'],
+  // First real template enabled on the pre-issuance consent gate (see
+  // src/oid4vci/consent.ts). Chosen because no existing test exercises its
+  // /offer -> /token -> /credentials flow expecting today's immediate-
+  // issuance behavior (unlike EmployeeCredential, which dynamic-issuance
+  // test does, and AgeCredential, which is the default fixture reused
+  // across 12+ other test call sites).
+  requiresConsent: true,
 
   buildClaims(holderData, options = {}) {
     for (const f of ['organization', 'membershipType']) {

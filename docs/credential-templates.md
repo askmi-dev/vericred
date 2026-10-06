@@ -84,6 +84,7 @@ no name or email required.
 | Optional source | `memberId`, `memberSince` (ISO date), `memberUntil` (ISO date), `given_name`, `family_name` |
 | Issued claims | `organization`, `membership_type`, `member_id`?, `member_since`?, `member_until`?, `given_name`?, `family_name`? |
 | **Never issued** | `email` — even if present in holder data |
+| **Consent gate** | `requiresConsent: true` — the holder reviews these claims and approves/declines before a pre-authorized code is issued (see `src/oid4vci/consent.ts`) |
 
 **fieldMappings example (minimal):**
 ```json
