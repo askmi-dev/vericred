@@ -185,6 +185,18 @@ describe('Pre-issuance consent gate', () => {
     const credData = (await credentialRes.json()) as any;
     const claims = decodeJwt(credData.credential.split('~')[0]) as any;
     expect(claims.vct).toBe('MembershipCredential');
+
+    // Decode the actual issued disclosures and confirm they equal what
+    // was reviewed on the consent screen -- not just that *some*
+    // credential of the right type was issued.
+    const disclosures = credData.credential.split('~').slice(1, -1);
+    const issuedClaims: Record<string, unknown> = {};
+    for (const d of disclosures) {
+      const [, name, value] = decodeDisclosure(d);
+      issuedClaims[name] = value;
+    }
+    expect(issuedClaims.organization).toBe('ACME Guild');
+    expect(issuedClaims.membership_type).toBe('supporter');
   });
 
   it('GET /consent/:id/claims returns human-readable claim labels, never the raw pre-auth secret', async () => {
@@ -249,6 +261,76 @@ describe('Pre-issuance consent gate', () => {
 
     const claims = decodeJwt(credData.credential.split('~')[0]) as any;
     expect(claims.vct).toBe('ConsentTestCredential');
+  });
+
+  it('approval discards holderData and claims immediately, keeping only a tombstone', async () => {
+    const { getConsentRecord } = await import('../consent.js');
+
+    const { data } = await createOffer('ConsentTestCredential');
+    const consentId = data.consent_url.split('/').pop();
+
+    const decideRes = await fetch(`${serverUrl}/consent/${consentId}/decide`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ approved: true }),
+    });
+    expect(decideRes.status).toBe(200);
+
+    const record = getConsentRecord(consentId) as any;
+    expect(record.verdict).toBe('APPROVED');
+    // The tombstone must not carry the holder's PII or the claim values
+    // forward -- they were already handed to issuePreAuthCode's snapshot
+    // at the moment of approval, and have no further reason to exist here.
+    expect(record.holderData).toBeUndefined();
+    expect(record.claims).toBeUndefined();
+  });
+
+  it('decline discards holderData and claims immediately, never producing a redeemable offer', async () => {
+    const { getConsentRecord } = await import('../consent.js');
+
+    const { data } = await createOffer('ConsentTestCredential');
+    const consentId = data.consent_url.split('/').pop();
+
+    const decideRes = await fetch(`${serverUrl}/consent/${consentId}/decide`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ approved: false }),
+    });
+    expect(decideRes.status).toBe(200);
+    expect((await decideRes.json()) as any).toEqual({ declined: true });
+
+    const record = getConsentRecord(consentId) as any;
+    expect(record.verdict).toBe('DECLINED');
+    expect(record.holderData).toBeUndefined();
+    expect(record.claims).toBeUndefined();
+  });
+
+  it('bounds pending consent record capacity and fails closed when full', async () => {
+    const { createConsentRecord, sweepExpiredConsentRecords } = await import('../consent.js');
+
+    const created: string[] = [];
+    let rejected = false;
+    // Comfortably overshoot MAX_PENDING_RECORDS (10_000) so the cap is hit
+    // regardless of how many pending records earlier tests left behind.
+    for (let i = 0; i < 10_050; i++) {
+      const id = createConsentRecord({ givenName: 'Cap' }, 'ConsentTestCredential', []);
+      if (id === null) {
+        rejected = true;
+        break;
+      }
+      created.push(id);
+    }
+    expect(rejected).toBe(true);
+
+    // Clean up after ourselves: expire everything this test created so it
+    // doesn't starve capacity for any test that runs after it.
+    const realNow = Date.now;
+    const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => realNow() + 25 * 60 * 60 * 1000);
+    try {
+      sweepExpiredConsentRecords();
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 
   it('issues exactly the claim values reviewed at consent time, never recomputed at /credentials', async () => {

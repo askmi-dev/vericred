@@ -17,7 +17,7 @@ import { randomBytes } from 'crypto';
 import { z } from 'zod';
 import { issuePreAuthCode, buildCredentialOffer } from './token.js';
 
-export type ConsentVerdict = 'PENDING' | 'APPROVED' | 'DECLINED' | 'EXPIRED';
+export type ConsentVerdict = 'PENDING' | 'APPROVED' | 'DECLINED';
 
 export interface ConsentClaim {
   key: string;
@@ -26,19 +26,41 @@ export interface ConsentClaim {
   required: boolean;
 }
 
-interface ConsentRecord {
+interface PendingConsentRecord {
   consentId: string;
   credentialType: string;
   holderData: Record<string, unknown>;
   claims: ConsentClaim[];
-  verdict: ConsentVerdict;
+  verdict: 'PENDING';
   createdAt: number;
-  decidedAt?: number;
   expiresAt: number;
 }
 
+/**
+ * What a decided record becomes, immediately -- not a full ConsentRecord
+ * with a verdict field changed in place. holderData and claims (the only
+ * PII/claim-value-bearing fields) are discarded the moment a decision is
+ * made, not retained until the 24h TTL like everything else here. Keeps
+ * only what GET/POST /consent/:id/* need to keep answering 410/404
+ * correctly for the rest of the original window.
+ */
+interface DecidedConsentTombstone {
+  consentId: string;
+  verdict: 'APPROVED' | 'DECLINED';
+  decidedAt: number;
+  expiresAt: number;
+}
+
+type ConsentRecord = PendingConsentRecord | DecidedConsentTombstone;
+
 const CONSENT_TTL_MS = 24 * 60 * 60 * 1000; // 24h -- a human reading a page
 // needs longer than a wallet's programmatic pre-auth-code redemption (10 min).
+
+// Hard ceiling on concurrently PENDING records (the only variant carrying
+// PII/claim values) -- bounds memory independent of the TTL sweep, e.g.
+// against an admin-side burst or a sweep interval that hasn't run yet.
+// Tombstones aren't counted: they carry no PII and are already minimal.
+const MAX_PENDING_RECORDS = 10_000;
 
 const consentRecords = new Map<string, ConsentRecord>();
 
@@ -117,11 +139,18 @@ export function buildClaimsList(claims: Record<string, unknown>): ConsentClaim[]
   }));
 }
 
+/** Returns null when the pending-record cap is reached -- fails closed, never evicts someone else's pending record to make room. */
 export function createConsentRecord(
   holderData: Record<string, unknown>,
   credentialType: string,
   claims: ConsentClaim[]
-): string {
+): string | null {
+  let pendingCount = 0;
+  for (const r of consentRecords.values()) {
+    if (r.verdict === 'PENDING') pendingCount++;
+  }
+  if (pendingCount >= MAX_PENDING_RECORDS) return null;
+
   const consentId = randomBytes(16).toString('hex');
   consentRecords.set(consentId, {
     consentId,
@@ -160,21 +189,36 @@ export function decideConsent(
     return { error: 'already_decided' };
   }
 
-  record.decidedAt = Date.now();
-
   if (!approved) {
-    record.verdict = 'DECLINED';
+    // Replace the full record with a tombstone -- holderData and claims
+    // are discarded now, not retained until expiresAt like a PENDING
+    // record. The tombstone keeps only what's needed to keep answering
+    // 410 for the rest of the original window.
+    consentRecords.set(consentId, {
+      consentId,
+      verdict: 'DECLINED',
+      decidedAt: Date.now(),
+      expiresAt: record.expiresAt,
+    });
     return { declined: true };
   }
 
-  record.verdict = 'APPROVED';
   // Reissue exactly the claim values the holder reviewed and approved --
   // never recompute from live config/mappings, which could have changed
   // during the (up to 24h) consent window, or drift across a date
   // boundary for a date-dependent claim like age_over_18.
   const claimsSnapshot = Object.fromEntries(record.claims.map((c) => [c.key, c.value]));
   const code = issuePreAuthCode(record.holderData, record.credentialType, claimsSnapshot);
-  return buildCredentialOffer(code, record.credentialType);
+  const offer = buildCredentialOffer(code, record.credentialType);
+
+  consentRecords.set(consentId, {
+    consentId,
+    verdict: 'APPROVED',
+    decidedAt: Date.now(),
+    expiresAt: record.expiresAt,
+  });
+
+  return offer;
 }
 
 const decideConsentSchema = z.object({ approved: z.boolean() });
