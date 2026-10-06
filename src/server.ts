@@ -111,6 +111,10 @@ const lookup = (id: string) => connector.lookup(id);
 app.use(createDidRouter());
 app.use(createMetadataRouter());
 app.use(createTokenRouter());
+// Bearer-token authenticated (lookupAccessToken), but still unauthenticated
+// at the network level -- rate-limit to bound brute-forcing access tokens
+// and repeated proof-verification attempts.
+app.use('/credentials', rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false }));
 app.use(createCredentialRouter(secrets.pseudonymSecret));
 app.use(createOid4vpRouter());
 
