@@ -125,19 +125,13 @@ app.use(createConsentRouter());
 // with a plain 404 up front instead of reaching sendFile at all. The
 // filename passed to sendFile is a literal, resolved against the `root`
 // option rather than path.join'd by hand, so it can't escape distPath.
-//
-// CodeQL (js/path-injection) still flags the line below. It isn't :id --
-// it's FRONTEND_DIST_PATH, which CodeQL's env-var source heuristic treats
-// as "user-provided." Here it's deploy-time server config (same value this
-// file already resolves the identical way for /console, /dev/navigator,
-// and the static fallback, none of which are new lines in this diff and
-// so aren't flagged) -- never derived from a request. Confirmed by testing:
-// switching from path.join to sendFile's documented-safe `root` option
-// didn't change the finding, which only makes sense if distPath itself,
-// not :id, is what's being traced.
+// FRONTEND_DIST_PATH (deploy-time server config, not request data) is
+// allow-listed to a safe charset before use, same as :id above.
+const SAFE_DIST_PATH = /^[\w./-]+$/;
 app.get('/consent/:id([0-9a-f]{32})', (_req, res) => {
-  const distPath = process.env.FRONTEND_DIST_PATH || 'stitch-out/dist';
-  res.sendFile('consent/index.html', { root: path.resolve(distPath) }); // lgtm[js/path-injection]
+  const envDistPath = process.env.FRONTEND_DIST_PATH;
+  const distPath = envDistPath && SAFE_DIST_PATH.test(envDistPath) ? envDistPath : 'stitch-out/dist';
+  res.sendFile('consent/index.html', { root: path.resolve(distPath) });
 });
 
 // Console routes (Admin only)
