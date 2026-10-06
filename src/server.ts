@@ -1,4 +1,5 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { loadConfig } from './config/loader.js';
 import { loadSecrets } from './config/secrets.js';
@@ -11,6 +12,7 @@ import { createOfferRouter } from './oid4vci/offer.js';
 import { createAdminRouter } from './admin/router.js';
 import { createRevocationRouter } from './revocation/router.js';
 import { createOid4vpRouter } from './oid4vp/router.js';
+import { createConsentRouter } from './oid4vci/consent.js';
 import { requireAdmin } from './middleware/auth.js';
 import { generateHolders } from './connectors/generator.js';
 import { logStartup, markProcessStart } from './admin/runtime.js';
@@ -109,8 +111,37 @@ const lookup = (id: string) => connector.lookup(id);
 app.use(createDidRouter());
 app.use(createMetadataRouter());
 app.use(createTokenRouter());
+// Bearer-token authenticated (lookupAccessToken), but still unauthenticated
+// at the network level -- rate-limit to bound brute-forcing access tokens
+// and repeated proof-verification attempts.
+app.use('/credentials', rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false }));
 app.use(createCredentialRouter(secrets.pseudonymSecret));
 app.use(createOid4vpRouter());
+
+// Public, unauthenticated consent surface (GET .../claims, POST .../decide,
+// and the page shell below) -- rate-limited since there's no auth gate.
+app.use('/consent', rateLimit({ windowMs: 15 * 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false }));
+app.use(createConsentRouter());
+
+// :id is constrained to the exact format createConsentRecord generates
+// (32 hex chars); it is never read below -- the file served is a static
+// SPA shell regardless of :id -- but the constraint rejects malformed ids
+// with a plain 404 up front instead of reaching sendFile at all.
+//
+// FRONTEND_DIST_PATH (deploy-time server config, not request data) is
+// resolved and then checked with startsWith against PROJECT_ROOT before
+// use -- the exact normalize-then-verify shape CodeQL's path-injection
+// query documents as its own recommended fix for TaintedPath.ql.
+const PROJECT_ROOT = path.resolve('.');
+app.get('/consent/:id([0-9a-f]{32})', (_req, res) => {
+  const envDistPath = process.env.FRONTEND_DIST_PATH;
+  const resolvedDistPath = path.resolve(envDistPath || 'stitch-out/dist');
+  if (!resolvedDistPath.startsWith(PROJECT_ROOT)) {
+    res.status(500).json({ error: 'invalid_frontend_dist_path' });
+    return;
+  }
+  res.sendFile('consent/index.html', { root: resolvedDistPath });
+});
 
 // Console routes (Admin only)
 app.use('/console', requireAdmin);
@@ -171,6 +202,7 @@ if (process.env['NODE_ENV'] === 'development') {
 }
 
 // Protected routes (admin only)
+app.use('/offer', rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false }));
 app.use('/offer', requireAdmin);
 app.use(createOfferRouter(lookup));
 app.use(createRevocationRouter());

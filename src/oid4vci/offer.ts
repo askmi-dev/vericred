@@ -1,10 +1,25 @@
 import { Router as createRouter } from 'express';
 import type { Router, Request, Response } from 'express';
+import qrcode from 'qrcode';
 import { loadConfig } from '../config/loader.js';
-import { issuePreAuthCode } from './token.js';
+import { issuePreAuthCode, buildCredentialOffer } from './token.js';
 import type { Lookup } from '../connectors/index.js';
 import { getTemplate } from '../credentials/registry.js';
 import { resolveMappedData } from './issuer.js';
+import { createConsentRecord, buildClaimsList } from './consent.js';
+
+/**
+ * Renders a QR code for `uri` as a data: URL, server-side. The offer/
+ * consent URI is a bearer capability (anyone holding it can redeem or
+ * approve it), so it must never be handed to a third party just to draw
+ * a QR image -- the previous console UI did exactly that by loading
+ * https://api.qrserver.com/...?data=<uri> as an <img> src, which leaks
+ * the capability to that third party's access logs. Generating the QR
+ * locally keeps the URI entirely first-party.
+ */
+async function qrDataUrl(uri: string): Promise<string> {
+  return qrcode.toDataURL(uri);
+}
 
 export function createOfferRouter(lookup: Lookup): Router {
   const router = createRouter();
@@ -39,27 +54,29 @@ export function createOfferRouter(lookup: Lookup): Router {
       return;
     }
 
-    const { errors: mappingErrors } = resolveMappedData(template, config.fieldMappings ?? {}, holderData);
+    const { mappedData, errors: mappingErrors } = resolveMappedData(template, config.fieldMappings ?? {}, holderData);
     if (mappingErrors.length > 0) {
       res.status(400).json({ error: 'invalid_field_mappings', detail: mappingErrors });
       return;
     }
 
+    if (template.requiresConsent) {
+      let claims: Record<string, unknown>;
+      try {
+        claims = template.buildClaims(mappedData, config.templateOptions);
+      } catch (e) {
+        res.status(400).json({ error: 'claim_build_failed', detail: (e as Error).message });
+        return;
+      }
+      const consentId = createConsentRecord(holderData, resolvedType, buildClaimsList(claims));
+      const consentUrl = `${config.issuer.url}/consent/${consentId}`;
+      res.json({ consent_required: true, consent_url: consentUrl, qr_data_url: await qrDataUrl(consentUrl) });
+      return;
+    }
+
     const code = issuePreAuthCode(holderData, resolvedType);
-
-    const offer = {
-      credential_issuer: config.issuer.url,
-      credential_configuration_ids: [resolvedType],
-      grants: {
-        'urn:ietf:params:oauth:grant-type:pre-authorized_code': {
-          'pre-authorized_code': code,
-          user_pin_required: false,
-        },
-      },
-    };
-
-    const offerUri = `openid-credential-offer://?credential_offer=${encodeURIComponent(JSON.stringify(offer))}`;
-    res.json({ offer, offer_uri: offerUri });
+    const result = buildCredentialOffer(code, resolvedType);
+    res.json({ ...result, qr_data_url: await qrDataUrl(result.offer_uri) });
   });
 
   return router;

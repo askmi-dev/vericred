@@ -17,6 +17,14 @@ export interface CredentialTemplate {
   displayName: string;
   requiredFields: string[];
   optionalFields: string[];
+  /**
+   * Opt-in pre-issuance consent gate (per-template).
+   * When true, POST /offer returns { consent_url } instead of { offer_uri },
+   * and the holder must approve via the consent page before issuance.
+   * When false or absent: today's behavior (pre-auth code issued immediately).
+   * @default false
+   */
+  requiresConsent?: boolean;
   buildClaims(
     holderData: Record<string, unknown>,
     options?: Record<string, unknown>

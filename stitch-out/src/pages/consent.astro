@@ -1,0 +1,191 @@
+---
+// Public, unauthenticated consent-review page. No AdminLayout -- this is
+// reached by a holder, not an admin. consentId comes from the URL path
+// (/consent/:id) at request time, read client-side below; this page's
+// markup is the same static shell regardless of which id is in the URL.
+---
+<html class="light" lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Review Credential Request | VeriCred</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #faf9f6;
+            background-image:
+                radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.05) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(245, 158, 11, 0.04) 0px, transparent 50%);
+            color: #1e293b;
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+        main {
+            max-width: 480px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
+            border-radius: 1.25rem;
+            padding: 2rem;
+        }
+        h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin: 0 0 0.5rem;
+            color: #0f172a;
+        }
+        p.subtitle {
+            color: #64748b;
+            font-size: 0.9rem;
+            margin: 0 0 1.5rem;
+        }
+        .claims {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .claim {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background: rgba(248, 250, 252, 0.85);
+            border: 1px solid rgba(0, 0, 0, 0.04);
+            border-radius: 0.75rem;
+            font-size: 0.9rem;
+        }
+        .claim-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: #059669;
+            font-weight: 600;
+        }
+        .actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+        button {
+            flex: 1;
+            padding: 0.85rem;
+            border-radius: 0.75rem;
+            border: none;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        #btn-approve {
+            background: #10b981;
+            color: white;
+        }
+        #btn-approve:hover { background: #059669; }
+        #btn-decline {
+            background: rgba(0, 0, 0, 0.04);
+            color: #475569;
+        }
+        #btn-decline:hover { background: rgba(0, 0, 0, 0.08); }
+        button:disabled { opacity: 0.6; cursor: default; }
+        .message {
+            text-align: center;
+            padding: 1rem 0;
+            font-size: 0.95rem;
+            color: #475569;
+        }
+        .error { color: #dc2626; }
+    </style>
+</head>
+<body>
+    <main id="app">
+        <p class="message">Loading…</p>
+    </main>
+
+    <script>
+        const consentId = window.location.pathname.split('/').filter(Boolean).pop();
+        const app = document.getElementById('app');
+
+        function renderError(message: string) {
+            if (app) app.innerHTML = `<p class="message error">${message}</p>`;
+        }
+
+        function escapeHtml(s: string): string {
+            return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+        }
+
+        function formatClaimValue(value: unknown): string {
+            if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+            return escapeHtml(String(value));
+        }
+
+        function renderClaims(data: { credentialType: string; claims: { key: string; label: string; value: unknown; required: boolean }[] }) {
+            if (!app) return;
+            // The actual value is shown, not just the claim's key/label -- approving
+            // without seeing what will actually be signed isn't informed consent.
+            const claimRows = data.claims
+                .map((c) => `<div class="claim"><span>${escapeHtml(c.label)}</span><span class="claim-value">${formatClaimValue(c.value)}</span></div>`)
+                .join('');
+
+            app.innerHTML = `
+                <h1>Review Credential Request</h1>
+                <p class="subtitle">Approving will issue a <strong>${data.credentialType}</strong> credential containing exactly these claims. Nothing else is shared.</p>
+                <div class="claims">${claimRows}</div>
+                <div class="actions">
+                    <button id="btn-decline">Decline</button>
+                    <button id="btn-approve">Approve</button>
+                </div>
+            `;
+
+            document.getElementById('btn-approve')?.addEventListener('click', () => decide(true));
+            document.getElementById('btn-decline')?.addEventListener('click', () => decide(false));
+        }
+
+        async function decide(approved: boolean) {
+            const buttons = document.querySelectorAll('button');
+            buttons.forEach((b) => (b as HTMLButtonElement).disabled = true);
+
+            try {
+                const res = await fetch(`/consent/${consentId}/decide`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ approved }),
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    renderError(
+                        data.error === 'already_decided'
+                            ? 'This request has already been decided.'
+                            : 'This request is no longer valid or has expired.'
+                    );
+                    return;
+                }
+
+                if (data.declined) {
+                    if (app) app.innerHTML = '<p class="message">You declined this request. No credential was issued.</p>';
+                    return;
+                }
+
+                if (data.offer_uri) {
+                    window.location.href = data.offer_uri;
+                }
+            } catch {
+                renderError('Something went wrong. Please try again.');
+            }
+        }
+
+        fetch(`/consent/${consentId}/claims`)
+            .then((res) => {
+                if (!res.ok) throw new Error('not_found');
+                return res.json();
+            })
+            .then(renderClaims)
+            .catch(() => renderError('This request is no longer valid or has expired.'));
+    </script>
+</body>
+</html>

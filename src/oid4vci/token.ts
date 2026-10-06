@@ -7,6 +7,7 @@ import { Router as createRouter } from 'express';
 import type { Router } from 'express';
 import { randomBytes } from 'crypto';
 import { logInterop } from './interop-logger.js';
+import { loadConfig } from '../config/loader.js';
 
 export interface AccessTokenEntry {
   holderData: Record<string, unknown>;
@@ -14,6 +15,7 @@ export interface AccessTokenEntry {
   cNonce: string;
   cNonceExpiresAt: number;
   credentialType?: string;
+  claims?: Record<string, unknown>;
 }
 
 const C_NONCE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -23,17 +25,58 @@ const preAuthCodes = new Map<string, {
   holderData: Record<string, unknown>;
   expiresAt: number;
   credentialType?: string;
+  claims?: Record<string, unknown>;
 }>();
 const accessTokens = new Map<string, AccessTokenEntry>();
 
-export function issuePreAuthCode(holderData: Record<string, unknown>, credentialType?: string): string {
+/**
+ * `claims`, when given, is a snapshot already computed and shown to the
+ * holder (the consent-gate path) -- /credentials must issue exactly this,
+ * never recompute live, or the signed credential could drift from what
+ * was reviewed (a config change or a date boundary crossed during the
+ * consent window). Omitted for the non-consent path, where /credentials
+ * computes claims live as it always has.
+ */
+export function issuePreAuthCode(
+  holderData: Record<string, unknown>,
+  credentialType?: string,
+  claims?: Record<string, unknown>
+): string {
   const code = randomBytes(16).toString('hex');
   preAuthCodes.set(code, {
     holderData,
     expiresAt: Date.now() + 10 * 60 * 1000, // 10 min
-    credentialType
+    credentialType,
+    claims,
   });
   return code;
+}
+
+/**
+ * Build a standard OID4VCI credential-offer object + deep-link URI from a
+ * pre-authorized code. Shared by POST /offer (issues immediately) and the
+ * consent gate's decideConsent (issues only after holder approval) so the
+ * offer shape is defined exactly once.
+ */
+export function buildCredentialOffer(code: string, credentialType: string): {
+  offer: Record<string, unknown>;
+  offer_uri: string;
+} {
+  const config = loadConfig();
+
+  const offer = {
+    credential_issuer: config.issuer.url,
+    credential_configuration_ids: [credentialType],
+    grants: {
+      'urn:ietf:params:oauth:grant-type:pre-authorized_code': {
+        'pre-authorized_code': code,
+        user_pin_required: false,
+      },
+    },
+  };
+
+  const offerUri = `openid-credential-offer://?credential_offer=${encodeURIComponent(JSON.stringify(offer))}`;
+  return { offer, offer_uri: offerUri };
 }
 
 export function lookupAccessToken(token: string): AccessTokenEntry | null {
@@ -82,6 +125,7 @@ export function createTokenRouter(): Router {
       cNonce,
       cNonceExpiresAt: Date.now() + C_NONCE_TTL_MS,
       credentialType: entry.credentialType,
+      claims: entry.claims,
     });
 
     res.json({
