@@ -359,7 +359,10 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
                 return data;
             })
             .then(data => {
-                currentOfferUri = data.offer_uri;
+                // consent_required templates return a consent_url to review claims
+                // before any pre-auth code is issued; only its link goes in the QR,
+                // never a redeemable offer_uri/pre-auth secret.
+                currentOfferUri = data.consent_url ?? data.offer_uri;
                 if (qrContainer) {
                     qrContainer.innerHTML = `
                         <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(currentOfferUri)}" alt="QR Code" class="w-[150px] h-[150px] rounded-lg border border-slate-800 bg-white p-1 mb-2" />
@@ -367,7 +370,11 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
                     `;
                 }
                 if (window.triggerToast) {
-                    window.triggerToast('OID4VCI Pre-Authorized Credential Offer generated successfully!');
+                    window.triggerToast(
+                        data.consent_required
+                            ? 'Consent link generated. The holder must approve before this credential is issued.'
+                            : 'OID4VCI Pre-Authorized Credential Offer generated successfully!'
+                    );
                 }
             })
             .catch(err => {

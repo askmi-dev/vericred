@@ -7,6 +7,7 @@ import { Router as createRouter } from 'express';
 import type { Router } from 'express';
 import { randomBytes } from 'crypto';
 import { logInterop } from './interop-logger.js';
+import { loadConfig } from '../config/loader.js';
 
 export interface AccessTokenEntry {
   holderData: Record<string, unknown>;
@@ -34,6 +35,33 @@ export function issuePreAuthCode(holderData: Record<string, unknown>, credential
     credentialType
   });
   return code;
+}
+
+/**
+ * Build a standard OID4VCI credential-offer object + deep-link URI from a
+ * pre-authorized code. Shared by POST /offer (issues immediately) and the
+ * consent gate's decideConsent (issues only after holder approval) so the
+ * offer shape is defined exactly once.
+ */
+export function buildCredentialOffer(code: string, credentialType: string): {
+  offer: Record<string, unknown>;
+  offer_uri: string;
+} {
+  const config = loadConfig();
+
+  const offer = {
+    credential_issuer: config.issuer.url,
+    credential_configuration_ids: [credentialType],
+    grants: {
+      'urn:ietf:params:oauth:grant-type:pre-authorized_code': {
+        'pre-authorized_code': code,
+        user_pin_required: false,
+      },
+    },
+  };
+
+  const offerUri = `openid-credential-offer://?credential_offer=${encodeURIComponent(JSON.stringify(offer))}`;
+  return { offer, offer_uri: offerUri };
 }
 
 export function lookupAccessToken(token: string): AccessTokenEntry | null {

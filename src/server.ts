@@ -11,6 +11,7 @@ import { createOfferRouter } from './oid4vci/offer.js';
 import { createAdminRouter } from './admin/router.js';
 import { createRevocationRouter } from './revocation/router.js';
 import { createOid4vpRouter } from './oid4vp/router.js';
+import { createConsentRouter } from './oid4vci/consent.js';
 import { requireAdmin } from './middleware/auth.js';
 import { generateHolders } from './connectors/generator.js';
 import { logStartup, markProcessStart } from './admin/runtime.js';
@@ -111,6 +112,12 @@ app.use(createMetadataRouter());
 app.use(createTokenRouter());
 app.use(createCredentialRouter(secrets.pseudonymSecret));
 app.use(createOid4vpRouter());
+app.use(createConsentRouter());
+
+app.get('/consent/:id', (_req, res) => {
+  const distPath = process.env.FRONTEND_DIST_PATH || 'stitch-out/dist';
+  res.sendFile(path.resolve(path.join(distPath, 'consent/index.html')));
+});
 
 // Console routes (Admin only)
 app.use('/console', requireAdmin);
