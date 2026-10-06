@@ -122,10 +122,12 @@ app.use(createConsentRouter());
 // :id is constrained to the exact format createConsentRecord generates
 // (32 hex chars); it is never read below -- the file served is a static
 // SPA shell regardless of :id -- but the constraint rejects malformed ids
-// with a plain 404 up front instead of reaching sendFile at all.
+// with a plain 404 up front instead of reaching sendFile at all. The
+// filename passed to sendFile is a literal, resolved against the `root`
+// option rather than path.join'd by hand, so it can't escape distPath.
 app.get('/consent/:id([0-9a-f]{32})', (_req, res) => {
   const distPath = process.env.FRONTEND_DIST_PATH || 'stitch-out/dist';
-  res.sendFile(path.resolve(path.join(distPath, 'consent/index.html')));
+  res.sendFile('consent/index.html', { root: path.resolve(distPath) });
 });
 
 // Console routes (Admin only)
@@ -187,6 +189,7 @@ if (process.env['NODE_ENV'] === 'development') {
 }
 
 // Protected routes (admin only)
+app.use('/offer', rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false }));
 app.use('/offer', requireAdmin);
 app.use(createOfferRouter(lookup));
 app.use(createRevocationRouter());
