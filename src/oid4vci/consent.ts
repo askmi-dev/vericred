@@ -139,7 +139,7 @@ const decideConsentSchema = z.object({ approved: z.boolean() });
 export function createConsentRouter(): Router {
   const router = createRouter();
 
-  router.get('/consent/:id/claims', (req, res) => {
+  router.get('/consent/:id([0-9a-f]{32})/claims', (req, res) => {
     const record = getConsentRecord(req.params.id);
     if (!record || record.verdict !== 'PENDING') {
       res.status(404).json({ error: 'not_found' });
@@ -148,7 +148,7 @@ export function createConsentRouter(): Router {
     res.json({ credentialType: record.credentialType, claims: record.claims, expiresAt: record.expiresAt });
   });
 
-  router.post('/consent/:id/decide', (req, res) => {
+  router.post('/consent/:id([0-9a-f]{32})/decide', (req, res) => {
     const parsed = decideConsentSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: 'invalid_request', details: parsed.error.flatten() });
