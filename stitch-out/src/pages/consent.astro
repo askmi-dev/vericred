@@ -110,16 +110,22 @@
         const consentId = window.location.pathname.split('/').filter(Boolean).pop();
         const app = document.getElementById('app');
 
-        function renderError(message: string) {
-            if (app) app.innerHTML = `<p class="message error">${message}</p>`;
-        }
-
         function escapeHtml(s: string): string {
             return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
         }
 
+        function renderError(message: string) {
+            if (app) app.innerHTML = `<p class="message error">${escapeHtml(message)}</p>`;
+        }
+
         function formatClaimValue(value: unknown): string {
             if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+            if (value === null || value === undefined) return '—';
+            // Structured values (objects/arrays) are possible per the claim
+            // type (unknown) even though no shipped template emits them
+            // today -- render them as readable JSON, not the useless
+            // "[object Object]" String(value) would otherwise produce.
+            if (typeof value === 'object') return escapeHtml(JSON.stringify(value));
             return escapeHtml(String(value));
         }
 
@@ -133,7 +139,7 @@
 
             app.innerHTML = `
                 <h1>Review Credential Request</h1>
-                <p class="subtitle">Approving will issue a <strong>${data.credentialType}</strong> credential containing exactly these claims. Nothing else is shared.</p>
+                <p class="subtitle">Approving will issue a <strong>${escapeHtml(data.credentialType)}</strong> credential containing exactly the claims listed below.</p>
                 <div class="claims">${claimRows}</div>
                 <div class="actions">
                     <button id="btn-decline">Decline</button>
