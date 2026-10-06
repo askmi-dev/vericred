@@ -367,6 +367,36 @@ describe('Pre-issuance consent gate', () => {
     }
   });
 
+  it('sweeps expired/terminal consent records so a long-running issuer does not retain PII forever', async () => {
+    // Imported dynamically, not at module top-level: a static top-level
+    // import of consent.ts would transitively import config/loader.ts
+    // (via token.ts) before beforeAll sets DATA_DIR, permanently baking
+    // in the wrong config path for this whole file (loader.ts reads
+    // DATA_DIR once at module-evaluation time, not per call). By now
+    // beforeAll's own dynamic `import('../../server.js')` has already
+    // loaded consent.js correctly, so this just reuses that same cached
+    // module instance and its one real consentRecords Map.
+    const { sweepExpiredConsentRecords } = await import('../consent.js');
+
+    // Create at least one more record, so there's something fresh to sweep
+    // regardless of what earlier tests in this file already evicted.
+    await createOffer('ConsentTestCredential');
+
+    const realNow = Date.now;
+    const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => realNow() + 25 * 60 * 60 * 1000);
+    try {
+      // Every record created so far in this file (including this one) is
+      // now past its 24h TTL regardless of verdict (PENDING/DECLINED/
+      // APPROVED all carry the same expiresAt) -- the sweep must collect
+      // all of them, proving termination doesn't leave records behind.
+      expect(sweepExpiredConsentRecords()).toBeGreaterThanOrEqual(1);
+      // Nothing left to sweep immediately after.
+      expect(sweepExpiredConsentRecords()).toBe(0);
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
   it('rejects a malformed decide body', async () => {
     const { data } = await createOffer('ConsentTestCredential');
     const consentId = data.consent_url.split('/').pop();

@@ -42,6 +42,31 @@ const CONSENT_TTL_MS = 24 * 60 * 60 * 1000; // 24h -- a human reading a page
 
 const consentRecords = new Map<string, ConsentRecord>();
 
+/**
+ * Deletes every record past its expiresAt, regardless of verdict --
+ * PENDING, DECLINED and APPROVED records all carry the same TTL set at
+ * creation, so this bounds how long raw holderData and the claim
+ * snapshot are retained to CONSENT_TTL_MS after creation, not forever.
+ * Without this, a long-running issuer's consentRecords Map grows without
+ * bound and keeps holder PII indefinitely even for offers long since
+ * decided or expired. Exported so tests can trigger it deterministically
+ * instead of waiting on the real interval.
+ */
+export function sweepExpiredConsentRecords(): number {
+  let swept = 0;
+  const now = Date.now();
+  for (const [id, record] of consentRecords) {
+    if (record.expiresAt < now) {
+      consentRecords.delete(id);
+      swept++;
+    }
+  }
+  return swept;
+}
+
+const sweepTimer = setInterval(sweepExpiredConsentRecords, 15 * 60 * 1000);
+sweepTimer.unref?.();
+
 // Human-readable labels for known output claim keys. Falls back to the raw
 // key for anything not listed here (new templates/claims still work, just
 // less polished until a label is added).
@@ -115,7 +140,9 @@ export function getConsentRecord(consentId: string): ConsentRecord | null {
   const record = consentRecords.get(consentId);
   if (!record) return null;
   if (record.expiresAt < Date.now()) {
-    if (record.verdict === 'PENDING') record.verdict = 'EXPIRED';
+    // Evict on access too, not just on the periodic sweep -- no reason to
+    // keep holding a dead record's PII once something's already touched it.
+    consentRecords.delete(consentId);
     return null;
   }
   return record;
