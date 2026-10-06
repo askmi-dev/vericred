@@ -17,7 +17,7 @@ import { randomBytes } from 'crypto';
 import { z } from 'zod';
 import { issuePreAuthCode, buildCredentialOffer } from './token.js';
 
-export type ConsentVerdict = 'PENDING' | 'APPROVED' | 'DECLINED' | 'EXPIRED';
+export type ConsentVerdict = 'PENDING' | 'APPROVED' | 'DECLINED';
 
 export interface ConsentClaim {
   key: string;
@@ -26,21 +26,68 @@ export interface ConsentClaim {
   required: boolean;
 }
 
-interface ConsentRecord {
+interface PendingConsentRecord {
   consentId: string;
   credentialType: string;
   holderData: Record<string, unknown>;
   claims: ConsentClaim[];
-  verdict: ConsentVerdict;
+  verdict: 'PENDING';
   createdAt: number;
-  decidedAt?: number;
   expiresAt: number;
 }
+
+/**
+ * What a decided record becomes, immediately -- not a full ConsentRecord
+ * with a verdict field changed in place. holderData and claims (the only
+ * PII/claim-value-bearing fields) are discarded the moment a decision is
+ * made, not retained until the 24h TTL like everything else here. Keeps
+ * only what GET/POST /consent/:id/* need to keep answering 410/404
+ * correctly for the rest of the original window.
+ */
+interface DecidedConsentTombstone {
+  consentId: string;
+  verdict: 'APPROVED' | 'DECLINED';
+  decidedAt: number;
+  expiresAt: number;
+}
+
+type ConsentRecord = PendingConsentRecord | DecidedConsentTombstone;
 
 const CONSENT_TTL_MS = 24 * 60 * 60 * 1000; // 24h -- a human reading a page
 // needs longer than a wallet's programmatic pre-auth-code redemption (10 min).
 
+// Hard ceiling on concurrently PENDING records (the only variant carrying
+// PII/claim values) -- bounds memory independent of the TTL sweep, e.g.
+// against an admin-side burst or a sweep interval that hasn't run yet.
+// Tombstones aren't counted: they carry no PII and are already minimal.
+const MAX_PENDING_RECORDS = 10_000;
+
 const consentRecords = new Map<string, ConsentRecord>();
+
+/**
+ * Deletes every record past its expiresAt, regardless of verdict --
+ * PENDING, DECLINED and APPROVED records all carry the same TTL set at
+ * creation, so this bounds how long raw holderData and the claim
+ * snapshot are retained to CONSENT_TTL_MS after creation, not forever.
+ * Without this, a long-running issuer's consentRecords Map grows without
+ * bound and keeps holder PII indefinitely even for offers long since
+ * decided or expired. Exported so tests can trigger it deterministically
+ * instead of waiting on the real interval.
+ */
+export function sweepExpiredConsentRecords(): number {
+  let swept = 0;
+  const now = Date.now();
+  for (const [id, record] of consentRecords) {
+    if (record.expiresAt < now) {
+      consentRecords.delete(id);
+      swept++;
+    }
+  }
+  return swept;
+}
+
+const sweepTimer = setInterval(sweepExpiredConsentRecords, 15 * 60 * 1000);
+sweepTimer.unref?.();
 
 // Human-readable labels for known output claim keys. Falls back to the raw
 // key for anything not listed here (new templates/claims still work, just
@@ -55,12 +102,18 @@ const claimLabels: Record<string, string> = {
   organization: 'Your organization',
   role: 'Your role',
   department: 'Your department',
-  employeeId: 'Your employee ID',
-  validUntil: 'Valid until date',
-  membershipType: 'Your membership type',
-  memberId: 'Your member ID',
-  memberSince: 'Member since date',
-  memberUntil: 'Member until date',
+  // Keys below are the templates' actual *output* claim names (snake_case,
+  // from buildClaims()'s return value) -- not their input/requiredFields
+  // names (e.g. EmployeeCredential's input is `employeeId`, but its output
+  // claim is `employee_id`). Using the wrong one here would only ever
+  // silently fall back to the raw key, never error, so this is easy to
+  // get wrong without a template actually exercised through the gate.
+  employee_id: 'Your employee ID',
+  valid_until: 'Valid until date',
+  membership_type: 'Your membership type',
+  member_id: 'Your member ID',
+  member_since: 'Member since date',
+  member_until: 'Member until date',
 };
 
 /**
@@ -86,11 +139,18 @@ export function buildClaimsList(claims: Record<string, unknown>): ConsentClaim[]
   }));
 }
 
+/** Returns null when the pending-record cap is reached -- fails closed, never evicts someone else's pending record to make room. */
 export function createConsentRecord(
   holderData: Record<string, unknown>,
   credentialType: string,
   claims: ConsentClaim[]
-): string {
+): string | null {
+  let pendingCount = 0;
+  for (const r of consentRecords.values()) {
+    if (r.verdict === 'PENDING') pendingCount++;
+  }
+  if (pendingCount >= MAX_PENDING_RECORDS) return null;
+
   const consentId = randomBytes(16).toString('hex');
   consentRecords.set(consentId, {
     consentId,
@@ -109,7 +169,9 @@ export function getConsentRecord(consentId: string): ConsentRecord | null {
   const record = consentRecords.get(consentId);
   if (!record) return null;
   if (record.expiresAt < Date.now()) {
-    if (record.verdict === 'PENDING') record.verdict = 'EXPIRED';
+    // Evict on access too, not just on the periodic sweep -- no reason to
+    // keep holding a dead record's PII once something's already touched it.
+    consentRecords.delete(consentId);
     return null;
   }
   return record;
@@ -127,21 +189,36 @@ export function decideConsent(
     return { error: 'already_decided' };
   }
 
-  record.decidedAt = Date.now();
-
   if (!approved) {
-    record.verdict = 'DECLINED';
+    // Replace the full record with a tombstone -- holderData and claims
+    // are discarded now, not retained until expiresAt like a PENDING
+    // record. The tombstone keeps only what's needed to keep answering
+    // 410 for the rest of the original window.
+    consentRecords.set(consentId, {
+      consentId,
+      verdict: 'DECLINED',
+      decidedAt: Date.now(),
+      expiresAt: record.expiresAt,
+    });
     return { declined: true };
   }
 
-  record.verdict = 'APPROVED';
   // Reissue exactly the claim values the holder reviewed and approved --
   // never recompute from live config/mappings, which could have changed
   // during the (up to 24h) consent window, or drift across a date
   // boundary for a date-dependent claim like age_over_18.
   const claimsSnapshot = Object.fromEntries(record.claims.map((c) => [c.key, c.value]));
   const code = issuePreAuthCode(record.holderData, record.credentialType, claimsSnapshot);
-  return buildCredentialOffer(code, record.credentialType);
+  const offer = buildCredentialOffer(code, record.credentialType);
+
+  consentRecords.set(consentId, {
+    consentId,
+    verdict: 'APPROVED',
+    decidedAt: Date.now(),
+    expiresAt: record.expiresAt,
+  });
+
+  return offer;
 }
 
 const decideConsentSchema = z.object({ approved: z.boolean() });

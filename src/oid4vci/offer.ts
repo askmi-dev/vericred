@@ -69,6 +69,10 @@ export function createOfferRouter(lookup: Lookup): Router {
         return;
       }
       const consentId = createConsentRecord(holderData, resolvedType, buildClaimsList(claims));
+      if (!consentId) {
+        res.status(503).json({ error: 'consent_capacity_exceeded' });
+        return;
+      }
       const consentUrl = `${config.issuer.url}/consent/${consentId}`;
       res.json({ consent_required: true, consent_url: consentUrl, qr_data_url: await qrDataUrl(consentUrl) });
       return;
