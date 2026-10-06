@@ -139,7 +139,21 @@ export function buildClaimsList(claims: Record<string, unknown>): ConsentClaim[]
   }));
 }
 
-/** Returns null when the pending-record cap is reached -- fails closed, never evicts someone else's pending record to make room. */
+/**
+ * Returns null when the pending-record cap is reached -- fails closed,
+ * never evicts someone else's pending record to make room.
+ *
+ * holderData and claims are deep-cloned before storage via
+ * structuredClone(): without this, the caller's own references (e.g.
+ * offer.ts's `holderData`/`claims` locals) alias the stored record, so
+ * any later in-place mutation of those locals -- today or in a future
+ * change -- would silently corrupt what the holder already reviewed.
+ * structuredClone() also rejects unsupported values (functions, etc.)
+ * by throwing rather than silently dropping or stringifying them;
+ * Express's default error handling turns that into a 500, which is the
+ * right fail-closed behavior for a claim value a template should never
+ * have produced in the first place.
+ */
 export function createConsentRecord(
   holderData: Record<string, unknown>,
   credentialType: string,
@@ -155,8 +169,8 @@ export function createConsentRecord(
   consentRecords.set(consentId, {
     consentId,
     credentialType,
-    holderData,
-    claims,
+    holderData: structuredClone(holderData),
+    claims: structuredClone(claims),
     verdict: 'PENDING',
     createdAt: Date.now(),
     expiresAt: Date.now() + CONSENT_TTL_MS,
@@ -164,7 +178,12 @@ export function createConsentRecord(
   return consentId;
 }
 
-/** Returns null for unknown or expired records -- never resurrects one past its TTL. */
+/**
+ * Returns null for unknown or expired records -- never resurrects one
+ * past its TTL. Returns a deep clone, not the stored record itself, so
+ * callers (including HTTP handlers building a JSON response) can never
+ * mutate consentRecords' internal state through what they're handed.
+ */
 export function getConsentRecord(consentId: string): ConsentRecord | null {
   const record = consentRecords.get(consentId);
   if (!record) return null;
@@ -174,7 +193,7 @@ export function getConsentRecord(consentId: string): ConsentRecord | null {
     consentRecords.delete(consentId);
     return null;
   }
-  return record;
+  return structuredClone(record);
 }
 
 export function decideConsent(
