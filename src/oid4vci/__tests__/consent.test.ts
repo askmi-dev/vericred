@@ -3,6 +3,7 @@ import { generateKeyPair, exportJWK, SignJWT, decodeJwt } from 'jose';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import { loadSecrets } from '../../config/secrets.js';
 import { registerTemplate } from '../../credentials/registry.js';
+import { decodeDisclosure } from '../../sdjwt/disclosures.js';
 
 // A dedicated, test-only template with requiresConsent: true. We deliberately
 // do NOT flip this on any of the shipped templates (Age/Employee/Membership)
@@ -18,6 +19,25 @@ registerTemplate({
   requiresConsent: true,
   buildClaims(holderData) {
     return { test_claim: holderData['givenName'] };
+  },
+  validateMappings() {
+    return [];
+  },
+});
+
+// buildClaims here returns a different value every call (an incrementing
+// counter), so a test can tell whether /credentials issued the exact
+// snapshot reviewed at consent time or recomputed claims live.
+let snapshotCallCount = 0;
+registerTemplate({
+  id: 'ConsentSnapshotTestCredential',
+  displayName: 'Consent Snapshot Test Credential',
+  requiredFields: [],
+  optionalFields: [],
+  requiresConsent: true,
+  buildClaims() {
+    snapshotCallCount += 1;
+    return { stamp: snapshotCallCount };
   },
   validateMappings() {
     return [];
@@ -112,7 +132,7 @@ describe('Pre-issuance consent gate', () => {
     const claimsData = (await claimsRes.json()) as any;
 
     expect(claimsData.credentialType).toBe('ConsentTestCredential');
-    expect(claimsData.claims).toEqual([{ key: 'test_claim', label: 'test_claim', required: true }]);
+    expect(claimsData.claims).toEqual([{ key: 'test_claim', label: 'test_claim', value: 'Alex', required: true }]);
     // The claim shown is the actual output claim (test_claim = holder's given name),
     // never a raw secret or pre-auth code.
     expect(JSON.stringify(claimsData)).not.toContain('pre-authorized_code');
@@ -165,6 +185,62 @@ describe('Pre-issuance consent gate', () => {
 
     const claims = decodeJwt(credData.credential.split('~')[0]) as any;
     expect(claims.vct).toBe('ConsentTestCredential');
+  });
+
+  it('issues exactly the claim values reviewed at consent time, never recomputed at /credentials', async () => {
+    const { data } = await createOffer('ConsentSnapshotTestCredential');
+    const consentId = data.consent_url.split('/').pop();
+
+    const claimsRes = await fetch(`${serverUrl}/consent/${consentId}/claims`);
+    const claimsData = (await claimsRes.json()) as any;
+    const reviewedStamp = claimsData.claims.find((c: any) => c.key === 'stamp').value;
+
+    const decideRes = await fetch(`${serverUrl}/consent/${consentId}/decide`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ approved: true }),
+    });
+    const decideData = (await decideRes.json()) as any;
+    const preAuthCode =
+      decideData.offer.grants['urn:ietf:params:oauth:grant-type:pre-authorized_code']['pre-authorized_code'];
+
+    const tokenRes = await fetch(`${serverUrl}/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        grant_type: 'urn:ietf:params:oauth:grant-type:pre-authorized_code',
+        'pre-authorized_code': preAuthCode,
+      }),
+    });
+    const tokenData = (await tokenRes.json()) as any;
+
+    const publicJwk = await exportJWK(holderKeys.publicKey);
+    const proofJwt = await new SignJWT({
+      aud: serverUrl,
+      iat: Math.floor(Date.now() / 1000),
+      nonce: tokenData.c_nonce,
+    })
+      .setProtectedHeader({ alg: 'ES256', typ: 'openid4vci-proof+jwt', jwk: publicJwk })
+      .sign(holderKeys.privateKey);
+
+    const credentialRes = await fetch(`${serverUrl}/credentials`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenData.access_token}` },
+      body: JSON.stringify({ format: 'dc+sd-jwt', proof: { proof_type: 'jwt', jwt: proofJwt } }),
+    });
+    const credData = (await credentialRes.json()) as any;
+
+    const disclosures = credData.credential.split('~').slice(1, -1);
+    const issuedClaims: Record<string, unknown> = {};
+    for (const d of disclosures) {
+      const [, name, value] = decodeDisclosure(d);
+      issuedClaims[name] = value;
+    }
+
+    // buildClaims() increments its counter on every call. If /credentials
+    // recomputed live instead of reusing the snapshot, the issued stamp
+    // would be one higher than what was reviewed and approved.
+    expect(issuedClaims.stamp).toBe(reviewedStamp);
   });
 
   it('declining permanently kills the offer -- no further GET/POST succeeds', async () => {

@@ -114,10 +114,21 @@
             if (app) app.innerHTML = `<p class="message error">${message}</p>`;
         }
 
-        function renderClaims(data: { credentialType: string; claims: { key: string; label: string; required: boolean }[] }) {
+        function escapeHtml(s: string): string {
+            return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+        }
+
+        function formatClaimValue(value: unknown): string {
+            if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+            return escapeHtml(String(value));
+        }
+
+        function renderClaims(data: { credentialType: string; claims: { key: string; label: string; value: unknown; required: boolean }[] }) {
             if (!app) return;
+            // The actual value is shown, not just the claim's key/label -- approving
+            // without seeing what will actually be signed isn't informed consent.
             const claimRows = data.claims
-                .map((c) => `<div class="claim"><span>${c.label}</span><span class="claim-value">${c.key}</span></div>`)
+                .map((c) => `<div class="claim"><span>${escapeHtml(c.label)}</span><span class="claim-value">${formatClaimValue(c.value)}</span></div>`)
                 .join('');
 
             app.innerHTML = `

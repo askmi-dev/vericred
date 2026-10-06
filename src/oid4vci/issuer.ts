@@ -136,20 +136,29 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
       return;
     }
 
-    const { mappedData, errors: mappingErrors } = resolveMappedData(template, config.fieldMappings ?? {}, holderData);
-    if (mappingErrors.length > 0) {
-      logInterop({ type: 'warning', category: 'issuance', message: 'Field mapping failed', details: { errors: mappingErrors } });
-      res.status(400).json({ error: 'invalid_field_mappings', detail: mappingErrors });
-      return;
-    }
-
+    // A claims snapshot present on the token entry means this code went
+    // through the consent gate: issue exactly what the holder reviewed
+    // and approved, never recompute live (see token.ts's issuePreAuthCode).
+    // Otherwise (the non-consent path, unchanged from before this existed)
+    // compute claims live from the current config/mappings.
     let claims: Record<string, unknown>;
-    try {
-      claims = template.buildClaims(mappedData, config.templateOptions);
-    } catch (e) {
-      console.error('[issuer] buildClaims error:', e);
-      res.status(400).json({ error: 'claim_build_failed', detail: (e as Error).message });
-      return;
+    if (tokenEntry.claims) {
+      claims = tokenEntry.claims;
+    } else {
+      const { mappedData, errors: mappingErrors } = resolveMappedData(template, config.fieldMappings ?? {}, holderData);
+      if (mappingErrors.length > 0) {
+        logInterop({ type: 'warning', category: 'issuance', message: 'Field mapping failed', details: { errors: mappingErrors } });
+        res.status(400).json({ error: 'invalid_field_mappings', detail: mappingErrors });
+        return;
+      }
+
+      try {
+        claims = template.buildClaims(mappedData, config.templateOptions);
+      } catch (e) {
+        console.error('[issuer] buildClaims error:', e);
+        res.status(400).json({ error: 'claim_build_failed', detail: (e as Error).message });
+        return;
+      }
     }
 
     // ── SD-JWT selective disclosure ─────────────────────────────────────────

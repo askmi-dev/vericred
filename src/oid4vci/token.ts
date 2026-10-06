@@ -15,6 +15,7 @@ export interface AccessTokenEntry {
   cNonce: string;
   cNonceExpiresAt: number;
   credentialType?: string;
+  claims?: Record<string, unknown>;
 }
 
 const C_NONCE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -24,15 +25,29 @@ const preAuthCodes = new Map<string, {
   holderData: Record<string, unknown>;
   expiresAt: number;
   credentialType?: string;
+  claims?: Record<string, unknown>;
 }>();
 const accessTokens = new Map<string, AccessTokenEntry>();
 
-export function issuePreAuthCode(holderData: Record<string, unknown>, credentialType?: string): string {
+/**
+ * `claims`, when given, is a snapshot already computed and shown to the
+ * holder (the consent-gate path) -- /credentials must issue exactly this,
+ * never recompute live, or the signed credential could drift from what
+ * was reviewed (a config change or a date boundary crossed during the
+ * consent window). Omitted for the non-consent path, where /credentials
+ * computes claims live as it always has.
+ */
+export function issuePreAuthCode(
+  holderData: Record<string, unknown>,
+  credentialType?: string,
+  claims?: Record<string, unknown>
+): string {
   const code = randomBytes(16).toString('hex');
   preAuthCodes.set(code, {
     holderData,
     expiresAt: Date.now() + 10 * 60 * 1000, // 10 min
-    credentialType
+    credentialType,
+    claims,
   });
   return code;
 }
@@ -110,6 +125,7 @@ export function createTokenRouter(): Router {
       cNonce,
       cNonceExpiresAt: Date.now() + C_NONCE_TTL_MS,
       credentialType: entry.credentialType,
+      claims: entry.claims,
     });
 
     res.json({

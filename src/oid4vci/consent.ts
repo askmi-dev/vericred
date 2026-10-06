@@ -22,6 +22,7 @@ export type ConsentVerdict = 'PENDING' | 'APPROVED' | 'DECLINED' | 'EXPIRED';
 export interface ConsentClaim {
   key: string;
   label: string;
+  value: unknown;
   required: boolean;
 }
 
@@ -66,7 +67,10 @@ const claimLabels: Record<string, string> = {
  * Builds the claim list shown to the holder from the actual *output*
  * claims (template.buildClaims()'s return value) -- never from raw input
  * fields. E.g. AgeCredential's consent screen must show "age_over_18",
- * never the raw dateOfBirth it was derived from.
+ * never the raw dateOfBirth it was derived from. Includes each claim's
+ * actual value, not just its key/label, so approval is genuinely informed
+ * -- a holder can't meaningfully approve "a role will be signed" without
+ * seeing which role.
  *
  * v1 is binary accept/decline only (no per-claim decline yet), so every
  * claim is marked required: true here -- there's no partial-disclosure
@@ -77,6 +81,7 @@ export function buildClaimsList(claims: Record<string, unknown>): ConsentClaim[]
   return Object.keys(claims).map((key) => ({
     key,
     label: claimLabels[key] ?? key,
+    value: claims[key],
     required: true,
   }));
 }
@@ -130,7 +135,12 @@ export function decideConsent(
   }
 
   record.verdict = 'APPROVED';
-  const code = issuePreAuthCode(record.holderData, record.credentialType);
+  // Reissue exactly the claim values the holder reviewed and approved --
+  // never recompute from live config/mappings, which could have changed
+  // during the (up to 24h) consent window, or drift across a date
+  // boundary for a date-dependent claim like age_over_18.
+  const claimsSnapshot = Object.fromEntries(record.claims.map((c) => [c.key, c.value]));
+  const code = issuePreAuthCode(record.holderData, record.credentialType, claimsSnapshot);
   return buildCredentialOffer(code, record.credentialType);
 }
 
