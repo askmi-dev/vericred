@@ -22,7 +22,7 @@
 
 - **CI:** `.github/workflows/ci.yml` — `npm ci` (root + stitch-out), production build, full test suite, Docker dry-run build. `npm audit` runs non-blocking (informational).
 - **Tests:** 151 backend tests incl. auth-bypass regression, CSRF fail-closed, PII masking, EUDI interop suite (signature verification, disclosure hashes, key binding). Regression-critical per AGENTS.md.
-- **CodeQL:** security scanning enabled (`.github/workflows/codeql.yml`).
+- **CodeQL:** security scanning via GitHub CodeQL default setup ("CodeQL - Code Quality" workflow; repo Settings → Code security). Default setup and an advanced CodeQL workflow cannot both upload analyses, so no `codeql.yml` workflow is defined.
 - **Branch protection:** PRs required before merge to `main`, up-to-date requirement enabled (owner setting, 2026-10-10).
 
 ## Compliance & claims posture
