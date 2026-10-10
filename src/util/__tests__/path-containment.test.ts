@@ -26,4 +26,13 @@ describe('isPathWithinRoot', () => {
     // ("/app/../etc"  -> "/etc"), it must still reject it.
     expect(isPathWithinRoot('/etc', '/app')).toBe(false);
   });
+
+  it('accepts real descendants when root is the filesystem root itself', () => {
+    // root ("/") already ends with path.sep -- naively appending another
+    // separator would produce "//", which no real absolute path starts
+    // with, rejecting every descendant. A process that happens to start
+    // with its cwd at "/" must still be able to serve files under it.
+    expect(isPathWithinRoot('/', '/')).toBe(true);
+    expect(isPathWithinRoot('/app/stitch-out/dist', '/')).toBe(true);
+  });
 });

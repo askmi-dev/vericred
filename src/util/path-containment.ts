@@ -11,7 +11,15 @@ import path from 'path';
  * the sibling directory "/app-evil" also starts with that string.
  * Requiring the path separator (or exact equality) after the prefix
  * closes that gap.
+ *
+ * root may itself already be a filesystem root ("/" on POSIX, "C:\\" on
+ * Windows) if the process happens to start with its cwd there -- it
+ * already ends with path.sep in that case, so appending another would
+ * produce "//" and reject every real descendant. Only append the
+ * separator when root doesn't already end with one.
  */
 export function isPathWithinRoot(candidate: string, root: string): boolean {
-  return candidate === root || candidate.startsWith(root + path.sep);
+  if (candidate === root) return true;
+  const prefix = root.endsWith(path.sep) ? root : root + path.sep;
+  return candidate.startsWith(prefix);
 }
