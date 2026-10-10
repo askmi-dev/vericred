@@ -32,7 +32,11 @@ export async function getKeyProvider(): Promise<KeyProvider> {
   return cached;
 }
 
-function createProvider(type: KeyProviderType): KeyProvider {
+/**
+ * Create a provider by type. Exported for tests and explicit configuration;
+ * fails closed on unknown types.
+ */
+export function createProvider(type: KeyProviderType): KeyProvider {
   switch (type) {
     case 'file':
       return new FileKeyProvider();
