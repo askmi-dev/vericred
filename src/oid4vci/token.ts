@@ -30,6 +30,38 @@ const preAuthCodes = new Map<string, {
 const accessTokens = new Map<string, AccessTokenEntry>();
 
 /**
+ * Both maps carry holderData (and, for the consent-gate path, a claims
+ * snapshot) -- the same PII-retention concern consent.ts's
+ * sweepExpiredConsentRecords addresses, for the two stores downstream of
+ * it. A pre-auth code that's never redeemed, or an access token past its
+ * 5-minute window, otherwise sits here indefinitely: expiresAt is only
+ * ever checked at lookup time, never swept proactively. Exported so
+ * tests can trigger it deterministically instead of waiting on the real
+ * interval.
+ */
+export function sweepExpiredTokens(): { preAuthCodes: number; accessTokens: number } {
+  const now = Date.now();
+  let sweptPreAuthCodes = 0;
+  for (const [code, entry] of preAuthCodes) {
+    if (entry.expiresAt < now) {
+      preAuthCodes.delete(code);
+      sweptPreAuthCodes++;
+    }
+  }
+  let sweptAccessTokens = 0;
+  for (const [token, entry] of accessTokens) {
+    if (entry.expiresAt < now) {
+      accessTokens.delete(token);
+      sweptAccessTokens++;
+    }
+  }
+  return { preAuthCodes: sweptPreAuthCodes, accessTokens: sweptAccessTokens };
+}
+
+const tokenSweepTimer = setInterval(sweepExpiredTokens, 15 * 60 * 1000);
+tokenSweepTimer.unref?.();
+
+/**
  * `claims`, when given, is a snapshot already computed and shown to the
  * holder (the consent-gate path) -- /credentials must issue exactly this,
  * never recompute live, or the signed credential could drift from what
@@ -81,7 +113,12 @@ export function buildCredentialOffer(code: string, credentialType: string): {
 
 export function lookupAccessToken(token: string): AccessTokenEntry | null {
   const entry = accessTokens.get(token);
-  if (!entry || entry.expiresAt < Date.now()) return null;
+  if (!entry) return null;
+  if (entry.expiresAt < Date.now()) {
+    // Evict on access too, not just on the periodic sweep.
+    accessTokens.delete(token);
+    return null;
+  }
   return entry;
 }
 

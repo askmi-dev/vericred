@@ -305,6 +305,28 @@ describe('Pre-issuance consent gate', () => {
     expect(record.claims).toBeUndefined();
   });
 
+  it('deep-clones holderData and claim values so later mutation of the source or a returned view cannot corrupt storage', async () => {
+    const { createConsentRecord, getConsentRecord } = await import('../consent.js');
+
+    const holderData: Record<string, unknown> = { givenName: 'Alex', nested: { role: 'member' } };
+    const claims = [{ key: 'nested_claim', label: 'Nested', value: { role: 'member' }, required: true }];
+
+    const consentId = createConsentRecord(holderData, 'ConsentTestCredential', claims) as string;
+
+    // Mutate the caller's own locals after creation -- must not reach storage.
+    (holderData['nested'] as any).role = 'tampered-at-source';
+    (claims[0].value as any).role = 'tampered-at-source';
+
+    const stored = getConsentRecord(consentId) as any;
+    expect(stored.holderData.nested.role).toBe('member');
+    expect(stored.claims[0].value.role).toBe('member');
+
+    // Mutate the returned view itself -- must not reach storage either.
+    stored.holderData.nested.role = 'tampered-via-returned-view';
+    const storedAgain = getConsentRecord(consentId) as any;
+    expect(storedAgain.holderData.nested.role).toBe('member');
+  });
+
   it('bounds pending consent record capacity and fails closed when full', async () => {
     const { createConsentRecord, sweepExpiredConsentRecords } = await import('../consent.js');
 

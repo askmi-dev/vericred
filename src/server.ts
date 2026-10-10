@@ -1,6 +1,7 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
+import { isPathWithinRoot } from './util/path-containment.js';
 import { loadConfig } from './config/loader.js';
 import { loadSecrets } from './config/secrets.js';
 import { getIssuerKeyPair } from './keys/manager.js';
@@ -129,14 +130,15 @@ app.use(createConsentRouter());
 // with a plain 404 up front instead of reaching sendFile at all.
 //
 // FRONTEND_DIST_PATH (deploy-time server config, not request data) is
-// resolved and then checked with startsWith against PROJECT_ROOT before
-// use -- the exact normalize-then-verify shape CodeQL's path-injection
-// query documents as its own recommended fix for TaintedPath.ql.
+// resolved and then verified to be PROJECT_ROOT itself or a real
+// descendant of it before use (see util/path-containment.ts for why a
+// plain startsWith check -- CodeQL's own documented path-injection fix --
+// isn't actually sufficient here).
 const PROJECT_ROOT = path.resolve('.');
 app.get('/consent/:id([0-9a-f]{32})', (_req, res) => {
   const envDistPath = process.env.FRONTEND_DIST_PATH;
   const resolvedDistPath = path.resolve(envDistPath || 'stitch-out/dist');
-  if (!resolvedDistPath.startsWith(PROJECT_ROOT)) {
+  if (!isPathWithinRoot(resolvedDistPath, PROJECT_ROOT)) {
     res.status(500).json({ error: 'invalid_frontend_dist_path' });
     return;
   }
