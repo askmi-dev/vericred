@@ -14,3 +14,4 @@ SESSION_SUMMARY.md
 runtime.json
 src/**/temp-data*/
 
+offer-state.json
