@@ -14,3 +14,6 @@ SESSION_SUMMARY.md
 runtime.json
 src/**/temp-data*/
 
+-e 
+# Art. 6a provenance audit log (#26)
+provenance/
