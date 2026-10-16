@@ -97,6 +97,14 @@ markProcessStart();
 const sessionId = logStartup(5);
 
 // Synthetic holders only in DEMO_MODE - never in production
+if (process.env['DEMO_MODE'] === 'true' && process.env['NODE_ENV'] === 'production') {
+  // #32: hard misconfiguration. Refuse to start rather than issue unbound
+  // credentials (or seed synthetic holders) in a production deployment.
+  console.error('[startup] FATAL: DEMO_MODE=true is incompatible with NODE_ENV=production. ' +
+    'DEMO_MODE disables holder binding and generates synthetic holders; a production gateway must have both off. ' +
+    'Remove DEMO_MODE (or set it to false) and restart.');
+  process.exit(1);
+}
 if (process.env['DEMO_MODE'] === 'true') {
   generateHolders(5, secrets.pseudonymSecret, sessionId, dataPath);
   console.log('  [DEMO_MODE] Synthetic holders generated. Set DEMO_MODE=false for production.');

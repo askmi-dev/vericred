@@ -87,6 +87,17 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
     const body = req.body as Record<string, unknown>;
     const proof = body['proof'] as Record<string, string> | undefined;
     const isDemoMode = process.env['DEMO_MODE'] === 'true';
+    // Guardrail (#32): DEMO_MODE must never weaken holder binding in a
+    // production deployment. If both are set, fail closed: demand a real
+    // proof-of-possession rather than silently issuing an unbound credential.
+    if (isDemoMode && process.env['NODE_ENV'] === 'production') {
+      console.error('[issuer] REFUSING anonymous fallback: DEMO_MODE=true together with NODE_ENV=production. Holder binding is mandatory in production; unbound credentials would violate the trust model (Art. 6a eIDAS 2).');
+      res.status(500).json({
+        error: 'server_error',
+        error_description: 'Server misconfiguration: DEMO_MODE cannot be active in production. Contact the issuer administrator.',
+      });
+      return;
+    }
 
     let holderThumbprint: string;
     let holderJwk: Record<string, unknown> | undefined;
