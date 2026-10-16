@@ -10,6 +10,7 @@ import { getTemplate, CredentialTemplate } from '../credentials/registry.js';
 import { buildSdJwtPayload, combineSdJwt } from '../sdjwt/disclosures.js';
 import { verifyHolderProofJwt, ProofVerificationError } from './proof.js';
 import { logInterop } from './interop-logger.js';
+import { appendProvenanceRecord } from '../provenance/store.js';
 
 // Register all built-in templates
 import '../credentials/templates/age.js';
@@ -208,6 +209,33 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
 
     const credential = combineSdJwt(jwt, disclosures);
 
+    // ── Art. 6a provenance (#26) ─────────────────────────────────────────
+    // Best-effort persistence: an audit-write failure must never break a
+    // credential the holder has already received (see plan on issue #26).
+    if (tokenEntry.provenance) {
+      const persisted = appendProvenanceRecord({
+        credentialId,
+        credentialType,
+        source: {
+          connectorType: tokenEntry.provenance.connectorType,
+          sourceRef: tokenEntry.provenance.sourceRef,
+        },
+        lookup: {
+          identifierHash: tokenEntry.provenance.identifierHash,
+          at: tokenEntry.provenance.lookupAt,
+        },
+        verification: { mode: tokenEntry.provenance.verificationMode },
+        consentGate: {
+          used: Boolean(tokenEntry.claims),
+          claimsSnapshot: Boolean(tokenEntry.claims),
+        },
+        issuedAt: new Date().toISOString(),
+        issuerDid: config.issuer.did,
+      });
+      if (!persisted) {
+        console.error('[issuer] Provenance record for ' + credentialId + ' was NOT persisted — audit trail incomplete.');
+      }
+    }
     // Rotate c_nonce after issuance (single-use; wallet can request more credentials with new nonce)
     const newNonce = rotateNonce(rawToken);
 

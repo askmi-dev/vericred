@@ -17,6 +17,38 @@ export interface Connector {
   getSchema: () => Promise<string[]> | string[];
 }
 
+/**
+ * Provenance context for Art. 6a audit records (#26): what kind of
+ * source the attribute data came from and an opaque reference to it.
+ * `verificationMode` distinguishes an authoritative system-of-record
+ * read (SQL/REST/CSV/JSON) from an admin-attested entry (manual).
+ */
+export type VerificationMode = 'authoritative-source' | 'admin-attested';
+
+export interface ProvenanceContext {
+  connectorType: 'json' | 'postgres' | 'mysql' | 'rest' | 'csv' | 'manual';
+  sourceRef: string;
+  verificationMode: VerificationMode;
+}
+
+export function buildProvenanceContext(config: VeriCredConfig): ProvenanceContext {
+  const ds = config.dataSource;
+  switch (ds.type) {
+    case 'postgres':
+    case 'mysql':
+      return { connectorType: ds.type, sourceRef: `table:${ds.table ?? 'users'}`, verificationMode: 'authoritative-source' };
+    case 'rest':
+      return { connectorType: 'rest', sourceRef: ds.endpoint ?? 'rest', verificationMode: 'authoritative-source' };
+    case 'json':
+    case 'csv':
+      return { connectorType: ds.type, sourceRef: ds.path ?? `data/holders.${ds.type}`, verificationMode: 'authoritative-source' };
+    case 'manual':
+      return { connectorType: 'manual', sourceRef: ds.path ?? 'data/manual.json', verificationMode: 'admin-attested' };
+    default:
+      throw new Error(`[connector] Unknown dataSource.type: ${(ds as { type: string }).type}`);
+  }
+}
+
 export function buildConnector(config: VeriCredConfig): Connector {
   const { pseudonymSecret } = loadSecrets();
   const ds = config.dataSource;
