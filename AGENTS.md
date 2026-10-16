@@ -61,6 +61,10 @@ These are implemented deliberately. Never weaken or remove them without an expli
 3. **Default PII masking:** `/admin/api/holders` and `/admin/api/credentials` mask names, emails, and claims by default. Unmasking is only allowed when `PII_ADMIN_MODE === 'true'`.
 4. **Secrets:** Issuer keypairs persist in config files (rotatable), not env vars. Never commit keys or `.env`. Use `.env.example` as the template.
 
+## Claims doctrine (evidence discipline)
+
+VeriCred follows the AskMI workspace `START_HERE.md` rule: **separate intended behavior from demonstrated behavior.** Do not add claims of regulatory approval, certification, conformance, eIDAS/LoA levels, "production readiness" or "zero knowledge" to README, docs, comments or commit messages unless a linked evidence document exists. If unsure, describe what the code demonstrably does and link the test that proves it.
+
 ## Conventions
 
 - TypeScript strict mode (`tsconfig.json`); no `any` unless unavoidable — prefer `zod`-inferred types.
