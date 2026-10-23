@@ -31,6 +31,8 @@ interface PendingConsentRecord {
   credentialType: string;
   holderData: Record<string, unknown>;
   claims: ConsentClaim[];
+  /** #26: Art. 6a audit context captured at offer time; carried to issuance on approval */
+  provenance?: import('./token.js').AccessTokenEntry['provenance'];
   verdict: 'PENDING';
   createdAt: number;
   expiresAt: number;
@@ -157,7 +159,8 @@ export function buildClaimsList(claims: Record<string, unknown>): ConsentClaim[]
 export function createConsentRecord(
   holderData: Record<string, unknown>,
   credentialType: string,
-  claims: ConsentClaim[]
+  claims: ConsentClaim[],
+  provenance?: import('./token.js').AccessTokenEntry['provenance']
 ): string | null {
   let pendingCount = 0;
   for (const r of consentRecords.values()) {
@@ -171,6 +174,7 @@ export function createConsentRecord(
     credentialType,
     holderData: structuredClone(holderData),
     claims: structuredClone(claims),
+    provenance,
     verdict: 'PENDING',
     createdAt: Date.now(),
     expiresAt: Date.now() + CONSENT_TTL_MS,
@@ -227,7 +231,7 @@ export function decideConsent(
   // during the (up to 24h) consent window, or drift across a date
   // boundary for a date-dependent claim like age_over_18.
   const claimsSnapshot = Object.fromEntries(record.claims.map((c) => [c.key, c.value]));
-  const code = issuePreAuthCode(record.holderData, record.credentialType, claimsSnapshot);
+  const code = issuePreAuthCode(record.holderData, record.credentialType, claimsSnapshot, record.provenance);
   const offer = buildCredentialOffer(code, record.credentialType);
 
   consentRecords.set(consentId, {
