@@ -4,7 +4,14 @@
  * Design: append-only JSON Lines at ${DATA_DIR}/provenance/issuance.jsonl.
  * Persistence is best-effort (mirrors runtime.ts): a failure to write the
  * audit record must never block or fail a credential issuance. Errors are
- * logged loudly instead.
+ * logged loudly instead — and the issuance path writes the record BEFORE
+ * responding, so a holder-visible success implies the append was
+ * attempted; a null return is logged as an incomplete audit trail.
+ *
+ * Reader semantics (#36 review): absent, corrupt and unavailable are
+ * distinct states. A single corrupt line must not silently hide the
+ * valid history around it: valid lines are returned, corrupt lines are
+ * reported separately.
  */
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'fs';
 import { randomUUID } from 'crypto';
@@ -15,6 +22,17 @@ import { provenanceRecordSchema, type ProvenanceRecord } from './types.js';
 function provenancePath(): string {
   const dataDir = process.env.DATA_DIR ?? '.';
   return `${dataDir}/provenance/issuance.jsonl`;
+}
+
+export interface ReadResult {
+  /** Present, schema-valid records. */
+  records: ProvenanceRecord[];
+  /** Lines that exist but failed parse or schema validation. */
+  corrupt: number;
+  /** No file exists at the expected path. */
+  absent: boolean;
+  /** The file exists but could not be read at all. */
+  unavailable: boolean;
 }
 
 /**
@@ -42,16 +60,41 @@ export function appendProvenanceRecord(
   }
 }
 
-/** Test/inspection helper: read all records from the active store. */
-export function readProvenanceRecords(): ProvenanceRecord[] {
+/**
+ * Read all records from the active store, distinguishing absent,
+ * corrupt-per-line and unavailable states. Corrupt lines never mask
+ * valid ones.
+ */
+export function readProvenance(): ReadResult {
+  const path = provenancePath();
+  if (!existsSync(path)) return { records: [], corrupt: 0, absent: true, unavailable: false };
+  let raw: string;
   try {
-    const path = provenancePath();
-    if (!existsSync(path)) return [];
-    return readFileSync(path, 'utf8')
-      .split('\n')
-      .filter(Boolean)
-      .map(line => JSON.parse(line) as ProvenanceRecord);
-  } catch {
-    return [];
+    raw = readFileSync(path, 'utf8');
+  } catch (err) {
+    console.error('[provenance] Store unreadable:', (err as Error).message);
+    return { records: [], corrupt: 0, absent: false, unavailable: true };
   }
+  const records: ProvenanceRecord[] = [];
+  let corrupt = 0;
+  for (const line of raw.split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      const candidate = JSON.parse(line) as ProvenanceRecord;
+      const parsed = provenanceRecordSchema.safeParse(candidate);
+      if (parsed.success) records.push(parsed.data);
+      else corrupt++;
+    } catch {
+      corrupt++;
+    }
+  }
+  return { records, corrupt, absent: false, unavailable: false };
+}
+
+/**
+ * Back-compat helper: valid records only. Callers that need to see
+ * corrupt/unavailable states must use readProvenance() instead.
+ */
+export function readProvenanceRecords(): ProvenanceRecord[] {
+  return readProvenance().records;
 }
