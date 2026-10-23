@@ -9,11 +9,9 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
-import { loadSecrets } from '../../config/secrets.js';
 
 describe('#32: DEMO_MODE + NODE_ENV=production guardrails', () => {
   let serverUrl: string;
-  const adminApiKey = loadSecrets().adminApiKey;
   const exitSpyCalls: number[] = [];
 
   beforeAll(async () => {
@@ -42,9 +40,8 @@ describe('#32: DEMO_MODE + NODE_ENV=production guardrails', () => {
     // Intercept process.exit so a fatal config aborts the import chain
     // instead of killing the test runner.
     const origExit = process.exit;
-    (process as unknown as { exit: (code?: number) => never }).exit = (code?: number) => {
-      exitSpyCalls.push(code ?? 0);
-      throw new Error('FATAL_EXIT_' + (code ?? 0));
+    (process as unknown as { exit: (code?: number) => never }).exit = (code?: number) => never };
+    throw new Error('FATAL_EXIT_' + (code ?? 0));
     };
     try {
       await import('../../server.js');
