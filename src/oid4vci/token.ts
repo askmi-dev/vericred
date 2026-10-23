@@ -16,6 +16,14 @@ export interface AccessTokenEntry {
   cNonceExpiresAt: number;
   credentialType?: string;
   claims?: Record<string, unknown>;
+  /** #26: Art. 6a audit context, captured at offer creation time */
+  provenance?: {
+    connectorType: 'json' | 'postgres' | 'mysql' | 'rest' | 'csv' | 'manual';
+    sourceRef: string;
+    verificationMode: 'authoritative-source' | 'admin-attested';
+    identifierHash: string;
+    lookupAt: string;
+  };
 }
 
 const C_NONCE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -56,7 +64,8 @@ tokenSweepTimer.unref?.();
 export function issuePreAuthCode(
   holderData: Record<string, unknown>,
   credentialType?: string,
-  claims?: Record<string, unknown>
+  claims?: Record<string, unknown>,
+  provenance?: AccessTokenEntry['provenance']
 ): string {
   const code = randomBytes(16).toString('hex');
   store.putPreAuthCode(code, {
@@ -64,6 +73,7 @@ export function issuePreAuthCode(
     expiresAt: Date.now() + 10 * 60 * 1000, // 10 min
     credentialType,
     claims,
+    provenance,
   });
   return code;
 }
@@ -165,6 +175,7 @@ export function createTokenRouter(): Router {
         cNonceExpiresAt: Date.now() + C_NONCE_TTL_MS,
         credentialType: entry.credentialType,
         claims: entry.claims,
+        provenance: entry.provenance,
       });
     } catch (err) {
       logInterop({ type: 'error', category: 'token', message: 'Access-token persistence failed; not returning token', details: { error: (err as Error).message } });
