@@ -178,7 +178,7 @@ describe('#37 review: load must not mutate the backing file', () => {
 
   it('missing arrays (wrong shape): starts empty, file preserved', () => {
     writeFileSync(`${TEMP}/offer-state.json`, '{"something":"else"}', 'utf8');
-    const s = new FileOfferOfferStore(TEMP, { noLock: true });
+    const s = new FileOfferStore(TEMP, { noLock: true });
     expect(s.takePreAuthCode('a')).toBeNull();
   });
 
