@@ -84,7 +84,7 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
     const config = loadConfig();
     const { privateKey, kid } = await getIssuerKeyPair();
 
-    // ── Holder Proof-of-Possession ──────────────────────────────────────────
+    // ── Holder Proof-of-Possession ────────────────────────────────────────
     const body = req.body as Record<string, unknown>;
     const proof = body['proof'] as Record<string, string> | undefined;
     const isDemoMode = process.env['DEMO_MODE'] === 'true';
@@ -127,7 +127,7 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
       return;
     }
 
-    // ── Template resolution ─────────────────────────────────────────────────
+    // ── Template resolution ───────────────────────────────────────────────
     let template;
     const credentialType = tokenEntry.credentialType ?? config.credential.type;
     try {
@@ -162,15 +162,15 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
       }
     }
 
-    // ── SD-JWT selective disclosure ─────────────────────────────────────────
+    // ── SD-JWT selective disclosure ───────────────────────────────────────
     const { sdHashes, disclosures } = buildSdJwtPayload(claims);
 
-    // ── Revocation ──────────────────────────────────────────────────────────
+    // ── Revocation ───────────────────────────────────────────────────────
     const credentialId = 'urn:uuid:' + randomUUID();
     const holderEmail = String(holderData['email'] ?? holderData['id'] ?? 'unknown');
     const { listId, statusIndex } = assignStatusIndex(credentialId, holderEmail);
 
-    // ── Pairwise pseudonym — uses verified thumbprint ───────────────────────
+    // ── Pairwise pseudonym — uses verified thumbprint ─────────────────────
     const pseudonym = pairwisePseudonym(pseudonymSecret, holderThumbprint, config.issuer.did, credentialType);
 
     const now = Math.floor(Date.now() / 1000);
@@ -209,9 +209,12 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
 
     const credential = combineSdJwt(jwt, disclosures);
 
-    // ── Art. 6a provenance (#26) ─────────────────────────────────────────
-    // Best-effort persistence: an audit-write failure must never break a
-    // credential the holder has already received (see plan on issue #26).
+    // ── Art. 6a provenance (#26) ────────────────────────────────────────
+    // Best-effort persistence BEFORE the response: the append happens
+    // before res.json(), so the intended mode is evidence-with-success.
+    // A null return is logged as an incomplete audit trail; issuance
+    // still proceeds — the holder-visible success is NOT gated on the
+    // audit write (see plan on issue #26).
     if (tokenEntry.provenance) {
       const persisted = appendProvenanceRecord({
         credentialId,
