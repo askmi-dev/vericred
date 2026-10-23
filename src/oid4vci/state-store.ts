@@ -38,6 +38,8 @@ export interface PreAuthCodeEntry {
   expiresAt: number;
   credentialType?: string;
   claims?: Record<string, unknown>;
+  /** #26: Art. 6a audit context, carried from offer creation to issuance. */
+  provenance?: ProvenanceContext;
 }
 
 export interface StoredAccessToken {
@@ -47,6 +49,16 @@ export interface StoredAccessToken {
   cNonceExpiresAt: number;
   credentialType?: string;
   claims?: Record<string, unknown>;
+  /** #26: Art. 6a audit context, carried from offer creation to issuance. */
+  provenance?: ProvenanceContext;
+}
+
+export interface ProvenanceContext {
+  connectorType: 'json' | 'postgres' | 'mysql' | 'rest' | 'csv' | 'manual';
+  sourceRef: string;
+  verificationMode: 'authoritative-source' | 'admin-attested';
+  identifierHash: string;
+  lookupAt: string;
 }
 
 export class StorePersistenceError extends Error {
