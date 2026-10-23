@@ -9,6 +9,7 @@ import { loadMySQLConnector } from './mysql.js';
 import { loadRestConnector } from './rest.js';
 import { loadCSVConnector } from './csv.js';
 import { loadManualConnector } from './manual.js';
+import { sanitizeSourceRef } from '../provenance/types.js';
 
 export type Lookup = (id: string) => Promise<Record<string, unknown> | null> | Record<string, unknown> | null;
 
@@ -38,12 +39,14 @@ export function buildProvenanceContext(config: VeriCredConfig): ProvenanceContex
     case 'mysql':
       return { connectorType: ds.type, sourceRef: `table:${ds.table ?? 'users'}`, verificationMode: 'authoritative-source' };
     case 'rest':
-      return { connectorType: 'rest', sourceRef: ds.endpoint ?? 'rest', verificationMode: 'authoritative-source' };
+      // #36 review: endpoints can embed credentials, tokens or identifying
+      // query parameters — sanitize before anything is persisted.
+      return { connectorType: 'rest', sourceRef: sanitizeSourceRef(ds.endpoint ?? 'rest'), verificationMode: 'authoritative-source' };
     case 'json':
     case 'csv':
-      return { connectorType: ds.type, sourceRef: ds.path ?? `data/holders.${ds.type}`, verificationMode: 'authoritative-source' };
+      return { connectorType: ds.type, sourceRef: sanitizeSourceRef(ds.path ?? `data/holders.${ds.type}`), verificationMode: 'authoritative-source' };
     case 'manual':
-      return { connectorType: 'manual', sourceRef: ds.path ?? 'data/manual.json', verificationMode: 'admin-attested' };
+      return { connectorType: 'manual', sourceRef: sanitizeSourceRef(ds.path ?? 'data/manual.json'), verificationMode: 'admin-attested' };
     default:
       throw new Error(`[connector] Unknown dataSource.type: ${(ds as { type: string }).type}`);
   }
@@ -88,4 +91,3 @@ export function buildConnector(config: VeriCredConfig): Connector {
       throw new Error(`[connector] Unknown dataSource.type: ${(ds as { type: string }).type}`);
   }
 }
-
