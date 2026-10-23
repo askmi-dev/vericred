@@ -10,6 +10,7 @@ import { getTemplate, CredentialTemplate } from '../credentials/registry.js';
 import { buildSdJwtPayload, combineSdJwt } from '../sdjwt/disclosures.js';
 import { verifyHolderProofJwt, ProofVerificationError } from './proof.js';
 import { logInterop } from './interop-logger.js';
+import { appendProvenanceRecord } from '../provenance/store.js';
 
 // Register all built-in templates
 import '../credentials/templates/age.js';
@@ -83,7 +84,7 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
     const config = loadConfig();
     const { privateKey, kid } = await getIssuerKeyPair();
 
-    // ── Holder Proof-of-Possession ──────────────────────────────────────────
+    // ── Holder Proof-of-Possession ────────────────────────────────────────
     const body = req.body as Record<string, unknown>;
     const proof = body['proof'] as Record<string, string> | undefined;
     const isDemoMode = process.env['DEMO_MODE'] === 'true';
@@ -126,7 +127,7 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
       return;
     }
 
-    // ── Template resolution ─────────────────────────────────────────────────
+    // ── Template resolution ───────────────────────────────────────────────
     let template;
     const credentialType = tokenEntry.credentialType ?? config.credential.type;
     try {
@@ -161,15 +162,15 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
       }
     }
 
-    // ── SD-JWT selective disclosure ─────────────────────────────────────────
+    // ── SD-JWT selective disclosure ───────────────────────────────────────
     const { sdHashes, disclosures } = buildSdJwtPayload(claims);
 
-    // ── Revocation ──────────────────────────────────────────────────────────
+    // ── Revocation ───────────────────────────────────────────────────────
     const credentialId = 'urn:uuid:' + randomUUID();
     const holderEmail = String(holderData['email'] ?? holderData['id'] ?? 'unknown');
     const { listId, statusIndex } = assignStatusIndex(credentialId, holderEmail);
 
-    // ── Pairwise pseudonym — uses verified thumbprint ───────────────────────
+    // ── Pairwise pseudonym — uses verified thumbprint ─────────────────────
     const pseudonym = pairwisePseudonym(pseudonymSecret, holderThumbprint, config.issuer.did, credentialType);
 
     const now = Math.floor(Date.now() / 1000);
@@ -208,6 +209,36 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
 
     const credential = combineSdJwt(jwt, disclosures);
 
+    // ── Art. 6a provenance (#26) ────────────────────────────────────────
+    // Best-effort persistence BEFORE the response: the append happens
+    // before res.json(), so the intended mode is evidence-with-success.
+    // A null return is logged as an incomplete audit trail; issuance
+    // still proceeds — the holder-visible success is NOT gated on the
+    // audit write (see plan on issue #26).
+    if (tokenEntry.provenance) {
+      const persisted = appendProvenanceRecord({
+        credentialId,
+        credentialType,
+        source: {
+          connectorType: tokenEntry.provenance.connectorType,
+          sourceRef: tokenEntry.provenance.sourceRef,
+        },
+        lookup: {
+          identifierHash: tokenEntry.provenance.identifierHash,
+          at: tokenEntry.provenance.lookupAt,
+        },
+        verification: { mode: tokenEntry.provenance.verificationMode },
+        consentGate: {
+          used: Boolean(tokenEntry.claims),
+          claimsSnapshot: Boolean(tokenEntry.claims),
+        },
+        issuedAt: new Date().toISOString(),
+        issuerDid: config.issuer.did,
+      });
+      if (!persisted) {
+        console.error('[issuer] Provenance record for ' + credentialId + ' was NOT persisted — audit trail incomplete.');
+      }
+    }
     // Rotate c_nonce after issuance (single-use; wallet can request more credentials with new nonce)
     const newNonce = rotateNonce(rawToken);
 
