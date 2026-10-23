@@ -167,7 +167,6 @@ export function createOid4vpRouter(): Router {
 
       sessionStore.set(sessionId, session);
 
-      console.log(`[oid4vp] Session Initiated: ${sessionId} with nonce: ${nonce}`);
 
       res.json({
         success: true,
