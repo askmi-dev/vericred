@@ -83,14 +83,17 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
     const config = loadConfig();
     const { privateKey, kid } = await getIssuerKeyPair();
 
-    // ── Holder Proof-of-Possession ──────────────────────────────────────────
+    // ── Holder Proof-of-Possession ────────────────────────────────────────
     const body = req.body as Record<string, unknown>;
     const proof = body['proof'] as Record<string, string> | undefined;
     const isDemoMode = process.env['DEMO_MODE'] === 'true';
+    const isProduction = process.env['NODE_ENV'] === 'production';
     // Guardrail (#32): DEMO_MODE must never weaken holder binding in a
-    // production deployment. If both are set, fail closed: demand a real
-    // proof-of-possession rather than silently issuing an unbound credential.
-    if (isDemoMode && process.env['NODE_ENV'] === 'production') {
+    // production deployment. If both are set, the anonymous fallback is
+    // off: a valid proof-of-possession still issues (holder binding is
+    // what production demands, and a valid proof satisfies it); only
+    // the fallback path that would skip binding fails closed.
+    if (isDemoMode && isProduction && !(proof?.['proof_type'] === 'jwt' && proof['jwt'])) {
       console.error('[issuer] REFUSING anonymous fallback: DEMO_MODE=true together with NODE_ENV=production. Holder binding is mandatory in production; unbound credentials would violate the trust model (Art. 6a eIDAS 2).');
       res.status(500).json({
         error: 'server_error',
@@ -137,7 +140,7 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
       return;
     }
 
-    // ── Template resolution ─────────────────────────────────────────────────
+    // ── Template resolution ───────────────────────────────────────────────
     let template;
     const credentialType = tokenEntry.credentialType ?? config.credential.type;
     try {
@@ -172,15 +175,15 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
       }
     }
 
-    // ── SD-JWT selective disclosure ─────────────────────────────────────────
+    // ── SD-JWT selective disclosure ───────────────────────────────────────
     const { sdHashes, disclosures } = buildSdJwtPayload(claims);
 
-    // ── Revocation ──────────────────────────────────────────────────────────
+    // ── Revocation ───────────────────────────────────────────────────────
     const credentialId = 'urn:uuid:' + randomUUID();
     const holderEmail = String(holderData['email'] ?? holderData['id'] ?? 'unknown');
     const { listId, statusIndex } = assignStatusIndex(credentialId, holderEmail);
 
-    // ── Pairwise pseudonym — uses verified thumbprint ───────────────────────
+    // ── Pairwise pseudonym — uses verified thumbprint ─────────────────────
     const pseudonym = pairwisePseudonym(pseudonymSecret, holderThumbprint, config.issuer.did, credentialType);
 
     const now = Math.floor(Date.now() / 1000);
