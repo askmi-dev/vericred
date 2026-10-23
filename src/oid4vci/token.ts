@@ -20,14 +20,13 @@ export interface AccessTokenEntry {
 
 const C_NONCE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-// In-memory: pre-auth code -> holder data
-const preAuthCodes = new Map<string, {
-  holderData: Record<string, unknown>;
-  expiresAt: number;
-  credentialType?: string;
-  claims?: Record<string, unknown>;
-}>();
-const accessTokens = new Map<string, AccessTokenEntry>();
+// #31: offers/tokens live behind the OfferStore interface — file-backed
+// by default (restart-safe), in-memory only when explicitly selected.
+// Store operations may throw StorePersistenceError when a state
+// transition cannot be made durable; every caller below fails closed:
+// a pre-auth code whose consume is not durable must never yield a token.
+import { createOfferStore } from './state-store.js';
+const store = createOfferStore();
 
 /**
  * Both maps carry holderData (and, for the consent-gate path, a claims
@@ -40,22 +39,7 @@ const accessTokens = new Map<string, AccessTokenEntry>();
  * interval.
  */
 export function sweepExpiredTokens(): { preAuthCodes: number; accessTokens: number } {
-  const now = Date.now();
-  let sweptPreAuthCodes = 0;
-  for (const [code, entry] of preAuthCodes) {
-    if (entry.expiresAt < now) {
-      preAuthCodes.delete(code);
-      sweptPreAuthCodes++;
-    }
-  }
-  let sweptAccessTokens = 0;
-  for (const [token, entry] of accessTokens) {
-    if (entry.expiresAt < now) {
-      accessTokens.delete(token);
-      sweptAccessTokens++;
-    }
-  }
-  return { preAuthCodes: sweptPreAuthCodes, accessTokens: sweptAccessTokens };
+  return store.sweep(Date.now());
 }
 
 const tokenSweepTimer = setInterval(sweepExpiredTokens, 15 * 60 * 1000);
@@ -75,7 +59,7 @@ export function issuePreAuthCode(
   claims?: Record<string, unknown>
 ): string {
   const code = randomBytes(16).toString('hex');
-  preAuthCodes.set(code, {
+  store.putPreAuthCode(code, {
     holderData,
     expiresAt: Date.now() + 10 * 60 * 1000, // 10 min
     credentialType,
@@ -112,11 +96,11 @@ export function buildCredentialOffer(code: string, credentialType: string): {
 }
 
 export function lookupAccessToken(token: string): AccessTokenEntry | null {
-  const entry = accessTokens.get(token);
+  const entry = store.getAccessToken(token);
   if (!entry) return null;
   if (entry.expiresAt < Date.now()) {
     // Evict on access too, not just on the periodic sweep.
-    accessTokens.delete(token);
+    store.deleteAccessToken(token);
     return null;
   }
   return entry;
@@ -124,10 +108,19 @@ export function lookupAccessToken(token: string): AccessTokenEntry | null {
 
 /** Rotate c_nonce after successful credential issuance (single-use nonce). */
 export function rotateNonce(token: string): string | null {
-  const entry = accessTokens.get(token);
+  const entry = store.getAccessToken(token);
   if (!entry || entry.expiresAt < Date.now()) return null;
+  const prevNonce = entry.cNonce;
   entry.cNonce = randomBytes(16).toString('hex');
   entry.cNonceExpiresAt = Date.now() + C_NONCE_TTL_MS;
+  try {
+    store.putAccessToken(token, entry); // persist rotated nonce (#31)
+  } catch (err) {
+    // Roll back so callers do not hand out a nonce that is not durable.
+    entry.cNonce = prevNonce;
+    console.error('[token] c_nonce rotation could not be persisted; keeping previous nonce:', (err as Error).message);
+    return null;
+  }
   return entry.cNonce;
 }
 
@@ -143,27 +136,41 @@ export function createTokenRouter(): Router {
       return;
     }
 
-    const entry = preAuthCodes.get(code);
+    // takePreAuthCode is get+delete: pre-auth codes are single-use.
+    // If the removal cannot be made durable the code is NOT consumed;
+    // fail closed with server_error rather than issue a token for a
+    // code a restart could resurrect.
+    let entry;
+    try {
+      entry = store.takePreAuthCode(code);
+    } catch (err) {
+      logInterop({ type: 'error', category: 'token', message: 'Pre-auth code consume not durable; refusing token issuance', details: { error: (err as Error).message } });
+      res.status(500).json({ error: 'server_error' });
+      return;
+    }
     if (!entry || entry.expiresAt < Date.now()) {
-      preAuthCodes.delete(code);
       logInterop({ type: 'warning', category: 'token', message: 'Invalid or expired pre-authorized code' });
       res.status(400).json({ error: 'invalid_grant' });
       return;
     }
-
-    preAuthCodes.delete(code);
     logInterop({ type: 'info', category: 'token', message: 'Token issued via Pre-Auth code', details: { type: entry.credentialType } });
     const accessToken = randomBytes(32).toString('hex');
     const cNonce = randomBytes(16).toString('hex');
 
-    accessTokens.set(accessToken, {
-      holderData: entry.holderData,
-      expiresAt: Date.now() + 5 * 60 * 1000,
-      cNonce,
-      cNonceExpiresAt: Date.now() + C_NONCE_TTL_MS,
-      credentialType: entry.credentialType,
-      claims: entry.claims,
-    });
+    try {
+      store.putAccessToken(accessToken, {
+        holderData: entry.holderData,
+        expiresAt: Date.now() + 5 * 60 * 1000,
+        cNonce,
+        cNonceExpiresAt: Date.now() + C_NONCE_TTL_MS,
+        credentialType: entry.credentialType,
+        claims: entry.claims,
+      });
+    } catch (err) {
+      logInterop({ type: 'error', category: 'token', message: 'Access-token persistence failed; not returning token', details: { error: (err as Error).message } });
+      res.status(500).json({ error: 'server_error' });
+      return;
+    }
 
     res.json({
       access_token: accessToken,
