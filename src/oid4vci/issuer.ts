@@ -10,6 +10,7 @@ import { getTemplate, CredentialTemplate } from '../credentials/registry.js';
 import { buildSdJwtPayload, combineSdJwt } from '../sdjwt/disclosures.js';
 import { verifyHolderProofJwt, ProofVerificationError } from './proof.js';
 import { logInterop } from './interop-logger.js';
+import { appendProvenanceRecord } from '../provenance/store.js';
 
 // Register all built-in templates
 import '../credentials/templates/age.js';
@@ -83,10 +84,24 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
     const config = loadConfig();
     const { privateKey, kid } = await getIssuerKeyPair();
 
-    // ── Holder Proof-of-Possession ──────────────────────────────────────────
+    // ── Holder Proof-of-Possession ────────────────────────────────────────
     const body = req.body as Record<string, unknown>;
     const proof = body['proof'] as Record<string, string> | undefined;
     const isDemoMode = process.env['DEMO_MODE'] === 'true';
+    const isProduction = process.env['NODE_ENV'] === 'production';
+    // Guardrail (#32): DEMO_MODE must never weaken holder binding in a
+    // production deployment. If both are set, the anonymous fallback is
+    // off: a valid proof-of-possession still issues (holder binding is
+    // what production demands, and a valid proof satisfies it); only
+    // the fallback path that would skip binding fails closed.
+    if (isDemoMode && isProduction && !(proof?.['proof_type'] === 'jwt' && proof['jwt'])) {
+      console.error('[issuer] REFUSING anonymous fallback: DEMO_MODE=true together with NODE_ENV=production. Holder binding is mandatory in production; unbound credentials would violate the trust model (Art. 6a eIDAS 2).');
+      res.status(500).json({
+        error: 'server_error',
+        error_description: 'Server misconfiguration: DEMO_MODE cannot be active in production. Contact the issuer administrator.',
+      });
+      return;
+    }
 
     let holderThumbprint: string;
     let holderJwk: Record<string, unknown> | undefined;
@@ -126,7 +141,7 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
       return;
     }
 
-    // ── Template resolution ─────────────────────────────────────────────────
+    // ── Template resolution ───────────────────────────────────────────────
     let template;
     const credentialType = tokenEntry.credentialType ?? config.credential.type;
     try {
@@ -161,15 +176,24 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
       }
     }
 
-    // ── SD-JWT selective disclosure ─────────────────────────────────────────
+    // Commit nonce consumption before signing or returning a credential.
+    // Compare with the verified nonce to exclude concurrent requests that
+    // verified the same proof while an earlier request was awaiting I/O.
+    const newNonce = rotateNonce(rawToken, cNonce);
+    if (!newNonce) {
+      res.status(500).json({ error: 'server_error', error_description: 'Nonce consumption could not be committed.' });
+      return;
+    }
+
+    // ── SD-JWT selective disclosure ───────────────────────────────────────
     const { sdHashes, disclosures } = buildSdJwtPayload(claims);
 
-    // ── Revocation ──────────────────────────────────────────────────────────
+    // ── Revocation ───────────────────────────────────────────────────────
     const credentialId = 'urn:uuid:' + randomUUID();
     const holderEmail = String(holderData['email'] ?? holderData['id'] ?? 'unknown');
     const { listId, statusIndex } = assignStatusIndex(credentialId, holderEmail);
 
-    // ── Pairwise pseudonym — uses verified thumbprint ───────────────────────
+    // ── Pairwise pseudonym — uses verified thumbprint ─────────────────────
     const pseudonym = pairwisePseudonym(pseudonymSecret, holderThumbprint, config.issuer.did, credentialType);
 
     const now = Math.floor(Date.now() / 1000);
@@ -208,9 +232,36 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
 
     const credential = combineSdJwt(jwt, disclosures);
 
-    // Rotate c_nonce after issuance (single-use; wallet can request more credentials with new nonce)
-    const newNonce = rotateNonce(rawToken);
-
+    // ── Art. 6a provenance (#26) ────────────────────────────────────────
+    // Best-effort persistence BEFORE the response: the append happens
+    // before res.json(), so the intended mode is evidence-with-success.
+    // A null return is logged as an incomplete audit trail; issuance
+    // still proceeds — the holder-visible success is NOT gated on the
+    // audit write (see plan on issue #26).
+    if (tokenEntry.provenance) {
+      const persisted = appendProvenanceRecord({
+        credentialId,
+        credentialType,
+        source: {
+          connectorType: tokenEntry.provenance.connectorType,
+          sourceRef: tokenEntry.provenance.sourceRef,
+        },
+        lookup: {
+          identifierHash: tokenEntry.provenance.identifierHash,
+          at: tokenEntry.provenance.lookupAt,
+        },
+        verification: { mode: tokenEntry.provenance.verificationMode },
+        consentGate: {
+          used: Boolean(tokenEntry.claims),
+          claimsSnapshot: Boolean(tokenEntry.claims),
+        },
+        issuedAt: new Date().toISOString(),
+        issuerDid: config.issuer.did,
+      });
+      if (!persisted) {
+        console.error('[issuer] Provenance record for ' + credentialId + ' was NOT persisted — audit trail incomplete.');
+      }
+    }
     console.log('[issuer] Issued ' + credentialType + ' ' + credentialId
       + ' bound=' + (holderJwk ? holderThumbprint.slice(0, 12) + '...' : 'none')
       + ' status=' + statusIndex);
