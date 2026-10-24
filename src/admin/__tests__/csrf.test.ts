@@ -71,14 +71,28 @@ describe('CSRF Protection Middleware', () => {
   });
 
   describe('Session Cookie Auth (Browser-based)', () => {
+
+  const getCsrfData = async () => {
+    const res = await fetch(`${serverUrl}/admin/login`);
+    const html = await res.text();
+    const cookie = res.headers.get('set-cookie');
+    const adminPre = cookie?.match(/admin_pre=([^;]+)/)?.[1] ?? '';
+    const csrfToken = html.match(/name="csrf" value="([^"]+)"/)?.[1] ?? '';
+    return { adminPre, csrfToken };
+  };
+
     let sessionCookie: string;
 
     it('can login and get session cookie', async () => {
       // First, login to get a session cookie
+      const { adminPre, csrfToken } = await getCsrfData();
       const loginRes = await fetch(`${serverUrl}/admin/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ apiKey: adminApiKey }).toString(),
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Cookie': `admin_pre=${adminPre}`
+        },
+        body: new URLSearchParams({ apiKey: adminApiKey, csrf: csrfToken }).toString(),
         redirect: 'manual'
       });
 
@@ -162,7 +176,7 @@ describe('CSRF Protection Middleware', () => {
       
       expect(csrfRes.status).toBe(200);
       const csrfData = await csrfRes.json();
-      const csrfToken = csrfData.csrfToken;
+      const newToken = csrfData.csrfToken;
 
       // Now use it in a revocation request
       const res = await fetch(`${serverUrl}/admin/revoke`, {
@@ -170,7 +184,7 @@ describe('CSRF Protection Middleware', () => {
         headers: {
           'Content-Type': 'application/json',
           'Cookie': `admin_session=${sessionCookie}`,
-          'x-csrf-token': csrfToken
+          'x-csrf-token': newToken
         },
         body: JSON.stringify({ credentialId: 'non-existent', reason: 'Valid CSRF test' })
       });
@@ -189,7 +203,7 @@ describe('CSRF Protection Middleware', () => {
       });
       
       const csrfData = await csrfRes.json();
-      const csrfToken = csrfData.csrfToken;
+      const newToken = csrfData.csrfToken;
 
       // Use it for revocation
       const res = await fetch(`${serverUrl}/admin/api/credentials/test-cred-id/revoke`, {
@@ -197,7 +211,7 @@ describe('CSRF Protection Middleware', () => {
         headers: {
           'Content-Type': 'application/json',
           'Cookie': `admin_session=${sessionCookie}`,
-          'x-csrf-token': csrfToken
+          'x-csrf-token': newToken
         },
         body: JSON.stringify({ reason: 'Valid CSRF test' })
       });
@@ -208,14 +222,28 @@ describe('CSRF Protection Middleware', () => {
   });
 
   describe('CSRF Token Single-Use', () => {
+
+  const getCsrfData = async () => {
+    const res = await fetch(`${serverUrl}/admin/login`);
+    const html = await res.text();
+    const cookie = res.headers.get('set-cookie');
+    const adminPre = cookie?.match(/admin_pre=([^;]+)/)?.[1] ?? '';
+    const csrfToken = html.match(/name="csrf" value="([^"]+)"/)?.[1] ?? '';
+    return { adminPre, csrfToken };
+  };
+
     let sessionCookie: string;
 
     it('CSRF token can only be used once', async () => {
       // Login to get session
+      const { adminPre, csrfToken } = await getCsrfData();
       const loginRes = await fetch(`${serverUrl}/admin/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ apiKey: adminApiKey }).toString(),
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Cookie': `admin_pre=${adminPre}`
+        },
+        body: new URLSearchParams({ apiKey: adminApiKey, csrf: csrfToken }).toString(),
         redirect: 'manual'
       });
 
@@ -228,7 +256,7 @@ describe('CSRF Protection Middleware', () => {
         headers: { 'Cookie': `admin_session=${sessionCookie}` }
       });
       const csrfData = await csrfRes.json();
-      const csrfToken = csrfData.csrfToken;
+      const newToken = csrfData.csrfToken;
 
       // First use - should work
       const res1 = await fetch(`${serverUrl}/admin/revoke`, {
@@ -236,7 +264,7 @@ describe('CSRF Protection Middleware', () => {
         headers: {
           'Content-Type': 'application/json',
           'Cookie': `admin_session=${sessionCookie}`,
-          'x-csrf-token': csrfToken
+          'x-csrf-token': newToken
         },
         body: JSON.stringify({ credentialId: 'test-1', reason: 'First use' })
       });
@@ -248,7 +276,7 @@ describe('CSRF Protection Middleware', () => {
         headers: {
           'Content-Type': 'application/json',
           'Cookie': `admin_session=${sessionCookie}`,
-          'x-csrf-token': csrfToken
+          'x-csrf-token': newToken
         },
         body: JSON.stringify({ credentialId: 'test-2', reason: 'Second use' })
       });
