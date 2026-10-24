@@ -5,8 +5,8 @@
  * a container restart killed every pending offer and horizontal scaling
  * was impossible. This module defines the OfferStore interface those Maps
  * hid behind, plus the default file-backed implementation (same
- * DATA_DIR persistence pattern as statuslist.json / runtime.json — zero
- * new dependencies).
+ * DATA_DIR persistence pattern as statuslist.json / runtime.json, with
+ * an OS advisory lock provided by fs-ext).
  *
  * Security model (review of #37):
  * - Single-use consume is durably atomic: takePreAuthCode only reports
@@ -190,8 +190,9 @@ export class FileOfferStore extends InMemoryOfferStore {
       console.error('[offer-store] Could not load persisted state (starting empty, original file preserved):', (err as Error).message);
       return;
     }
-    if (!Array.isArray(raw.preAuthCodes) || !Array.isArray(raw.accessTokens)) {
-      console.error('[offer-store] Malformed state file (missing entry arrays; starting empty, original file preserved).');
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)
+      || !Array.isArray(raw.preAuthCodes) || !Array.isArray(raw.accessTokens)) {
+      console.error('[offer-store] Malformed state file (invalid root or missing entry arrays; starting empty, original file preserved).');
       return;
     }
     const preAuthCodes = new Map<string, PreAuthCodeEntry>();

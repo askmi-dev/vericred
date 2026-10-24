@@ -191,6 +191,18 @@ describe('#37 review: load must not mutate the backing file', () => {
     expect(s.takePreAuthCode('a')).toBeNull();
   });
 
+  it.each(['null', 'true', '42', '"invalid-root"', '[]'])('invalid JSON root %s does not crash recovery or alter evidence', (original) => {
+    writeFileSync(`${TEMP}/offer-state.json`, original, 'utf8');
+    const store = new FileOfferStore(TEMP);
+    try {
+      expect(store.takePreAuthCode('missing')).toBeNull();
+      expect(store.getAccessToken('missing')).toBeNull();
+      expect(readFileSync(`${TEMP}/offer-state.json`, 'utf8')).toBe(original);
+    } finally { store.releaseLock(); }
+    const next = new FileOfferStore(TEMP);
+    next.releaseLock();
+  });
+
   it('state file is written with owner-only permissions (0600)', () => {
     const s = new FileOfferStore(TEMP, { noLock: true });
     s.putPreAuthCode('perm-code', entry());
