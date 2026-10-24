@@ -4,26 +4,24 @@
  * Both branches change offer/token state, so separate branch totals do
  * not prove the composition. This test runs the full flow on the
  * combined head:
- *   consent → offer (pre-auth code persisted) → simulated restart →
+ *   consent → offer (pre-auth code persisted) → disk inspection →
  *   token → issuance
- * and asserts that the provenance fields survive the restart and the
+ * and asserts that the provenance fields survive serialization and the
  * consumption, and that the issued credential's jti joins to the
  * persisted Art. 6a audit record.
  *
- * Honest limits: the "restart" is a fresh FileOfferStore over the same
- * DATA_DIR files, not a real process kill; the server in this test keeps
- * its in-process store, so the restarted store is inspected read-only
- * (noLock) rather than serving traffic.
+ * Component evidence only: the original server handles all traffic.
+ * process-lifecycle.test.ts separately exercises real process kills.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
+import { mkdirSync, rmSync, writeFileSync, readFileSync } from 'fs';
 import { generateKeyPair, exportJWK, SignJWT, decodeJwt } from 'jose';
 import { loadSecrets } from '../../config/secrets.js';
 
 const tempDir = './src/oid4vci/__tests__/temp-data-combined';
 const PORT = '3526';
 
-describe('#36+#37 combined: consent → offer → restart → token → issuance', () => {
+describe('#36+#37 combined: consent → persisted offer → token → issuance', () => {
   let serverUrl: string;
   let adminApiKey: string;
 
@@ -60,7 +58,7 @@ describe('#36+#37 combined: consent → offer → restart → token → issuance
     rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('keeps provenance and approved claims across a restart between offer and token', async () => {
+  it('serializes provenance and approved claims before token redemption', async () => {
     // 1. Offer (consent-gated template → consent record first)
     const offerRes = await fetch(`${serverUrl}/offer`, {
       method: 'POST',
@@ -87,19 +85,14 @@ describe('#36+#37 combined: consent → offer → restart → token → issuance
     }
     expect(code).not.toBe('');
 
-    // 3. Simulated restart: a fresh store over the same files must see
-    // the pending code AND its provenance/claims payload.
-    const { FileOfferStore } = await import('../state-store.js');
-    const restarted = new FileOfferStore(tempDir, { noLock: true }); // server holds the lock
-    const entry = restarted.takePreAuthCode(code);
-    expect(entry).not.toBeNull();
-    expect(entry!.provenance).toBeDefined();
-    expect(entry!.provenance!.identifierHash).toMatch(/^[0-9a-f]{64}$/);
-    expect(entry!.provenance!.connectorType).toBe('json');
-    // The code is single-use even across the restart boundary: put it
-    // back is NOT allowed — instead verify the live server can still
-    // redeem it once (the restarted instance consumed its view only).
-    expect(restarted.takePreAuthCode(code)).toBeNull();
+    // 3. Inspect the disk snapshot without creating an unlocked writer.
+    const disk = JSON.parse(readFileSync(`${tempDir}/offer-state.json`, 'utf8')) as {
+      preAuthCodes: [string, { claims?: Record<string, unknown>; provenance?: { identifierHash: string; connectorType: string } }][];
+    };
+    const entry = disk.preAuthCodes.find(([key]) => key === code)?.[1];
+    expect(entry?.provenance?.identifierHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(entry?.provenance?.connectorType).toBe('json');
+    expect(entry?.claims).toBeDefined();
 
     // 4. The live server redeems the same code via /token
     const tokenRes = await fetch(`${serverUrl}/token`, {

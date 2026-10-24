@@ -20,7 +20,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { existsSync, mkdirSync, rmSync, writeFileSync, readFileSync, chmodSync, statSync, readdirSync } from 'fs';
-import { FileOfferStore, InMemoryOfferStore, StorePersistenceError } from '../state-store.js';
+import { FileOfferStore, StorePersistenceError } from '../state-store.js';
 
 const TEMP = './src/oid4vci/__tests__/temp-store-durability';
 
@@ -125,11 +125,20 @@ describe('#37 review: single-writer enforcement', () => {
     s2.releaseLock();
   });
 
-  it('a stale lock (dead pid) is reclaimed, so a crash does not permanently wedge the store', () => {
-    // pid 0xFFFFFF is not expected to exist; process.kill(0xFFFFFF, 0) throws ESRCH.
+  it('an unlocked legacy PID file does not block the kernel lock', () => {
     writeFileSync(`${TEMP}/offer-state.lock`, '16777215@123', { mode: 0o600 });
     const s = new FileOfferStore(TEMP); // must not throw
     s.releaseLock();
+  });
+
+  it('a released writer cannot mutate state after another writer takes over', () => {
+    const first = new FileOfferStore(TEMP);
+    first.releaseLock();
+    const second = new FileOfferStore(TEMP);
+    try {
+      expect(() => first.putPreAuthCode('closed-writer', entry())).toThrow(StorePersistenceError);
+      expect(second.takePreAuthCode('closed-writer')).toBeNull();
+    } finally { second.releaseLock(); }
   });
 
   it('noLock bypass demonstrates the multi-writer race the lock exists to prevent (documented, unsupported)', () => {

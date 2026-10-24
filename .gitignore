@@ -15,3 +15,5 @@ runtime.json
 src/**/temp-data*/
 
 offer-state.json
+offer-state.lock
+offer-state.json.tmp.*

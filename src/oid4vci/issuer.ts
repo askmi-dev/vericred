@@ -88,6 +88,20 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
     const body = req.body as Record<string, unknown>;
     const proof = body['proof'] as Record<string, string> | undefined;
     const isDemoMode = process.env['DEMO_MODE'] === 'true';
+    const isProduction = process.env['NODE_ENV'] === 'production';
+    // Guardrail (#32): DEMO_MODE must never weaken holder binding in a
+    // production deployment. If both are set, the anonymous fallback is
+    // off: a valid proof-of-possession still issues (holder binding is
+    // what production demands, and a valid proof satisfies it); only
+    // the fallback path that would skip binding fails closed.
+    if (isDemoMode && isProduction && !(proof?.['proof_type'] === 'jwt' && proof['jwt'])) {
+      console.error('[issuer] REFUSING anonymous fallback: DEMO_MODE=true together with NODE_ENV=production. Holder binding is mandatory in production; unbound credentials would violate the trust model (Art. 6a eIDAS 2).');
+      res.status(500).json({
+        error: 'server_error',
+        error_description: 'Server misconfiguration: DEMO_MODE cannot be active in production. Contact the issuer administrator.',
+      });
+      return;
+    }
 
     let holderThumbprint: string;
     let holderJwk: Record<string, unknown> | undefined;
@@ -160,6 +174,15 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
         res.status(400).json({ error: 'claim_build_failed', detail: (e as Error).message });
         return;
       }
+    }
+
+    // Commit nonce consumption before signing or returning a credential.
+    // Compare with the verified nonce to exclude concurrent requests that
+    // verified the same proof while an earlier request was awaiting I/O.
+    const newNonce = rotateNonce(rawToken, cNonce);
+    if (!newNonce) {
+      res.status(500).json({ error: 'server_error', error_description: 'Nonce consumption could not be committed.' });
+      return;
     }
 
     // ── SD-JWT selective disclosure ───────────────────────────────────────
@@ -239,9 +262,6 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
         console.error('[issuer] Provenance record for ' + credentialId + ' was NOT persisted — audit trail incomplete.');
       }
     }
-    // Rotate c_nonce after issuance (single-use; wallet can request more credentials with new nonce)
-    const newNonce = rotateNonce(rawToken);
-
     console.log('[issuer] Issued ' + credentialType + ' ' + credentialId
       + ' bound=' + (holderJwk ? holderThumbprint.slice(0, 12) + '...' : 'none')
       + ' status=' + statusIndex);

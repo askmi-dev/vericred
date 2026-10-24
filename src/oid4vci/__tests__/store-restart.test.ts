@@ -12,7 +12,7 @@
  * ending) before the fresh instance is constructed.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { existsSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import { FileOfferStore, InMemoryOfferStore } from '../state-store.js';
 
 const TEMP = './src/oid4vci/__tests__/temp-store-restart';

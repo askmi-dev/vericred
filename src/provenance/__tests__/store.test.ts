@@ -9,7 +9,7 @@
  *  5. Consistency: same identifier always hashes identically
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { existsSync, mkdirSync, rmSync, writeFileSync, chmodSync } from 'fs';
+import { mkdirSync, rmSync, writeFileSync, chmodSync } from 'fs';
 import { appendProvenanceRecord, readProvenanceRecords } from '../store.js';
 import { hashIdentifier, provenanceRecordSchema, type ProvenanceRecord } from '../types.js';
 

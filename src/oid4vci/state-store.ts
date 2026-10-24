@@ -21,9 +21,9 @@
  *   completely in memory before it is installed. A corrupt or partial
  *   file starts the store empty (fail open, logged loudly) and the
  *   original file is preserved untouched for operator inspection.
- * - Single writer only: a lock file (pid + stale detection) is held for
- *   the process lifetime. A second live instance over the same DATA_DIR
- *   fails fast instead of silently racing on shared state.
+ * - Single writer only: an OS advisory lock is held on a stable inode
+ *   for the store lifetime. The kernel releases it on process death;
+ *   neither PID reuse nor simultaneous startup requires stale reclaim.
  *
  * Security note: access tokens are bearer credentials and are stored in
  * DATA_DIR. That directory already holds issuer keys and admin secrets
@@ -31,7 +31,9 @@
  * stricter needs can implement the interface against Redis/pg (see
  * issue #31) via `createOfferStore` selection.
  */
-import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, unlinkSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, unlinkSync, openSync, closeSync, fsyncSync } from 'fs';
+import { randomUUID } from 'crypto';
+import { flockSync } from 'fs-ext';
 
 export interface PreAuthCodeEntry {
   holderData: Record<string, unknown>;
@@ -141,12 +143,14 @@ function isValidEntryPair(code: unknown, entry: unknown, kind: 'preAuth' | 'toke
 export class FileOfferStore extends InMemoryOfferStore {
   private readonly path: string;
   private readonly lockPath: string;
-  private lockHeld = false;
+  private lockFd: number | undefined;
+  private readonly noLock: boolean;
 
   constructor(dataDir: string, opts?: { noLock?: boolean }) {
     super();
     this.path = `${dataDir}/offer-state.json`;
     this.lockPath = `${dataDir}/offer-state.lock`;
+    this.noLock = opts?.noLock === true; // component-test bypass, never read-only
     if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true });
     if (!opts?.noLock) this.acquireLock();
     this.loadFromDisk();
@@ -154,32 +158,22 @@ export class FileOfferStore extends InMemoryOfferStore {
 
   /** Exclusive single-writer lock; fails fast on a live second instance. */
   private acquireLock(): void {
-    const ownInfo = `${process.pid}@${Date.now()}`;
-    if (existsSync(this.lockPath)) {
-      const raw = readFileSync(this.lockPath, 'utf8').trim();
-      // A lock from a dead process is stale; reclaim it.
-      const holderPid = Number.parseInt(raw.split('@')[0] ?? '', 10);
-      if (!Number.isFinite(holderPid) || !FileOfferStore.isPidAlive(holderPid)) {
-        console.warn(`[offer-store] Reclaiming stale lock (previous holder ${raw || 'unknown'}).`);
-      } else {
-        throw new StorePersistenceError(
-          `Another offer-store writer (pid ${holderPid}) holds ${this.lockPath}; refusing to start a second live instance over the same DATA_DIR.`
-        );
-      }
+    const fd = openSync(this.lockPath, 'a', 0o600);
+    try {
+      flockSync(fd, 'exnb');
+      this.lockFd = fd;
+    } catch (err) {
+      closeSync(fd);
+      throw new StorePersistenceError(`Cannot acquire exclusive offer-store writer lock at ${this.lockPath}; refusing to start.`, err);
     }
-    writeFileSync(this.lockPath, ownInfo, { mode: 0o600 });
-    this.lockHeld = true;
-  }
-
-  private static isPidAlive(p: number): boolean {
-    try { process.kill(p, 0); return true; } catch { return false; }
   }
 
   /** Test hook: release the lock without destroying state. */
   releaseLock(): void {
-    if (!this.lockHeld) return;
-    try { unlinkSync(this.lockPath); } catch { /* already gone */ }
-    this.lockHeld = false;
+    if (this.lockFd === undefined) return;
+    closeSync(this.lockFd);
+    this.lockFd = undefined;
+    // Never unlink: another writer may already have opened this inode.
   }
 
   /**
@@ -227,13 +221,22 @@ export class FileOfferStore extends InMemoryOfferStore {
    * happened.
    */
   private persist(): void {
+    if (!this.noLock && this.lockFd === undefined) {
+      throw new StorePersistenceError('Offer store is closed; refusing an unlocked write.');
+    }
     const snapshot = this.snapshot();
-    const tmp = `${this.path}.tmp.${process.pid}`;
+    const tmp = `${this.path}.tmp.${randomUUID()}`;
     try {
       const dir = this.path.slice(0, this.path.lastIndexOf('/'));
       if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-      writeFileSync(tmp, JSON.stringify(snapshot), { mode: 0o600 });
+      const fd = openSync(tmp, 'wx', 0o600);
+      try {
+        writeFileSync(fd, JSON.stringify(snapshot));
+        fsyncSync(fd);
+      } finally { closeSync(fd); }
       renameSync(tmp, this.path);
+      const dirFd = openSync(dir, 'r');
+      try { fsyncSync(dirFd); } finally { closeSync(dirFd); }
     } catch (err) {
       try { unlinkSync(tmp); } catch { /* nothing to clean up */ }
       throw new StorePersistenceError('offer-state persistence failed', err);

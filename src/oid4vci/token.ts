@@ -116,22 +116,22 @@ export function lookupAccessToken(token: string): AccessTokenEntry | null {
   return entry;
 }
 
-/** Rotate c_nonce after successful credential issuance (single-use nonce). */
-export function rotateNonce(token: string): string | null {
+/** Commit c_nonce consumption before signing (single-use nonce). */
+export function rotateNonce(token: string, expectedNonce?: string): string | null {
   const entry = store.getAccessToken(token);
   if (!entry || entry.expiresAt < Date.now()) return null;
-  const prevNonce = entry.cNonce;
-  entry.cNonce = randomBytes(16).toString('hex');
-  entry.cNonceExpiresAt = Date.now() + C_NONCE_TTL_MS;
+  if (expectedNonce !== undefined && entry.cNonce !== expectedNonce) return null;
+  // Copy rather than mutate the stored entry: failure must restore both
+  // the nonce and its original expiry, including for in-memory callers.
+  const rotated = { ...entry, cNonce: randomBytes(16).toString('hex'), cNonceExpiresAt: Date.now() + C_NONCE_TTL_MS };
   try {
-    store.putAccessToken(token, entry); // persist rotated nonce (#31)
+    store.putAccessToken(token, rotated);
   } catch (err) {
     // Roll back so callers do not hand out a nonce that is not durable.
-    entry.cNonce = prevNonce;
     console.error('[token] c_nonce rotation could not be persisted; keeping previous nonce:', (err as Error).message);
     return null;
   }
-  return entry.cNonce;
+  return rotated.cNonce;
 }
 
 export function createTokenRouter(): Router {

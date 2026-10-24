@@ -6,18 +6,27 @@
  * to the issued credential's jti, with only a hashed identifier.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { generateKeyPair, exportJWK, SignJWT, decodeJwt, calculateJwkThumbprint } from 'jose';
+import { generateKeyPair, exportJWK, SignJWT, decodeJwt } from 'jose';
 import { existsSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'fs';
 import { loadSecrets } from '../../config/secrets.js';
+import { createServer } from 'node:net';
 
 const TEMP = './src/oid4vci/__tests__/temp-data-prov';
-const PORT = '3523';
+let PORT: string;
 
 describe('#26: provenance wiring — offer → token → credentials', () => {
   let serverUrl: string;
   let holderKeys: { privateKey: import('jose').KeyLike; publicKey: import('jose').KeyLike };
 
   beforeAll(async () => {
+    // #37's token-durability suite also used fixed port 3523. Reserve a
+    // temporary OS-assigned port so the combined suites can run in parallel.
+    const probe = createServer();
+    await new Promise<void>((resolve) => probe.listen(0, '127.0.0.1', resolve));
+    const address = probe.address();
+    if (!address || typeof address === 'string') throw new Error('No test port assigned');
+    PORT = String(address.port);
+    await new Promise<void>((resolve, reject) => probe.close((err) => err ? reject(err) : resolve()));
     if (existsSync(TEMP)) rmSync(TEMP, { recursive: true, force: true });
     mkdirSync(TEMP, { recursive: true });
     writeFileSync(`${TEMP}/holders.json`, JSON.stringify([
