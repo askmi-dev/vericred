@@ -12,7 +12,6 @@ import { createCredentialRouter } from './oid4vci/issuer.js';
 import { createOfferRouter } from './oid4vci/offer.js';
 import { createAdminRouter } from './admin/router.js';
 import { createRevocationRouter } from './revocation/router.js';
-import { createOid4vpRouter } from './oid4vp/router.js';
 import { createConsentRouter } from './oid4vci/consent.js';
 import { requireAdmin } from './middleware/auth.js';
 import { generateHolders } from './connectors/generator.js';
@@ -33,6 +32,12 @@ try {
   }
 } catch {
   // Ignore error if .env file is missing
+}
+
+const hostedVerifierEnabled = process.env.ENABLE_HOSTED_VERIFIER === 'true';
+if (hostedVerifierEnabled && process.env.NODE_ENV === 'production'
+    && process.env.ENABLE_HOSTED_VERIFIER_CONFIRM !== 'yes') {
+  throw new Error('Hosted verifier disabled in production: ENABLE_HOSTED_VERIFIER_CONFIRM=yes required. Resolve verifier security backlog before re-enabling.');
 }
 
 const app = express();
@@ -117,7 +122,10 @@ app.use(createTokenRouter());
 // and repeated proof-verification attempts.
 app.use('/credentials', rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false }));
 app.use(createCredentialRouter(secrets.pseudonymSecret));
-app.use(createOid4vpRouter());
+if (hostedVerifierEnabled) {
+  const { createOid4vpRouter } = await import('./oid4vp/router.js');
+  app.use(createOid4vpRouter());
+}
 
 // Public, unauthenticated consent surface (GET .../claims, POST .../decide,
 // and the page shell below) -- rate-limited since there's no auth gate.

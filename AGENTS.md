@@ -81,3 +81,13 @@ These are implemented deliberately. Never weaken or remove them without an expli
 - Don't refactor working Phase-1 security code for style; only change what the task requires.
 - When ambiguity remains between this file and the docs, ask instead of guessing.
 - After changes, run `npm test` before reporting done.
+
+## Hosted verifier disabled by default
+
+The issuer does not verify presentations. `/api/oid4vp/*` is not registered
+and its module/session store is not loaded unless `ENABLE_HOSTED_VERIFIER=true`.
+Production additionally requires `ENABLE_HOSTED_VERIFIER_CONFIRM=yes`; this is
+an acknowledgement, not a security fix or permission to bypass the backlog.
+Do not re-enable until the verifier security findings are resolved and reviewed.
+OID4VCI issuance remains available. Existing session files are not deleted.
+See [ADR: Issuer does not verify](docs/ADR-ISSUER-DOES-NOT-VERIFY.md).
