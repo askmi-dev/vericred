@@ -130,7 +130,7 @@ Goal: credentials issued by VeriCred flow cleanly into miTch presentations.
 
 - [ ] Confirm SD-JWT-VC output format matches miTch's `MitchPresentationEnvelope` intake
 - [ ] Pairwise pseudonym alignment: ensure VeriCred's HMAC-SHA256 pseudonym scheme is compatible with miTch's holder identity model
-- [ ] OID4VP verifier endpoint: so VeriCred-issued credentials can be verified in the VeriCred UI too (useful for orgs demoing the full flow)
+- Hosted OID4VP verifier: implemented historically, now disabled by default for issuer/verifier role separation. Re-enable requires security backlog closure; see docs/ADR-ISSUER-DOES-NOT-VERIFY.md.
 - [ ] Interop test suite: issue from VeriCred → present via miTch → verify at a third-party verifier
 - [ ] Publish credential schema to a public schema registry (schema.org / EBSI schema registry)
 
