@@ -18,8 +18,8 @@ async function run(env: Record<string, string>, enabled: boolean, rejected = fal
   const sessions = join(dir, 'oid4vp_sessions.json');
   const sentinel = 'invalid-session-json-for-import-detection';
   writeFileSync(sessions, sentinel);
-  const preload = resolve('src/__tests__/listen-port.cjs');
-  const child = spawn(process.execPath, ['--require', preload, '--import', tsx, server], {
+  const preload = resolve('src/__tests__/listen-port.mjs');
+  const child = spawn(process.execPath, ['--import', tsx, '--import', preload, server], {
     cwd: dir,
     env: { ...process.env, PORT: '0', DATA_DIR: dir, NODE_ENV: 'test',
       ENABLE_HOSTED_VERIFIER: '', ENABLE_HOSTED_VERIFIER_CONFIRM: '',
@@ -30,6 +30,18 @@ async function run(env: Record<string, string>, enabled: boolean, rejected = fal
   child.stdout!.on('data', b => { output += b.toString(); });
   child.stderr!.on('data', b => { output += b.toString(); });
   const exited = once(child, 'exit');
+  let startupTimer: ReturnType<typeof setTimeout> | undefined;
+  const listening = Promise.race([
+    once(child, 'message'),
+    exited.then(([code, signal]) => {
+      throw new Error(`Server exited before listening (${code ?? signal}): ${output}`);
+    }),
+    new Promise<never>((_, reject) => {
+      startupTimer = setTimeout(() => reject(new Error(`Server did not listen: ${output}`)), 10000);
+    }),
+  ]);
+  // The rejected-startup case intentionally never awaits a listening message.
+  void listening.catch(() => {});
   try {
     // Observe the actual ephemeral listening port through the test preload.
     if (rejected) {
@@ -39,7 +51,7 @@ async function run(env: Record<string, string>, enabled: boolean, rejected = fal
       expect(output).not.toContain('VeriCred running');
     } else {
       // Discover listening socket via a test-only IPC preload.
-      const [message] = await once(child, 'message') as [{ port: number }];
+      const [message] = await listening as [{ port: number }];
       const base = `http://127.0.0.1:${message.port}`;
       for (const [method, path] of routes) {
         const response = await fetch(`${base}/api/oid4vp${path}`, { method, headers: { 'X-Forwarded-Proto': 'https' } });
@@ -58,6 +70,7 @@ async function run(env: Record<string, string>, enabled: boolean, rejected = fal
       }
     }
   } finally {
+    clearTimeout(startupTimer);
     if (child.exitCode === null) child.kill('SIGTERM');
     await exited;
     rmSync(dir, { recursive: true, force: true });
