@@ -13,7 +13,17 @@ export function createRevocationRouter(): Router {
   // Current list = Token Status List; a migrated store also keeps serving its
   // legacy StatusList2021 so pre-migration revocations stay visible.
   router.get('/status/:listId', async (req, res) => {
-    const list = await getStatusListResponse(req.params.listId);
+    let list;
+    try {
+      list = await getStatusListResponse(req.params.listId);
+    } catch (e) {
+      // Express 4 doesn't catch async rejections. An unreadable or
+      // unclassified store must yield an error, never a list: verifiers that
+      // can't fetch status treat the credential as unverifiable (fail-closed).
+      console.error('[statuslist]', (e as Error).message);
+      res.status(503).json({ error: 'status list unavailable' });
+      return;
+    }
     if (!list) {
       res.status(404).json({ error: 'status list not found' });
       return;

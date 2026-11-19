@@ -102,23 +102,41 @@ describe('Token Status List Manager', () => {
     expect(await getStatusListResponse('unknown-list')).toBeNull();
   });
 
-  it('does not reclassify an unmarked Token Status List store as legacy', async () => {
-    // Store written by Token Status List code before the `format` marker
-    // existed: no nextIndex, random indices. Its URL must stay a Token Status List.
-    writeFileSync(`${DATA_DIR}/statuslist.json`, JSON.stringify({
+  it('refuses a store whose format it cannot determine, until an operator marks it', async () => {
+    // No nextIndex and no format marker: could be either format. Guessing
+    // could fail open, so the store is refused (fail-closed).
+    const ambiguous = {
       listId: 'tsl-list-0001',
       revokedIndices: [],
       issuedCredentials: [
         { credentialId: 'tsl0', holderEmail: 'a@example.com', statusIndex: 90210, issuedAt: '2026-11-19T00:00:00Z', revoked: true },
       ],
-    }));
+    };
+    writeFileSync(`${DATA_DIR}/statuslist.json`, JSON.stringify(ambiguous));
+    expect(() => getListId()).toThrow(/"format": "token-status-list"/);
+    expect(() => assignStatusIndex('x', 'x@example.com')).toThrow();
+    await expect(getStatusListResponse('tsl-list-0001')).rejects.toThrow();
 
+    // Operator confirms it was written as a Token Status List: URL keeps that format.
+    writeFileSync(`${DATA_DIR}/statuslist.json`, JSON.stringify({ ...ambiguous, format: 'token-status-list' }));
     expect(getListId()).toBe('tsl-list-0001');
     const res = await getStatusListResponse('tsl-list-0001');
     expect(res?.contentType).toBe('application/statuslist+jwt');
     const { publicKey } = await getIssuerKeyPair();
     const { payload } = await jwtVerify(res!.body, publicKey);
     expect(statusAt((payload.status_list as { lst: string }).lst, 90210)).toBe(1);
+  });
+
+  it('migrates a store the operator marks as statuslist2021, even without nextIndex', async () => {
+    writeFileSync(`${DATA_DIR}/statuslist.json`, JSON.stringify({
+      listId: 'legacy-marked',
+      format: 'statuslist2021',
+      issuedCredentials: [
+        { credentialId: 'o0', holderEmail: 'a@example.com', statusIndex: 0, issuedAt: '2026-11-01T00:00:00Z', revoked: true },
+      ],
+    }));
+    expect(getListId()).not.toBe('legacy-marked');
+    expect((await getStatusListResponse('legacy-marked'))?.contentType).toBe('application/jwt');
   });
 
   it('builds a signed IETF Token Status List', async () => {

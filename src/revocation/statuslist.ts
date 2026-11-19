@@ -42,6 +42,8 @@ const STATUSLIST_TTL_S = 300;
 const STATUSLIST_EXP_S = 24 * 3600;
 
 const TOKEN_STATUS_LIST = 'token-status-list';
+/** Operator-set marker: migrate this store as a pre-Token-Status-List StatusList2021 store. */
+const STATUSLIST2021 = 'statuslist2021';
 
 // A type alias (not an interface) so records stay assignable to
 // Record<string, unknown>, which the admin masking helpers take.
@@ -61,8 +63,11 @@ type IssuedCredentialRecord = {
 interface StatusListStore {
   /** Current list: IETF Token Status List, used for all new credentials. */
   listId: string;
-  /** Marks a store that has been migrated to (or created as) a Token Status List. */
-  format?: typeof TOKEN_STATUS_LIST;
+  /**
+   * Marks a store that has been migrated to (or created as) a Token Status
+   * List. An operator may set "statuslist2021" to force legacy migration.
+   */
+  format?: typeof TOKEN_STATUS_LIST | typeof STATUSLIST2021;
   /** Pre-migration list, still served as StatusList2021 for credentials issued before. */
   legacyListId?: string;
   /** Legacy sequential counter from before random indices; no longer used. */
@@ -97,13 +102,24 @@ function loadStore(): StatusListStore {
  * were already issued keep pointing at the old ID, which stays StatusList2021.
  */
 function migrateLegacyStore(store: StatusListStore): void {
+  // Classify only on positive evidence. Every StatusList2021 version of this
+  // module created its store with a sequential `nextIndex` counter; an operator
+  // can also force it with format "statuslist2021". Guessing wrong in either
+  // direction serves a credential's status in a format it wasn't issued
+  // against, which a lenient verifier may read as "not revoked". So an
+  // unclassifiable store with credentials is refused (fail-closed) until an
+  // operator marks it.
+  const isLegacy = store.format === STATUSLIST2021 || store.nextIndex !== undefined;
+  if (!isLegacy && store.issuedCredentials.length > 0) {
+    throw new Error(
+      '[statuslist] Cannot tell which revocation format data/statuslist.json was issued with. '
+      + 'Add "format": "token-status-list" if it was created by the Token Status List version, '
+      + 'or "format": "statuslist2021" if its credentials reference a W3C StatusList2021. '
+      + 'Refusing to serve status or issue until set.',
+    );
+  }
   store.format = TOKEN_STATUS_LIST;
-  // Only a store with positive evidence of the old code -- its sequential
-  // `nextIndex` counter -- was issued as StatusList2021. A store without it was
-  // written by Token Status List code before the format marker existed; its
-  // listId already is a Token Status List and must keep that URL.
-  if (store.nextIndex === undefined) return;
-  if (store.issuedCredentials.length === 0) return; // nothing references the old URL
+  if (!isLegacy || store.issuedCredentials.length === 0) return; // nothing references an old URL
   store.legacyListId = store.listId;
   store.listId = randomUUID();
   console.log(`[statuslist] Migrated to Token Status List ${store.listId}; `
