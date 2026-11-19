@@ -1,0 +1,5 @@
+what are the next steps for the sandbox wallet test now
+
+---
+
+yes build the CSR command
