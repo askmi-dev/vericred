@@ -3,6 +3,7 @@ import type { Router } from 'express';
 import { SignJWT } from 'jose';
 import { createHmac, randomUUID } from 'crypto';
 import { getIssuerKeyPair } from '../keys/manager.js';
+import { getIssuerSigningIdentity } from '../keys/x5c.js';
 import { loadConfig } from '../config/loader.js';
 import { lookupAccessToken, rotateNonce } from './token.js';
 import { assignStatusIndex } from '../revocation/statuslist.js';
@@ -211,6 +212,17 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
     const iat = Math.floor(Date.now() / 1000 / DAY) * DAY;
     const exp = iat + config.credential.expiresInDays * DAY;
 
+    // Checked before any status index is consumed. A chain wallets would
+    // reject stops issuance (Express 4 doesn't catch async throws).
+    let identity: { iss: string; x5c?: string[] };
+    try {
+      identity = await getIssuerSigningIdentity(config);
+    } catch (e) {
+      console.error('[issuer]', (e as Error).message);
+      res.status(500).json({ error: 'server_error', error_description: 'issuer certificate chain is invalid' });
+      return;
+    }
+
     const issued: Array<{ credential: string; credentialId: string; statusIndex: number }> = [];
     for (const holder of holders) {
       // Fresh salts per copy, so no disclosure or _sd digest repeats across copies.
@@ -232,7 +244,7 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
       const jwt = await new SignJWT({
         vct: credentialType,
         jti: credentialId,
-        iss: config.issuer.did,
+        iss: identity.iss,
         sub: pseudonym,
         iat,
         exp,
@@ -243,7 +255,7 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
           status_list: { idx: statusIndex, uri: `${config.issuer.url}/status/${listId}` },
         },
       })
-        .setProtectedHeader({ alg: 'ES256', kid, typ: format })
+        .setProtectedHeader({ alg: 'ES256', kid, typ: format, ...(identity.x5c ? { x5c: identity.x5c } : {}) })
         .sign(privateKey);
 
       issued.push({ credential: combineSdJwt(jwt, disclosures), credentialId, statusIndex });

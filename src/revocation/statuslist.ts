@@ -22,6 +22,7 @@ import { randomInt, randomUUID } from 'crypto';
 import { deflateSync } from 'zlib';
 import { SignJWT } from 'jose';
 import { getIssuerKeyPair } from '../keys/manager.js';
+import { getIssuerSigningIdentity } from '../keys/x5c.js';
 import { loadConfig } from '../config/loader.js';
 
 function getPaths() {
@@ -287,7 +288,10 @@ export async function buildStatusListJWT(): Promise<string> {
 
   const now = Math.floor(Date.now() / 1000);
   const revoked = revokedIndicesIn(store, store.listId);
-  const revokedIndicesHash = store.listId + ':' + revoked.join(',');
+  // Before the cache: an expired or replaced chain must not keep being served.
+  // Throws on a chain wallets would reject; the router turns that into 503.
+  const { iss, x5c } = await getIssuerSigningIdentity(config);
+  const revokedIndicesHash = [store.listId, kid, iss, x5c?.[0] ?? '', revoked.join(',')].join(':');
 
   // Check cache validity
   if (cachedStatusListJWT &&
@@ -297,7 +301,7 @@ export async function buildStatusListJWT(): Promise<string> {
   }
 
   const jwt = await new SignJWT({
-    iss: config.issuer.did,
+    iss,
     sub: `${config.issuer.url}/status/${store.listId}`,
     iat: now,
     exp: now + STATUSLIST_EXP_S,
@@ -307,7 +311,7 @@ export async function buildStatusListJWT(): Promise<string> {
       lst: deflateSync(buildBitstring(revoked)).toString('base64url'),
     },
   })
-    .setProtectedHeader({ alg: 'ES256', kid, typ: 'statuslist+jwt' })
+    .setProtectedHeader({ alg: 'ES256', kid, typ: 'statuslist+jwt', ...(x5c ? { x5c } : {}) })
     .sign(privateKey);
 
   // Cache the signed JWT

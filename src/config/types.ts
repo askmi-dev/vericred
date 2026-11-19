@@ -3,6 +3,14 @@ export interface VeriCredConfig {
     name: string;
     url: string;
     did: string;
+    /**
+     * Optional path to a PEM file with the issuer's X.509 certificate chain:
+     * issuer (leaf) certificate first, then intermediates, without the root.
+     * When set, SD-JWT VCs and Status List Tokens carry it as `x5c` (HAIP 1.0)
+     * and `iss` becomes `url`, which must match the leaf's subjectAltName.
+     * The leaf must certify the current issuer key.
+     */
+    certificateChain?: string;
   };
   credential: {
     type: string;
