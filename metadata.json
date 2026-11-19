@@ -1,0 +1,62 @@
+{
+  "cli_version": "0.13.4",
+  "checkpoint_id": "01M7TPGY51Q5ZGTM4QZ7WWZ059",
+  "strategy": "manual-commit",
+  "branch": "feat/unlinkable-batch-token-status-list",
+  "checkpoints_count": 13,
+  "files_touched": [
+    "AGENTS.md",
+    "README.md",
+    "docs/WALLET_INTEROP_GUIDE.md",
+    "implementation_plan_v2.md",
+    "src/config/types.ts",
+    "src/oid4vci/__tests__/eudi-interop.test.ts",
+    "src/oid4vci/__tests__/unlinkable-batch.test.ts",
+    "src/oid4vci/issuer.ts",
+    "src/oid4vci/metadata.ts",
+    "src/revocation/__tests__/integration.test.ts",
+    "src/revocation/__tests__/revocation-flow.test.ts",
+    "src/revocation/__tests__/statuslist.test.ts",
+    "src/revocation/__tests__/token-status-helpers.ts",
+    "src/revocation/router.ts",
+    "src/revocation/statuslist.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 120,
+    "cache_creation_tokens": 172620,
+    "cache_read_tokens": 8451433,
+    "output_tokens": 63364,
+    "api_call_count": 59,
+    "subagent_tokens": {
+      "input_tokens": 8,
+      "cache_creation_tokens": 67321,
+      "cache_read_tokens": 44807,
+      "output_tokens": 9954,
+      "api_call_count": 4
+    },
+    "subagent_tokens_complete": true
+  },
+  "redaction": {
+    "replacements": 24,
+    "layers": {
+      "betterleaks": 0,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 11,
+      "credentialed_uri": 0,
+      "entropy": 0,
+      "key_context": 13,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}
