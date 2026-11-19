@@ -40,7 +40,13 @@ This guide helps you connect real-world mobile wallets to your VeriCred instance
 
 EUDI wallets trust issuers through certificates from a registrar's CA, not through DIDs. HAIP 1.0 requires the chain in the `x5c` header of SD-JWT VCs and Status List Tokens.
 
-1. Get a certificate for VeriCred's **current issuer public key** (the registrar's process, for example a CSR). Its subjectAltName must contain `URI:<issuer.url>` or `DNS:<host of issuer.url>`.
+1. Get a certificate for VeriCred's **current issuer public key**. Its subjectAltName must contain `URI:<issuer.url>` or `DNS:<host of issuer.url>`. If the registrar accepts a CSR, create one on the issuer machine:
+
+    ```sh
+    ISSUER_URL=https://issuer.yourcompany.com npm run csr -- --org "Your Company GmbH" --country DE
+    ```
+
+    This writes `issuer.csr.pem` for the existing key (it never creates one) with both SANs set from `issuer.url`. It contains no secret. The private key never leaves the process. Use the same `DATA_DIR` as the server. After a production build, `node dist/cli/csr.js` does the same.
 2. Save the chain as PEM: issuer certificate first, then intermediates. **Leave the root out**, because wallets already have it as a trust anchor.
 3. Set `"issuer": { "certificateChain": "/path/to/chain.pem" }` in `vericred.config.json`.
 
