@@ -8,8 +8,10 @@ This guide helps you connect real-world mobile wallets to your VeriCred instance
 
 | Component | Standard | Note |
 |-----------|----------|------|
-| **Issuance Protocol** | OID4VCI (draft-13+) | Supports Pre-Authorized Code Flow. |
-| **Credential Format** | `dc+sd-jwt` | Modern SD-JWT-VC (Digital Credentials). |
+| **Issuance Protocol** | OID4VCI (draft-13+ / 1.0 batch) | Supports Pre-Authorized Code Flow. |
+| **Credential Format** | `dc+sd-jwt` | Modern SD-JWT-VC (Digital Credentials); JWT header `typ` matches. |
+| **Batch Issuance** | OID4VCI 1.0 `proofs.jwt` | Up to `batch_credential_issuance.batch_size` copies, one per holder key, for unlinkable presentations. |
+| **Revocation** | IETF Token Status List | `status.status_list` reference; list served as `application/statuslist+jwt`. |
 | **Key Binding** | JWK Thumbprint | Proof-of-possession via KB-JWT. |
 | **Crypto** | ECDSA P-256 (ES256) | NIST P-256 curve support. |
 

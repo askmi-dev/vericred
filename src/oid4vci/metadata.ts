@@ -3,6 +3,9 @@ import { Router as createRouter } from 'express';
 import { loadConfig } from '../config/loader.js';
 import { listTemplates, getTemplate } from '../credentials/registry.js';
 
+/** Copies per batch request unless config.credential.batchSize says otherwise. */
+export const DEFAULT_BATCH_SIZE = 10;
+
 // Templates must be registered before metadata is served
 import '../credentials/templates/age.js';
 import '../credentials/templates/employee.js';
@@ -97,6 +100,13 @@ export function createMetadataRouter(): Router {
       ],
 
       credential_configurations_supported: credentialConfigurations,
+
+      /**
+       * OID4VCI 1.0 batch issuance: one request with N holder proofs returns
+       * N copies, each bound to its own key. Wallets present a fresh copy
+       * per verifier, so presentations can't be linked to each other.
+       */
+      batch_credential_issuance: { batch_size: config.credential.batchSize ?? DEFAULT_BATCH_SIZE },
     });
   });
 

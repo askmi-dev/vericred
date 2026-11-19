@@ -14,6 +14,12 @@ export interface VeriCredConfig {
      * Default: "dc+sd-jwt"
      */
     format?: 'dc+sd-jwt' | 'vc+sd-jwt';
+    /**
+     * Max credentials per OID4VCI batch request (advertised as
+     * batch_credential_issuance.batch_size). Wallets use one copy per
+     * verifier so presentations can't be linked. Default: 10.
+     */
+    batchSize?: number;
   };
   templateOptions?: Record<string, unknown>;
   dataSource: {

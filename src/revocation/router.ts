@@ -17,7 +17,7 @@ export function createRevocationRouter(): Router {
       return;
     }
     const jwt = await buildStatusListJWT();
-    res.setHeader('Content-Type', 'application/jwt');
+    res.setHeader('Content-Type', 'application/statuslist+jwt');
     res.send(jwt);
   });
 
