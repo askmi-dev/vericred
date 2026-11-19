@@ -1,0 +1,23 @@
+<pasted_content id="97ab">
+VeriCred is running locally, and all four checks on PR #57 passed at 21f750d. I stopped the old watcher, ran npm ci, restarted the dev server, and verified the homepage, admin login, and health endpoint. Open VeriCred · Admin login · PR checks
+
+The fresh Windows run passed 218 of 220 tests, including both OpenSSL CSR tests. The landing-page test now passes. Both remaining failures are in path-containment.test.ts.
+
+The public HTTPS preview works, but it isn’t ready for the registrar. Railway marks the PR environment as temporary, and its live metadata directs wallets to https://vericred-production.up.railway.app/credentials. A wallet starting in the preview would therefore request issuance from production. I recommend a persistent sandbox hostname with its own issuer key, then generating the CSR once that hostname matches the live metadata. Preview health · Preview issuer metadata
+
+The sandbox intent form is pending. It requires the applicant’s first and last name, email, organization, and acceptance of the terms and user policy. Submission also opts the contact into project and promotional emails. I’ve asked for those details and your consent. The form has no field for a pilot description or issuer URL, so registration can proceed independently of the hostname decision. Official intent form · Issuer onboarding guide
+
+For the kick-off, I’d ask the registrar three precise questions:
+
+1. Can you sign a PKCS#10 CSR for our existing P-256 issuer key?
+2. Which subject alternative name do you put in the leaf certificate: the issuer HTTPS URI, its DNS hostname, or both?
+3. For batch issuance, does the sandbox require wallet attestation, attestation of each holder key, or both?
+</pasted_content id="97ab">
+
+---
+
+yes but before i want you to finde a seperate task that i can hand to GPT Astra so you dont touch the same files once you hand me over the task i give my go for you to build it
+
+---
+
+GPT is working now finde you task and go
