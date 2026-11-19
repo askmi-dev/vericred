@@ -102,6 +102,25 @@ describe('Token Status List Manager', () => {
     expect(await getStatusListResponse('unknown-list')).toBeNull();
   });
 
+  it('does not reclassify an unmarked Token Status List store as legacy', async () => {
+    // Store written by Token Status List code before the `format` marker
+    // existed: no nextIndex, random indices. Its URL must stay a Token Status List.
+    writeFileSync(`${DATA_DIR}/statuslist.json`, JSON.stringify({
+      listId: 'tsl-list-0001',
+      revokedIndices: [],
+      issuedCredentials: [
+        { credentialId: 'tsl0', holderEmail: 'a@example.com', statusIndex: 90210, issuedAt: '2026-11-19T00:00:00Z', revoked: true },
+      ],
+    }));
+
+    expect(getListId()).toBe('tsl-list-0001');
+    const res = await getStatusListResponse('tsl-list-0001');
+    expect(res?.contentType).toBe('application/statuslist+jwt');
+    const { publicKey } = await getIssuerKeyPair();
+    const { payload } = await jwtVerify(res!.body, publicKey);
+    expect(statusAt((payload.status_list as { lst: string }).lst, 90210)).toBe(1);
+  });
+
   it('builds a signed IETF Token Status List', async () => {
     const { statusIndex: active } = assignStatusIndex('vc1', 'a@example.com');
     const { statusIndex: revoked } = assignStatusIndex('vc2', 'b@example.com');

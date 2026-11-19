@@ -98,6 +98,11 @@ function loadStore(): StatusListStore {
  */
 function migrateLegacyStore(store: StatusListStore): void {
   store.format = TOKEN_STATUS_LIST;
+  // Only a store with positive evidence of the old code -- its sequential
+  // `nextIndex` counter -- was issued as StatusList2021. A store without it was
+  // written by Token Status List code before the format marker existed; its
+  // listId already is a Token Status List and must keep that URL.
+  if (store.nextIndex === undefined) return;
   if (store.issuedCredentials.length === 0) return; // nothing references the old URL
   store.legacyListId = store.listId;
   store.listId = randomUUID();
@@ -110,9 +115,12 @@ function saveStore(store: StatusListStore): void {
   writeFileSync(statusPath, JSON.stringify(store, null, 2));
 }
 
-/** The list a record belongs to. */
-function listOf(store: StatusListStore, c: IssuedCredentialRecord): string | undefined {
-  return c.listId ?? store.legacyListId;
+/**
+ * The list a record belongs to. Records without listId predate it: they sit in
+ * the legacy list if the store was migrated, otherwise in the current list.
+ */
+function listOf(store: StatusListStore, c: IssuedCredentialRecord): string {
+  return c.listId ?? store.legacyListId ?? store.listId;
 }
 
 function revokedIndicesIn(store: StatusListStore, listId: string): number[] {
@@ -300,6 +308,12 @@ export async function buildStatusListJWT(): Promise<string> {
  * Build the legacy W3C StatusList2021 credential for credentials issued
  * before the Token Status List switch. Same shape those credentials were
  * issued against, so their verifiers keep seeing revocations.
+ *
+ * Known deviation, kept on purpose: the original implementation set bits
+ * LSB-first and did not GZIP `encodedList`, unlike the W3C spec (MSB-first,
+ * GZIP). This reproduces it byte-for-byte, because existing verifiers were
+ * built against it. A strictly spec-conformant verifier fails to gunzip and
+ * rejects (fail-closed). The list retires once legacy credentials expire.
  */
 async function buildLegacyStatusList2021JWT(store: StatusListStore, legacyListId: string): Promise<string> {
   const { privateKey, kid } = await getIssuerKeyPair();
