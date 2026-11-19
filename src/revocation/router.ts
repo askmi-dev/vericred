@@ -1,6 +1,6 @@
 import { Router as createRouter } from 'express';
 import type { Router } from 'express';
-import { buildStatusListJWT, getListId } from './statuslist.js';
+import { getStatusListResponse } from './statuslist.js';
 import { requireAdmin, requireCsrf } from '../middleware/auth.js';
 import { revokeCredential, getIssuedCredentials, searchCredentials, getCredentialById } from './statuslist.js';
 import { maskCredentialRecord } from '../admin/masking.js';
@@ -9,16 +9,17 @@ import { getSessionId } from '../middleware/auth.js';
 export function createRevocationRouter(): Router {
   const router = createRouter();
 
-  // Public: serve status list JWT (wallets + verifiers fetch this)
+  // Public: serve status list JWT (wallets + verifiers fetch this).
+  // Current list = Token Status List; a migrated store also keeps serving its
+  // legacy StatusList2021 so pre-migration revocations stay visible.
   router.get('/status/:listId', async (req, res) => {
-    const listId = getListId();
-    if (req.params.listId !== listId) {
+    const list = await getStatusListResponse(req.params.listId);
+    if (!list) {
       res.status(404).json({ error: 'status list not found' });
       return;
     }
-    const jwt = await buildStatusListJWT();
-    res.setHeader('Content-Type', 'application/statuslist+jwt');
-    res.send(jwt);
+    res.setHeader('Content-Type', list.contentType);
+    res.send(list.body);
   });
 
   // Admin: revoke by credential ID

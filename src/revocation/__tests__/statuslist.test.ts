@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { existsSync, rmSync, mkdirSync } from 'fs';
-import { assignStatusIndex, revokeCredential, buildStatusListJWT, getListId, getIssuedCredentials } from '../statuslist.js';
+import { existsSync, rmSync, mkdirSync, writeFileSync } from 'fs';
+import { assignStatusIndex, revokeCredential, buildStatusListJWT, getListId, getIssuedCredentials, getStatusListResponse } from '../statuslist.js';
 import { jwtVerify, decodeProtectedHeader } from 'jose';
 import { getIssuerKeyPair } from '../../keys/manager.js';
 import { statusAt } from './token-status-helpers.js';
@@ -58,6 +58,48 @@ describe('Token Status List Manager', () => {
     expect(revokeCredential('b2')).toBe(true);
     const byId = Object.fromEntries(getIssuedCredentials().map(c => [c.credentialId, c.revoked]));
     expect(byId).toEqual({ b1: true, b2: true, other: false });
+  });
+
+  it('keeps serving a migrated legacy list as StatusList2021 so revocations never fail open', async () => {
+    // Store written by the pre-Token-Status-List version: sequential indices,
+    // no format marker, index 1 already revoked.
+    const legacyListId = 'legacy-list-0001';
+    writeFileSync(`${DATA_DIR}/statuslist.json`, JSON.stringify({
+      listId: legacyListId,
+      nextIndex: 3,
+      revokedIndices: [1],
+      issuedCredentials: [
+        { credentialId: 'old0', holderEmail: 'a@example.com', statusIndex: 0, issuedAt: '2026-11-01T00:00:00Z', revoked: false },
+        { credentialId: 'old1', holderEmail: 'b@example.com', statusIndex: 1, issuedAt: '2026-11-01T00:00:00Z', revoked: true, revokedAt: '2026-11-02T00:00:00Z' },
+        { credentialId: 'old2', holderEmail: 'c@example.com', statusIndex: 2, issuedAt: '2026-11-01T00:00:00Z', revoked: false },
+      ],
+    }));
+
+    // New credentials go to a fresh Token Status List ID, not the legacy URL.
+    const { listId: newListId, statusIndex: newIdx } = assignStatusIndex('new0', 'd@example.com');
+    expect(newListId).not.toBe(legacyListId);
+    expect(getListId()).toBe(newListId);
+
+    // A revocation of a legacy credential after migration still reaches the legacy list.
+    expect(revokeCredential('old2')).toBe(true);
+
+    const { publicKey } = await getIssuerKeyPair();
+    const legacy = await getStatusListResponse(legacyListId);
+    expect(legacy?.contentType).toBe('application/jwt');
+    const { payload: legacyPayload } = await jwtVerify(legacy!.body, publicKey);
+    expect(legacyPayload.type).toContain('StatusList2021Credential');
+    const bits = Buffer.from((legacyPayload.credentialSubject as any).encodedList, 'base64url');
+    expect(bits[0]).toBe(0b110); // old1 (bit 1) and old2 (bit 2) revoked, old0 active
+
+    const current = await getStatusListResponse(newListId);
+    expect(current?.contentType).toBe('application/statuslist+jwt');
+    const { payload } = await jwtVerify(current!.body, publicKey);
+    const lst = (payload.status_list as { lst: string }).lst;
+    expect(statusAt(lst, newIdx)).toBe(0);
+    // Legacy revocations must not leak into the new list's bits.
+    expect([1, 2].filter(i => i !== newIdx).every(i => statusAt(lst, i) === 0)).toBe(true);
+
+    expect(await getStatusListResponse('unknown-list')).toBeNull();
   });
 
   it('builds a signed IETF Token Status List', async () => {
