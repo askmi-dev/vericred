@@ -46,7 +46,7 @@ EUDI wallets trust issuers through certificates from a registrar's CA, not throu
     ISSUER_URL=https://issuer.yourcompany.com npm run csr -- --org "Your Company GmbH" --country DE
     ```
 
-    This writes `issuer.csr.pem` for the existing key (it never creates one) with both SANs set from `issuer.url`. It contains no secret. The private key never leaves the process. Use the same `DATA_DIR` as the server. After a production build, `node dist/cli/csr.js` does the same.
+    It first checks that the deployment at `issuer.url` names itself as `credential_issuer` and publishes this key in its `did.json`, and refuses otherwise. A certificate binds the key to the URL, so it must be the same deployment. (`--skip-url-check` bypasses this, for example when deliberately offline.) It then writes `issuer.csr.pem` for the existing key (it never creates one) with both SANs set from `issuer.url`. It contains no secret. The private key never leaves the process. Use the same `DATA_DIR` as the server. After a production build, `node dist/cli/csr.js` does the same.
 2. Save the chain as PEM: issuer certificate first, then intermediates. **Leave the root out**, because wallets already have it as a trust anchor.
 3. Set `"issuer": { "certificateChain": "/path/to/chain.pem" }` in `vericred.config.json`.
 
@@ -54,7 +54,25 @@ With a chain configured, `iss` becomes `issuer.url` (it must match the certifica
 
 VeriCred checks the chain on every signature and **refuses to sign** if wallets would reject it. Issuance then returns `500 server_error` and `/status` returns `503`. Causes are a key mismatch (for example after key rotation, when you need a new certificate), expiry, wrong order, an included root, or a SAN that doesn't name `issuer.url`. The server log says which one.
 
-## 5. Common Interoperability Issues
+## 5. Issuer URL Self-Check
+
+Every URL a wallet uses (credential endpoint, status lists, the certificate SAN) comes from `issuer.url`. OID4VCI requires the metadata's `credential_issuer` to be **identical** to the URL the wallet fetched it from. A deployment with the wrong `ISSUER_URL` fails confusingly. A strict wallet rejects it, and a lenient one sends issuance to the other deployment.
+
+VeriCred checks this and **warns** (it never blocks):
+- **On every metadata request:** it compares the requested origin (`X-Forwarded-Host`/`Host`, `X-Forwarded-Proto`) with `issuer.url`. It logs a mismatch and reports it on `/health`:
+  `"issuerUrl": { "status": "ok" | "unchecked" | "mismatch", "configured": ..., "observed": ... }`.
+  `/health` stays HTTP 200 so platform healthchecks don't restart the service.
+- **At startup on Railway:** it compares `RAILWAY_PUBLIC_DOMAIN` with `issuer.url`.
+
+**Railway PR environments** inherit production's variables, including `ISSUER_URL`. Give them their own value and their own volume (own `DATA_DIR`, own issuer key):
+
+```text
+ISSUER_URL=https://${{RAILWAY_PUBLIC_DOMAIN}}
+```
+
+For registrar certificates, use a **persistent** sandbox hostname, not a temporary PR environment. The certificate is tied to both the key and the URL.
+
+## 6. Common Interoperability Issues
 
 ### "Invalid Format" or "Unsupported Type"
 Some older wallets expect `vc+sd-jwt` instead of the modern `dc+sd-jwt`.
@@ -70,7 +88,7 @@ The wallet sends a proof-of-possession JWT. If it fails:
 *   Ensure the wallet is using `ES256` for its proof.
 *   Verify that the `nonce` in the wallet's proof matches the one issued in the offer.
 
-## 6. Debugging Tools
+## 7. Debugging Tools
 
 *   **OID4VCI Trace**: Check the server console logs for `[proof]` and `[issuer]` messages.
 *   **SD-JWT Tool**: Use [sd-jwt.js](https://sd-jwt.js.org/) to deconstruct and verify the tokens issued by VeriCred.

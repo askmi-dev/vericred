@@ -11,6 +11,7 @@ import type { KeyObject } from 'crypto';
 import { loadConfig } from '../config/loader.js';
 import { loadExistingIssuerKeyPair, ISSUER_KEY_PATH } from '../keys/manager.js';
 import { buildCsr } from '../keys/csr.js';
+import { verifyIssuerUrlServesKey } from '../config/issuer-url-check.js';
 
 async function main(): Promise<number> {
   const { values } = parseArgs({
@@ -19,11 +20,12 @@ async function main(): Promise<number> {
       org: { type: 'string' },
       country: { type: 'string' },
       out: { type: 'string', default: 'issuer.csr.pem' },
+      'skip-url-check': { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
     },
   });
   if (values.help) {
-    console.log('Usage: npm run csr -- [--cn <name>] [--org <name>] [--country DE] [--out issuer.csr.pem]');
+    console.log('Usage: npm run csr -- [--cn <name>] [--org <name>] [--country DE] [--out issuer.csr.pem] [--skip-url-check]');
     return 0;
   }
 
@@ -37,6 +39,22 @@ async function main(): Promise<number> {
   const url = new URL(config.issuer.url);
   if (url.protocol !== 'https:' || ['localhost', '127.0.0.1'].includes(url.hostname)) {
     console.warn(`Warning: issuer.url is ${config.issuer.url}. A registrar will only certify a public https URL; set ISSUER_URL first.`);
+  }
+
+  // A certificate binds this key to issuer.url: make sure that URL is the
+  // deployment that signs with this key, before a registrar certifies it.
+  if (values['skip-url-check']) {
+    console.warn('Warning: --skip-url-check. Not verifying that issuer.url serves this key.');
+  } else {
+    const jwk = (keys.publicKey as KeyObject).export({ format: 'jwk' });
+    const problems = await verifyIssuerUrlServesKey(config.issuer.url, { kid: keys.kid, x: jwk.x, y: jwk.y });
+    if (problems.length > 0) {
+      console.error(`Refusing to create a CSR: issuer.url (${config.issuer.url}) does not match this deployment.\n`
+        + problems.map(p => `  - ${p}`).join('\n')
+        + '\nSet ISSUER_URL to the public https URL of the deployment that holds this key, and run it there.'
+        + '\n(Deliberately offline? --skip-url-check bypasses this.)');
+      return 1;
+    }
   }
 
   const uri = config.issuer.url.replace(/\/+$/, '');
@@ -67,4 +85,6 @@ Next:
   return 0;
 }
 
-main().then(code => process.exit(code), (e: Error) => { console.error(e.message); process.exit(1); });
+// exitCode, not process.exit(): exiting while fetch sockets are still closing
+// trips a libuv assertion on Windows (exit 127 instead of our code).
+main().then(code => { process.exitCode = code; }, (e: Error) => { console.error(e.message); process.exitCode = 1; });
