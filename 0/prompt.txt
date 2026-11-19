@@ -1,0 +1,11 @@
+what are the next steps for the sandbox wallet test
+
+---
+
+<task-notification>
+<summary>Commit security review found: revocation fail-open / format change for already-issued credentials in src/revocation/statuslist.ts</summary>
+</task-notification>
+
+---
+
+yes fix it in the PR, then research x5c
