@@ -9,8 +9,7 @@
  */
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { randomUUID } from 'crypto';
-import { SignJWT } from 'jose';
-import { getIssuerKeyPair } from '../keys/manager.js';
+import { getKeyProvider } from '../keys/provider.js';
 import { loadConfig } from '../config/loader.js';
 
 function getPaths() {
@@ -162,7 +161,6 @@ export function getListId(): string {
 /** Build and sign a StatusList2021 VC. Served at /status/{listId}. */
 export async function buildStatusListJWT(): Promise<string> {
   const store = loadStore();
-  const { privateKey, kid } = await getIssuerKeyPair();
   const config = loadConfig();
 
   const bitstring = buildBitstring(store.revokedIndices);
@@ -177,7 +175,7 @@ export async function buildStatusListJWT(): Promise<string> {
     return cachedStatusListJWT.jwt;
   }
 
-  const jwt = await new SignJWT({
+  const jwt = await getKeyProvider().signJwt({
     '@context': ['https://www.w3.org/2018/credentials/v1', 'https://w3id.org/vc/status-list/2021/v1'],
     type: ['VerifiableCredential', 'StatusList2021Credential'],
     issuer: config.issuer.did,
@@ -188,10 +186,8 @@ export async function buildStatusListJWT(): Promise<string> {
       statusPurpose: 'revocation',
       encodedList: bitstring,
     },
-  })
-    .setProtectedHeader({ alg: 'ES256', kid, typ: 'JWT' })
-    .setIssuedAt(now)
-    .sign(privateKey);
+    iat: now,
+  }, 'JWT');
 
   // Cache the signed JWT
   cachedStatusListJWT = {

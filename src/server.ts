@@ -4,7 +4,7 @@ import path from 'path';
 import { isPathWithinRoot } from './util/path-containment.js';
 import { loadConfig } from './config/loader.js';
 import { loadSecrets } from './config/secrets.js';
-import { getIssuerKeyPair } from './keys/manager.js';
+import { getKeyProvider } from './keys/provider.js';
 import { createDidRouter } from './did/publisher.js';
 import { createMetadataRouter } from './oid4vci/metadata.js';
 import { createTokenRouter } from './oid4vci/token.js';
@@ -232,7 +232,7 @@ app.get('/api/info', (_req, res) => {
 const PORT = process.env['PORT'] ?? 3100;
 export const SERVER_STARTED_AT = new Date();
 
-await getIssuerKeyPair();
+await getKeyProvider().getActiveKey();
 
 app.listen(PORT, () => {
   console.log('');
