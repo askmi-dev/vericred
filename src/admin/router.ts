@@ -1,3 +1,4 @@
+import { randomBytes, createHmac, timingSafeEqual, createHash } from 'crypto';
 import { writeFileSync } from 'fs';
 import { Router as createRouter } from 'express';
 import type { Router } from 'express';
@@ -5,13 +6,62 @@ import { requireAdmin } from '../middleware/auth.js';
 import { getRuntimeStats, getUptime } from './runtime.js';
 import { getIssuedCredentials } from '../revocation/statuslist.js';
 import { loadSecrets } from '../config/secrets.js';
-import { createSession, destroySession, createCsrfToken, requireCsrf, cookieFlags, getSessionId } from '../middleware/auth.js';
+import { createSession, destroySession, createCsrfToken, requireCsrf, cookieFlags, getSessionId, isProduction, parseCookies } from '../middleware/auth.js';
 import { setHolderPassword, formatInTimezone, readHolders, REGIONS, REGION_TIMEZONE } from '../connectors/generator.js';
 import type { HolderRecord } from '../connectors/generator.js';
 import { listTemplates, getTemplate } from '../credentials/registry.js';
 import { maskHolderRecord } from './masking.js';
 import { loadConfig } from '../config/loader.js';
 import type { Connector } from '../connectors/index.js';
+import type { Request, Response, NextFunction } from 'express';
+
+function requireLoginCsrf(req: Request, res: Response, next: NextFunction): void {
+  // 1. Origin check
+  const origin = req.headers['origin'] || req.headers['referer'];
+  if (origin) {
+    try {
+      const originHost = new URL(origin).host;
+      const expectedHost = req.headers['host'];
+      if (originHost !== expectedHost) {
+        res.status(403).json({ error: 'invalid origin' });
+        return;
+      }
+    } catch {
+      res.status(403).json({ error: 'invalid origin format' });
+      return;
+    }
+  }
+
+  // 2. Token check
+  const cookies = parseCookies(req.headers.cookie ?? '');
+  const adminPre = cookies['admin_pre'];
+  const submittedCsrf = (req.body as Record<string, string>)['csrf'];
+
+  if (!adminPre || !submittedCsrf) {
+    res.status(403).json({ error: 'missing csrf token' });
+    return;
+  }
+
+  const secret = loadSecrets().adminApiKey;
+  const expectedCsrf = createHmac('sha256', secret).update('login-csrf:v1:' + adminPre).digest('hex');
+
+  const expectedBuffer = Buffer.from(expectedCsrf, 'hex');
+  let submittedBuffer: Buffer;
+  try {
+    submittedBuffer = Buffer.from(submittedCsrf, 'hex');
+  } catch {
+    res.status(403).json({ error: 'invalid csrf token format' });
+    return;
+  }
+
+  if (expectedBuffer.length !== submittedBuffer.length || !timingSafeEqual(expectedBuffer, submittedBuffer)) {
+    res.status(403).json({ error: 'invalid csrf token' });
+    return;
+  }
+
+  next();
+}
+
 import { getIssuerKeyPair, rotateIssuerKeyPair, getAllPublicKeys } from '../keys/manager.js';
 import { calculateJwkThumbprint, exportJWK } from 'jose';
 import { getInteropLogs } from '../oid4vci/interop-logger.js';
@@ -111,23 +161,48 @@ export function createAdminRouter(connector: Connector): Router {
   });
 
   router.get('/admin/login', (_req, res) => {
+    const preSession = randomBytes(32).toString('hex');
+    const secret = loadSecrets().adminApiKey;
+    const csrfToken = createHmac('sha256', secret).update('login-csrf:v1:' + preSession).digest('hex');
+
+    let cookie = 'admin_pre=' + preSession + '; HttpOnly; Path=/admin/login; SameSite=Strict; Max-Age=600';
+    if (isProduction) cookie += '; Secure';
+
+    res.setHeader('Set-Cookie', cookie);
     res.setHeader('Content-Type', 'text/html');
     res.send('<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>VeriCred Admin</title>'
       + '<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh}.card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:2rem;width:360px}h1{font-size:1.4rem;margin-bottom:.25rem;color:#f1f5f9}p{font-size:.85rem;color:#94a3b8;margin-bottom:1.5rem}input{width:100%;padding:.6rem .8rem;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-size:.9rem;margin-bottom:1rem}button{width:100%;padding:.7rem;background:#6366f1;border:none;border-radius:6px;color:white;font-size:.95rem;cursor:pointer}button:hover{background:#4f46e5}</style>'
       + '</head><body><div class="card"><h1>VeriCred</h1><p>Admin-Zugang</p>'
-      + '<form method="POST" action="/admin/login"><input type="password" name="apiKey" placeholder="Admin API Key" autofocus required /><button type="submit">Einloggen</button></form>'
+      + '<form method="POST" action="/admin/login"><input type="password" name="apiKey" placeholder="Admin API Key" autofocus required /><input type="hidden" name="csrf" value="' + csrfToken + '" /><button type="submit">Einloggen</button></form>'
       + '</div></body></html>');
   });
 
-  router.post('/admin/login', (req, res) => {
-    const { apiKey } = req.body as { apiKey: string };
-    if (apiKey === loadSecrets().adminApiKey) {
-      const sessionToken = createSession();
-      res.setHeader('Set-Cookie', 'admin_session=' + sessionToken + cookieFlags());
-      res.redirect('/console/dashboard');
-      return;
+  router.post('/admin/login', requireLoginCsrf, (req, res) => {
+    try {
+      const { apiKey } = req.body as { apiKey?: string };
+      if (!apiKey) {
+        res.redirect('/admin/login?err=1');
+        return;
+      }
+
+      const expectedKeyBuffer = createHash('sha256').update(loadSecrets().adminApiKey).digest();
+      const providedKeyBuffer = createHash('sha256').update(apiKey).digest();
+
+      if (timingSafeEqual(expectedKeyBuffer, providedKeyBuffer)) {
+        // Login successful
+        const sessionToken = createSession();
+        res.setHeader('Set-Cookie', [
+          'admin_session=' + sessionToken + cookieFlags(),
+          'admin_pre=; HttpOnly; Path=/admin/login; Max-Age=0' + (isProduction ? '; Secure' : '')
+        ]);
+        res.redirect('/console/dashboard');
+        return;
+      }
+      res.redirect('/admin/login?err=1');
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: err.message });
     }
-    res.redirect('/admin/login?err=1');
   });
 
   router.get('/admin/logout', (req, res) => {

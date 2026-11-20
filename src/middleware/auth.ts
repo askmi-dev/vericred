@@ -20,7 +20,7 @@ interface CsrfTokenEntry {
 }
 const csrfTokens = new Map<string, CsrfTokenEntry>(); // token -> entry
 
-const isProduction = process.env['NODE_ENV'] === 'production';
+export const isProduction = process.env['NODE_ENV'] === 'production';
 const COOKIE_FLAGS = '; HttpOnly; Path=/; SameSite=Strict; Max-Age=28800'
   + (isProduction ? '; Secure' : '');
 
@@ -124,7 +124,7 @@ export function cookieFlags(): string {
   return COOKIE_FLAGS;
 }
 
-function parseCookies(header: string): Record<string, string> {
+export function parseCookies(header: string): Record<string, string> {
   const result: Record<string, string> = {};
   for (const part of header.split(';')) {
     const idx = part.indexOf('=');
