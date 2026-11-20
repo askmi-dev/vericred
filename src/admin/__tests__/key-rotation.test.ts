@@ -12,9 +12,9 @@ describe('Key Management & Rotation', () => {
     mkdirSync(tempDir, { recursive: true });
 
     process.env['DATA_DIR'] = tempDir;
-    process.env['PORT'] = '3517';
-    process.env['ISSUER_URL'] = 'http://localhost:3517';
-    serverUrl = 'http://localhost:3517';
+    process.env['PORT'] = '3532';
+    process.env['ISSUER_URL'] = 'http://localhost:3532';
+    serverUrl = 'http://localhost:3532';
 
     await import('../../server.js');
     await new Promise(resolve => setTimeout(resolve, 500));
