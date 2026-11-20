@@ -4,7 +4,9 @@
  */
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { generateKeyPair, exportJWK, importJWK } from 'jose';
-import type { KeyLike, JWK } from 'jose';
+import { SignJWT } from 'jose';
+import type { KeyLike, JWK, JWTPayload } from 'jose';
+import type { IssuerKeyProvider } from './provider.js';
 
 const KEY_DIR = process.env.DATA_DIR ?? './keys';
 const KEY_PATH = `${KEY_DIR}/issuer-key.json`;
@@ -90,3 +92,25 @@ export async function getAllPublicKeys(): Promise<Array<{ publicKey: JWK; kid: s
 
   return keys;
 }
+
+/**
+ * Default provider: the file-based key above. Same behavior as calling the functions
+ * directly; signing uses the in-process private key.
+ */
+export const fileKeyProvider: IssuerKeyProvider = {
+  async getActiveKey() {
+    const { kid, publicKey } = await getIssuerKeyPair();
+    return { kid, publicKey: await exportJWK(publicKey) };
+  },
+  getAllPublicKeys,
+  async signJwt(payload: JWTPayload, typ: string) {
+    const { privateKey, kid } = await getIssuerKeyPair();
+    return new SignJWT(payload)
+      .setProtectedHeader({ alg: 'ES256', kid, typ })
+      .sign(privateKey);
+  },
+  async rotate() {
+    const { kid, publicKey } = await rotateIssuerKeyPair();
+    return { kid, publicKey: await exportJWK(publicKey) };
+  },
+};

@@ -1,8 +1,7 @@
 import { Router as createRouter } from 'express';
 import type { Router } from 'express';
-import { SignJWT } from 'jose';
 import { createHmac, randomUUID } from 'crypto';
-import { getIssuerKeyPair } from '../keys/manager.js';
+import { getKeyProvider } from '../keys/provider.js';
 import { loadConfig } from '../config/loader.js';
 import { lookupAccessToken, rotateNonce } from './token.js';
 import { assignStatusIndex } from '../revocation/statuslist.js';
@@ -81,7 +80,6 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
 
     const { holderData, cNonce, cNonceExpiresAt } = tokenEntry;
     const config = loadConfig();
-    const { privateKey, kid } = await getIssuerKeyPair();
 
     // ── Holder Proof-of-Possession ──────────────────────────────────────────
     const body = req.body as Record<string, unknown>;
@@ -185,7 +183,7 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
       ? { cnf: { jkt: holderThumbprint } }
       : {};
 
-    const jwt = await new SignJWT({
+    const jwt = await getKeyProvider().signJwt({
       vct: credentialType,
       jti: credentialId,
       iss: config.issuer.did,
@@ -202,9 +200,7 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
         statusListIndex: String(statusIndex),
         statusListCredential: config.issuer.url + '/status/' + listId,
       },
-    })
-      .setProtectedHeader({ alg: 'ES256', kid, typ: 'vc+sd-jwt' })
-      .sign(privateKey);
+    }, 'vc+sd-jwt');
 
     const credential = combineSdJwt(jwt, disclosures);
 

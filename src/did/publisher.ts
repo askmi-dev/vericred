@@ -2,14 +2,14 @@
  * did:web publisher — serves /.well-known/did.json derived from the issuer public key.
  */
 import { Router as createRouter, type Router } from 'express';
-import { getAllPublicKeys } from '../keys/manager.js';
+import { getKeyProvider } from '../keys/provider.js';
 import { loadConfig } from '../config/loader.js';
 
 export function createDidRouter(): Router {
   const router = createRouter();
 
   router.get('/.well-known/did.json', async (_req, res) => {
-    const allKeys = await getAllPublicKeys();
+    const allKeys = await getKeyProvider().getAllPublicKeys();
     const config = loadConfig();
 
     const verificationMethod = allKeys.map(k => ({

@@ -9,7 +9,7 @@ import { importJWK, jwtVerify } from 'jose';
 import type { JWK } from 'jose';
 import { loadConfig } from '../config/loader.js';
 import { loadSecrets } from '../config/secrets.js';
-import { getAllPublicKeys } from '../keys/manager.js';
+import { getKeyProvider } from '../keys/provider.js';
 
 interface Oid4vpSession {
   status: 'initiated' | 'verified';
@@ -290,7 +290,7 @@ export function createOid4vpRouter(): Router {
         // TIER 1: Cryptographic JWS Signature Verification
         let verifiedPayload: any = null;
         let signatureOk = false;
-        const publicKeys = await getAllPublicKeys();
+        const publicKeys = await getKeyProvider().getAllPublicKeys();
 
         for (const pk of publicKeys) {
           try {
