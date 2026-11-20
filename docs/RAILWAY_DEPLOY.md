@@ -36,8 +36,11 @@ In the Railway dashboard → your service → **Variables**:
 | Variable     | Value                                      | Notes                            |
 |--------------|--------------------------------------------|----------------------------------|
 | `ISSUER_URL` | `https://your-app.up.railway.app`          | Copy from Railway domain settings|
-| `DEMO_MODE`  | `true`                                     | Remove for production            |
+| `NODE_ENV`   | `production`                               | Exact value required by the demo guard |
+| `DEMO_MODE`  | `false`                                    | `true` refuses production startup |
+| `OFFER_STORE` | `file`                                    | One writer; memory is not persistent |
 | `DATA_DIR`   | `/data`                                    | Already in railway.toml          |
+| `PROVENANCE_HASH_KEY` | persistent secret                  | Keep stable across restarts; never commit |
 
 **Optional — pre-provision secrets** (skip on first deploy; Railway generates them):
 
@@ -71,6 +74,10 @@ Or push to your linked GitHub branch — Railway auto-deploys on push.
 ---
 
 ## Verify
+
+The repository configuration is not evidence that the deployed service has
+the correct mount or variables. Before production sign-off, follow the
+[persistence readiness gate](PERSISTENCE_READINESS.md) on Railway staging.
 
 ```bash
 # Check metadata endpoint

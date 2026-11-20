@@ -33,7 +33,7 @@ jobs:
     - name: Validate Production Build Compilation
       run: npm run build
 
-    - name: Execute 151 Cryptographic & Architecture Tests
+    - name: Execute Gateway Tests and Process Lifecycle Gate
       run: npm test
 
   docker-dry-run:
@@ -52,6 +52,20 @@ jobs:
       with:
         context: .
         push: false
+        load: true
         tags: vericred/gateway:test
         cache-from: type=gha
         cache-to: type=gha,mode=max
+
+    - name: Use Node.js 22.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22.x
+
+    - name: Install lifecycle harness dependencies
+      run: npm ci
+
+    # The harness uses disposable synthetic data. Root can inspect the bind
+    # mount after the image entrypoint assigns it to the non-root node user.
+    - name: Verify Container Kill, Recovery, Writer Exclusion and Fail-Stop Startup
+      run: sudo "$(command -v node)" scripts/verify-persistence.mjs --image vericred/gateway:test

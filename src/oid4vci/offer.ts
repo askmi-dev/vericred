@@ -4,6 +4,8 @@ import qrcode from 'qrcode';
 import { loadConfig } from '../config/loader.js';
 import { issuePreAuthCode, buildCredentialOffer } from './token.js';
 import type { Lookup } from '../connectors/index.js';
+import { buildProvenanceContext } from '../connectors/index.js';
+import { hashIdentifier } from '../provenance/types.js';
 import { getTemplate } from '../credentials/registry.js';
 import { resolveMappedData } from './issuer.js';
 import { createConsentRecord, buildClaimsList } from './consent.js';
@@ -38,6 +40,14 @@ export function createOfferRouter(lookup: Lookup): Router {
     }
 
     const holderData = await Promise.resolve(lookup(targetIdentifier));
+    // #26: capture Art. 6a provenance at the moment of lookup — the only
+    // place where source, identifier and time are all known together.
+    const provCtx = buildProvenanceContext(loadConfig());
+    const provenance = {
+      ...provCtx,
+      identifierHash: hashIdentifier(targetIdentifier),
+      lookupAt: new Date().toISOString(),
+    };
     if (!holderData) {
       res.status(404).json({ error: 'holder not found' });
       return;
@@ -68,7 +78,7 @@ export function createOfferRouter(lookup: Lookup): Router {
         res.status(400).json({ error: 'claim_build_failed', detail: (e as Error).message });
         return;
       }
-      const consentId = createConsentRecord(holderData, resolvedType, buildClaimsList(claims));
+      const consentId = createConsentRecord(holderData, resolvedType, buildClaimsList(claims), provenance);
       if (!consentId) {
         res.status(503).json({ error: 'consent_capacity_exceeded' });
         return;
@@ -78,7 +88,7 @@ export function createOfferRouter(lookup: Lookup): Router {
       return;
     }
 
-    const code = issuePreAuthCode(holderData, resolvedType);
+    const code = issuePreAuthCode(holderData, resolvedType, undefined, provenance);
     const result = buildCredentialOffer(code, resolvedType);
     res.json({ ...result, qr_data_url: await qrDataUrl(result.offer_uri) });
   });
