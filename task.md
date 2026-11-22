@@ -129,3 +129,25 @@
 
 
 
+
+# Task Checklist: VeriCred Phase 6 (Production Issuer Packaging) — PLAN, nothing implemented
+
+Status: planning only. Tracking issue: #21. Nothing below is done until its linked evidence exists.
+
+- [ ] **Task 21: Decisions first (owner)**
+  - [ ] Pilot organization/persona that validates "30 minutes, no code" (#21, question 1)
+  - [ ] Pre-authorized vs. authorization-code flow for the pilot (#21, question 2). Note: the pre-authorized-code flow is the phishing-relevant case in the OIDF analysis (miTch ADR-009, TM-196); if chosen, `tx_code` must be required and bound out-of-band
+  - [ ] Reference deployment: Railway vs. docker-compose (#21, question 3)
+  - [ ] Key storage for hosted use (`implementation_plan_v2.md`, open question 2): file for self-hosted; KMS/HSM for hosted. Interface exists (PR #59); concrete adapter is #28
+- [ ] **Task 22: Security gate before any hosted/production use**
+  - [ ] Close or explicitly accept #42–#51 (holder-proof validation, verifier disclosure check, unauthenticated session endpoint, proxy trust, admin XSS, admin secret handling, plaintext holder data)
+  - [ ] #31 persistent offer/token state (replace in-memory Maps), #32 DEMO_MODE guardrails
+  - [ ] #52 hosted-verifier re-enable gate, #53 verifier/issuer key separation, #54 session retention
+- [ ] **Task 23: Packaging**
+  - [ ] `docker-compose.yml` (VeriCred + Postgres + reverse proxy)
+  - [ ] Pilot schemas documented in `docs/credential-templates.md` (incl. `AgeCredential` for miTch interop)
+- [ ] **Task 24: Interop evidence**
+  - [ ] End-to-end: VeriCred issue → miTch wallet-pwa → OID4VP → verifier-demo; recorded with SHA, runtime and date
+- [ ] **Task 25: Deferred**
+  - [ ] Hosted/SaaS story only after Task 21 key decision and Task 22
+  - [ ] `npx create-vericred` (stretch)
