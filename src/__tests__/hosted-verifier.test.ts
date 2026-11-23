@@ -4,9 +4,11 @@ import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { once } from 'node:events';
+import { pathToFileURL } from 'node:url';
 
 const server = resolve('src/server.ts');
-const tsx = resolve('node_modules/tsx/dist/loader.mjs');
+// --import needs file:// URLs: a bare Windows path (D:\...) is read as a URL scheme.
+const tsx = pathToFileURL(resolve('node_modules/tsx/dist/loader.mjs')).href;
 const routes: [string, string][] = [
   ['POST', '/initiate'], ['GET', '/client-metadata'], ['GET', '/request/missing'],
   ['POST', '/response/missing'], ['GET', '/session/missing'],
@@ -18,7 +20,7 @@ async function run(env: Record<string, string>, enabled: boolean, rejected = fal
   const sessions = join(dir, 'oid4vp_sessions.json');
   const sentinel = 'invalid-session-json-for-import-detection';
   writeFileSync(sessions, sentinel);
-  const preload = resolve('src/__tests__/listen-port.mjs');
+  const preload = pathToFileURL(resolve('src/__tests__/listen-port.mjs')).href;
   const child = spawn(process.execPath, ['--import', tsx, '--import', preload, server], {
     cwd: dir,
     env: { ...process.env, PORT: '0', DATA_DIR: dir, NODE_ENV: 'test',
