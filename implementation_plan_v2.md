@@ -15,7 +15,8 @@ VeriCred is a lightweight, open-source issuer gateway that lets any organization
 | Blockchain | Dropped | Trust comes from issuer signature, not a chain. Adds complexity, no value for trusted issuers. |
 | Issuance protocol | OID4VCI (draft 13+) | Native EU wallet standard. Works with EUDIW, any compliant wallet. |
 | Credential format | SD-JWT-VC | Standard, selective disclosure, miTch-compatible. |
-| Revocation | W3C StatusList2021 | Simple signed JSON, no special infrastructure needed. |
+| Revocation | IETF Token Status List (was W3C StatusList2021 until 2026-11) | Required for SD-JWT VC by the German EUDI ecosystem's EAA rulebook guidance. Random index per credential so the index can't link batch copies. |
+| Unlinkability | OID4VCI batch issuance, on by default | One copy per verifier; copies share no linkable value. Core product requirement from v1. |
 | DID method | `did:web` | Easy to deploy, no ledger dependency, orgs control their own DID. |
 | Deployment | Open source + optional SaaS | Self-hostable by default. Hosted option for orgs that don't want to run infra. |
 | Stack | Node.js (TypeScript) | Strong OID4VC ecosystem (walt.id libs, Spruce, MATTR). Easy to deploy. |

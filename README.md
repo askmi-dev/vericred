@@ -7,7 +7,7 @@
 ## What VeriCred is
 
 - An **issuer-side gateway**: it takes identity attributes you already hold (e.g. in SQL/Postgres, HR or CRM systems) and issues **selectively disclosable credentials** (SD-JWT VC) over **OID4VCI**.
-- Standards-based: [SD-JWT VC](https://www.ietf.org/archive/id/draft-ietf-oauth-sd-jwt-vc-05.html), [OID4VCI](https://openid.net/specs/openid-4-vc-high-assurance-1_0.html), [StatusList2021](https://www.w3.org/TR/vc-status-list/) style revocation, `did:web` issuer identifiers.
+- Standards-based: [SD-JWT VC](https://www.ietf.org/archive/id/draft-ietf-oauth-sd-jwt-vc-05.html), [OID4VCI](https://openid.net/specs/openid-4-vc-high-assurance-1_0.html), [IETF Token Status List](https://datatracker.ietf.org/doc/draft-ietf-oauth-status-list/) revocation, unlinkable batch issuance by default, `did:web` issuer identifiers.
 - Deliberately **not** a wallet, verifier or presentation layer — that role is delegated to the [AskMI/miTch](https://github.com/Late-bloomer420/miTch) stack.
 
 ## What VeriCred is not
