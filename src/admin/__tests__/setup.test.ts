@@ -22,9 +22,9 @@ describe('Admin Setup & Introspection', () => {
     writeFileSync(`${tempDir}/holders.json`, JSON.stringify([{ id: 'h1', email: 'h1@ex.com', firstName: 'H1' }], null, 2));
 
     process.env['DATA_DIR'] = tempDir;
-    process.env['PORT'] = '3516';
-    process.env['ISSUER_URL'] = 'http://localhost:3516';
-    serverUrl = 'http://localhost:3516';
+    process.env['PORT'] = '3531';
+    process.env['ISSUER_URL'] = 'http://localhost:3531';
+    serverUrl = 'http://localhost:3531';
 
     await import('../../server.js');
     await new Promise(resolve => setTimeout(resolve, 500));

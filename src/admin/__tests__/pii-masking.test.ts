@@ -18,8 +18,8 @@ describe('Administrative PII-Masking E2E Integration', () => {
   beforeAll(async () => {
     // Set a custom port to avoid conflicts
     process.env['DATA_DIR'] = './data';
-    process.env['PORT'] = '3514';
-    serverUrl = 'http://localhost:3514';
+    process.env['PORT'] = '3530';
+    serverUrl = 'http://localhost:3530';
 
     // Import server to spin up the instance
     await import('../../server.js');
