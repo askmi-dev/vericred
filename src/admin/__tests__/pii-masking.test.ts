@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { loadSecrets } from '../../config/secrets.js';
+import { sessionCookieFrom } from './session-cookie.js';
 
 describe('Administrative PII-Masking E2E Integration', () => {
 
@@ -64,7 +65,7 @@ describe('Administrative PII-Masking E2E Integration', () => {
     expect(loginRes.status).toBe(302);
     const setCookie = loginRes.headers.get('set-cookie');
     expect(setCookie).toBeTruthy();
-    const cookiePart = setCookie!.split(',').find(c => c.includes('admin_session='))!.split(';')[0] || '';
+    const cookiePart = sessionCookieFrom(setCookie);
 
     // Fetch holders API with session
     const holdersRes = await fetch(`${serverUrl}/admin/api/holders`, {
@@ -123,7 +124,7 @@ describe('Administrative PII-Masking E2E Integration', () => {
     expect(loginRes.status).toBe(302);
     const setCookie = loginRes.headers.get('set-cookie');
     expect(setCookie).toBeTruthy();
-    const cookiePart = setCookie!.split(',').find(c => c.includes('admin_session='))!.split(';')[0] || '';
+    const cookiePart = sessionCookieFrom(setCookie);
 
     // Fetch holders API
     const holdersRes = await fetch(`${serverUrl}/admin/api/holders`, {

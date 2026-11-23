@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { loadSecrets } from '../../config/secrets.js';
+import { sessionCookieFrom } from './session-cookie.js';
 
 describe('Auth Bypass Protection', () => {
 
@@ -108,8 +109,8 @@ describe('Auth Bypass Protection', () => {
 
     expect(loginRes.status).toBe(302);
     expect(loginRes.headers.get('location')).toBe('/console/dashboard');
-    const cookieHeader = loginRes.headers.get('set-cookie')!;
-    const cookiePart = cookieHeader.split(',').find(c => c.includes('admin_session='))!.split(';')[0];
+    const cookieHeader = loginRes.headers.get('set-cookie');
+    const cookiePart = sessionCookieFrom(cookieHeader);
 
     const adminRes = await fetch(`${serverUrl}/admin`, {
       redirect: 'manual',
@@ -134,8 +135,8 @@ describe('Auth Bypass Protection', () => {
       body: new URLSearchParams({ apiKey: adminApiKey, csrf: csrfToken }).toString(),
       redirect: 'manual'
     });
-    const cookieHeader = loginRes.headers.get('set-cookie')!;
-    const cookiePart = cookieHeader.split(',').find(c => c.includes('admin_session='))!.split(';')[0];
+    const cookieHeader = loginRes.headers.get('set-cookie');
+    const cookiePart = sessionCookieFrom(cookieHeader);
 
     const logoutRes = await fetch(`${serverUrl}/admin/logout`, {
       redirect: 'manual',
