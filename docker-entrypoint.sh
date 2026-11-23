@@ -9,5 +9,6 @@ set -e
 DATA_DIR="${DATA_DIR:-/app/data}"
 mkdir -p "$DATA_DIR"
 chown -R node:node "$DATA_DIR" 2>/dev/null || true
+chmod 700 "$DATA_DIR"
 
 exec su-exec node "$@"

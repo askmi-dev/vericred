@@ -11,6 +11,7 @@ import { getTemplate, CredentialTemplate } from '../credentials/registry.js';
 import { buildSdJwtPayload, combineSdJwt } from '../sdjwt/disclosures.js';
 import { verifyHolderProofJwt, ProofVerificationError } from './proof.js';
 import { logInterop } from './interop-logger.js';
+import { appendProvenanceRecord } from '../provenance/store.js';
 import { DEFAULT_BATCH_SIZE } from './metadata.js';
 
 // Register all built-in templates
@@ -95,6 +96,20 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
     const isBatch = body['proofs'] !== undefined;
     const isDemoMode = process.env['DEMO_MODE'] === 'true';
     const batchSize = config.credential.batchSize ?? DEFAULT_BATCH_SIZE;
+    const isProduction = process.env['NODE_ENV'] === 'production';
+    // Guardrail (#32): DEMO_MODE must never weaken holder binding in a
+    // production deployment. If both are set, the anonymous fallback is
+    // off: a valid proof-of-possession still issues (holder binding is
+    // what production demands, and a valid proof satisfies it); only
+    // the fallback path that would skip binding fails closed.
+    if (isDemoMode && isProduction && !isBatch && !(proof?.['proof_type'] === 'jwt' && proof['jwt'])) {
+      console.error('[issuer] REFUSING anonymous fallback: DEMO_MODE=true together with NODE_ENV=production. Holder binding is mandatory in production; unbound credentials would violate the trust model (Art. 6a eIDAS 2).');
+      res.status(500).json({
+        error: 'server_error',
+        error_description: 'Server misconfiguration: DEMO_MODE cannot be active in production. Contact the issuer administrator.',
+      });
+      return;
+    }
 
     let proofJwts: string[] = [];
     if (isBatch) {
@@ -165,7 +180,7 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
       return;
     }
 
-    // ── Template resolution ─────────────────────────────────────────────────
+    // ── Template resolution ───────────────────────────────────────────────
     let template;
     const credentialType = tokenEntry.credentialType ?? config.credential.type;
     try {
@@ -223,6 +238,16 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
       return;
     }
 
+    // Commit nonce consumption before signing or returning a credential,
+    // after the certificate-chain check so a config error does not burn it.
+    // Compare with the verified nonce to exclude concurrent requests that
+    // verified the same proof while an earlier request was awaiting I/O.
+    const newNonce = rotateNonce(rawToken, cNonce);
+    if (!newNonce) {
+      res.status(500).json({ error: 'server_error', error_description: 'Nonce consumption could not be committed.' });
+      return;
+    }
+
     const issued: Array<{ credential: string; credentialId: string; statusIndex: number }> = [];
     for (const holder of holders) {
       // Fresh salts per copy, so no disclosure or _sd digest repeats across copies.
@@ -261,9 +286,37 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
       issued.push({ credential: combineSdJwt(jwt, disclosures), credentialId, statusIndex });
     }
 
-    // Rotate c_nonce after issuance (single-use; wallet can request more credentials with new nonce)
-    const newNonce = rotateNonce(rawToken);
-
+    // ── Art. 6a provenance (#26) ────────────────────────────────────────
+    // Best-effort persistence BEFORE the response: the append happens
+    // before res.json(), so the intended mode is evidence-with-success.
+    // A null return is logged as an incomplete audit trail; issuance
+    // still proceeds — the holder-visible success is NOT gated on the
+    // audit write (see plan on issue #26).
+    for (const { credentialId } of issued) {
+      if (!tokenEntry.provenance) break;
+      const persisted = appendProvenanceRecord({
+        credentialId,
+        credentialType,
+        source: {
+          connectorType: tokenEntry.provenance.connectorType,
+          sourceRef: tokenEntry.provenance.sourceRef,
+        },
+        lookup: {
+          identifierHash: tokenEntry.provenance.identifierHash,
+          at: tokenEntry.provenance.lookupAt,
+        },
+        verification: { mode: tokenEntry.provenance.verificationMode },
+        consentGate: {
+          used: Boolean(tokenEntry.claims),
+          claimsSnapshot: Boolean(tokenEntry.claims),
+        },
+        issuedAt: new Date().toISOString(),
+        issuerDid: config.issuer.did,
+      });
+      if (!persisted) {
+        console.error('[issuer] Provenance record for ' + credentialId + ' was NOT persisted — audit trail incomplete.');
+      }
+    }
     console.log('[issuer] Issued ' + issued.length + 'x ' + credentialType
       + ' bound=' + (holders[0]?.jwk ? 'yes' : 'none')
       + (batchId ? ' batch=' + batchId : ''));
