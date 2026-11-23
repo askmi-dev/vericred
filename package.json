@@ -10,6 +10,7 @@
     "build": "npm run build:frontend && npm run build:backend",
     "start": "node dist/server.js",
     "pretest": "npm run build:backend",
+    "csr": "tsx src/cli/csr.ts",
     "test": "vitest run",
     "test:persistence": "npm run build:backend && node scripts/verify-persistence.mjs",
     "test:watch": "vitest"

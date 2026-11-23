@@ -9,7 +9,10 @@ on:
 jobs:
   audit-and-test:
     name: Test & Validate Gateway
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
     - name: Checkout Repository
@@ -27,6 +30,7 @@ jobs:
         npm --prefix stitch-out ci
 
     - name: Run Security Vulnerability Audit
+      shell: bash
       run: npm audit --audit-level=high --omit=dev || true
 
     # HTTP integration tests serve the generated Astro pages from stitch-out/dist.
