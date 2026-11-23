@@ -6,7 +6,8 @@
  * was impossible. This module defines the OfferStore interface those Maps
  * hid behind, plus the default file-backed implementation (same
  * DATA_DIR persistence pattern as statuslist.json / runtime.json, with
- * an OS advisory lock provided by fs-ext).
+ * an OS-held writer lock: flock via fs-ext on Linux/macOS, an exclusive-
+ * share open (LockFileEx semantics) on Windows).
  *
  * Security model (review of #37):
  * - Single-use consume is durably atomic: takePreAuthCode only reports
@@ -31,9 +32,11 @@
  * stricter needs can implement the interface against Redis/pg (see
  * issue #31) via `createOfferStore` selection.
  */
-import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, unlinkSync, openSync, closeSync, fsyncSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, unlinkSync, openSync, closeSync, fsyncSync, constants as fsConstants } from 'fs';
 import { randomUUID } from 'crypto';
-import { flockSync } from 'fs-ext';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
 
 export interface PreAuthCodeEntry {
   holderData: Record<string, unknown>;
@@ -158,13 +161,39 @@ export class FileOfferStore extends InMemoryOfferStore {
 
   /** Exclusive single-writer lock; fails fast on a live second instance. */
   private acquireLock(): void {
+    const refuse = (err: unknown) => new StorePersistenceError(
+      `Cannot acquire exclusive offer-store writer lock at ${this.lockPath}; refusing to start.`, err);
+
+    if (process.platform === 'win32') {
+      // flock is not available on Windows (fs-ext returns EINVAL). Opening
+      // with libuv's UV_FS_O_EXLOCK uses share mode 0: any second open of
+      // the lock file fails (EBUSY) until this handle closes. The OS drops
+      // the handle on process death, so no stale-lock reclaim is needed.
+      const exlock = (fsConstants as Record<string, number | undefined>)['UV_FS_O_EXLOCK'];
+      if (!exlock) throw refuse(new Error('UV_FS_O_EXLOCK is not available on this Node.js build'));
+      try {
+        this.lockFd = openSync(this.lockPath, fsConstants.O_RDWR | fsConstants.O_CREAT | exlock, 0o600);
+      } catch (err) {
+        throw refuse(err);
+      }
+      return;
+    }
+
+    // Loaded lazily: fs-ext is a native optional dependency that is only
+    // required where flock exists. Missing it on Linux/macOS fails closed.
+    let flockSync: (fd: number, flags: 'exnb') => void;
+    try {
+      ({ flockSync } = require('fs-ext') as { flockSync: typeof flockSync });
+    } catch (err) {
+      throw refuse(err);
+    }
     const fd = openSync(this.lockPath, 'a', 0o600);
     try {
       flockSync(fd, 'exnb');
       this.lockFd = fd;
     } catch (err) {
       closeSync(fd);
-      throw new StorePersistenceError(`Cannot acquire exclusive offer-store writer lock at ${this.lockPath}; refusing to start.`, err);
+      throw refuse(err);
     }
   }
 
