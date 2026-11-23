@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { loadSecrets } from '../../config/secrets.js';
-import { createHmac } from 'crypto';
 
 describe('Login CSRF Protection', () => {
   let serverUrl: string;
