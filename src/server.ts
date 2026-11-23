@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { isPathWithinRoot } from './util/path-containment.js';
 import { loadConfig } from './config/loader.js';
+import { noteMetadataRequest, observedOrigin, getIssuerUrlStatus, startupIssuerUrlWarning } from './config/issuer-url-check.js';
 import { loadSecrets } from './config/secrets.js';
 import { getIssuerKeyPair } from './keys/manager.js';
 import { createDidRouter } from './did/publisher.js';
@@ -110,6 +111,11 @@ const lookup = (id: string) => connector.lookup(id);
 
 // Public routes (wallet-facing)
 app.use(createDidRouter());
+// Advisory: does the URL wallets fetch metadata from match issuer.url?
+app.get('/.well-known/openid-credential-issuer', (req, _res, next) => {
+  noteMetadataRequest(loadConfig().issuer.url, observedOrigin(req.headers, req.protocol));
+  next();
+});
 app.use(createMetadataRouter());
 app.use(createTokenRouter());
 // Bearer-token authenticated (lookupAccessToken), but still unauthenticated
@@ -215,7 +221,13 @@ const distPath = process.env.FRONTEND_DIST_PATH || 'stitch-out/dist';
 app.use(express.static(path.resolve(distPath)));
 
 // Health (public, no PII)
-app.get('/health', (_req, res) => res.json({ status: 'ok', issuer: config.issuer.did }));
+// Stays 200 / status ok on an issuer URL mismatch: it is a config warning, not
+// a liveness failure, and platform healthchecks must not restart-loop on it.
+app.get('/health', (_req, res) => res.json({
+  status: 'ok',
+  issuer: config.issuer.did,
+  issuerUrl: getIssuerUrlStatus(loadConfig().issuer.url),
+}));
 
 // Public Info (for white-label landing page)
 app.get('/api/info', (_req, res) => {
@@ -241,4 +253,6 @@ app.listen(PORT, () => {
   console.log('  DID:      ' + config.issuer.url + '/.well-known/did.json');
   console.log('  Metadata: ' + config.issuer.url + '/.well-known/openid-credential-issuer');
   console.log('');
+  const urlWarning = startupIssuerUrlWarning(config.issuer.url);
+  if (urlWarning) console.warn(urlWarning);
 });

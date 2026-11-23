@@ -7,8 +7,9 @@ These instructions apply to every AI-assisted session in this repository. Read t
 VeriCred is a **lightweight, open-source OID4VCI issuer gateway**. It lets any organization (university, employer, guild) connect their existing database and start issuing W3C Verifiable Credentials into EU wallets in under 30 minutes.
 
 - **Credential format:** SD-JWT-VC (selective disclosure, miTch-compatible)
-- **Issuance protocol:** OID4VCI (draft 13+)
-- **Revocation:** W3C StatusList2021
+- **Issuance protocol:** OID4VCI (draft 13+ single `proof`; 1.0 batch `proofs`)
+- **Revocation:** IETF Token Status List (`statuslist+jwt`), random index per credential
+- **Unlinkable by default:** batch copies share no linkable value (distinct key, salts, status index; day-rounded `iat`/`exp`). Enforced by `src/oid4vci/__tests__/unlinkable-batch.test.ts` — do not weaken it.
 - **DID method:** `did:web`
 - **No blockchain.** Trust comes from the issuer signature, not a chain. Do not reintroduce blockchain components.
 
@@ -35,7 +36,7 @@ keys/         issuer key management
 middleware/   Express middleware (requireAdmin, etc.)
 oid4vci/      OID4VCI endpoints (offer, token, credentials)
 oid4vp/       verification-side helpers (minimal — miTch is the presenter)
-revocation/   StatusList2021
+revocation/   IETF Token Status List
 sdjwt/        SD-JWT-VC issuance
 types/        shared TypeScript types
 ```

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { generateKeyPair, exportJWK, SignJWT, jwtVerify, calculateJwkThumbprint } from 'jose';
+import { decodeStatusList } from './token-status-helpers.js';
 import { mkdirSync, existsSync, writeFileSync, rmSync } from 'fs';
 import { loadSecrets } from '../../config/secrets.js';
 import { getIssuerKeyPair } from '../../keys/manager.js';
@@ -73,17 +74,17 @@ describe('Revocation Integration Flow', () => {
 
     const { publicKey } = await getIssuerKeyPair();
     const { payload } = await jwtVerify(baseJwt, publicKey);
-    const status = payload.credentialStatus as any;
-    const statusIndex = parseInt(status.statusListIndex);
-    const statusUrl = status.statusListCredential;
+    const status = (payload.status as any).status_list;
+    const statusIndex = status.idx;
+    const statusUrl = status.uri;
 
     // 2. Verify Initial Status (Active)
     const statusListRes = await fetch(statusUrl);
     expect(statusListRes.status).toBe(200);
     const statusListJwt = await statusListRes.text();
     const { payload: slPayload } = await jwtVerify(statusListJwt, publicKey);
-    const encodedList = (slPayload.credentialSubject as any).encodedList;
-    const bytes = Buffer.from(encodedList, 'base64url');
+    const encodedList = (slPayload.status_list as any).lst;
+    const bytes = decodeStatusList(encodedList);
     
     // Check if bit at statusIndex is 0 (Active)
     const byteIdx = Math.floor(statusIndex / 8);
@@ -109,8 +110,8 @@ describe('Revocation Integration Flow', () => {
     expect(statusListRes2.status).toBe(200);
     const statusListJwt2 = await statusListRes2.text();
     const { payload: slPayload2 } = await jwtVerify(statusListJwt2, publicKey);
-    const encodedList2 = (slPayload2.credentialSubject as any).encodedList;
-    const bytes2 = Buffer.from(encodedList2, 'base64url');
+    const encodedList2 = (slPayload2.status_list as any).lst;
+    const bytes2 = decodeStatusList(encodedList2);
     
     // Check if bit at statusIndex is 1 (Revoked)
     expect((bytes2[byteIdx] >> bitIdx) & 1).toBe(1);
