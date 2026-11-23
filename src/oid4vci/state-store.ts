@@ -38,6 +38,9 @@ import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
 
+/** libuv's UV_FS_O_EXLOCK on Windows (uv/win.h): open with share mode 0. */
+const UV_FS_O_EXLOCK_WIN = 0x10000000;
+
 export interface PreAuthCodeEntry {
   holderData: Record<string, unknown>;
   expiresAt: number;
@@ -169,8 +172,8 @@ export class FileOfferStore extends InMemoryOfferStore {
       // with libuv's UV_FS_O_EXLOCK uses share mode 0: any second open of
       // the lock file fails (EBUSY) until this handle closes. The OS drops
       // the handle on process death, so no stale-lock reclaim is needed.
-      const exlock = (fsConstants as Record<string, number | undefined>)['UV_FS_O_EXLOCK'];
-      if (!exlock) throw refuse(new Error('UV_FS_O_EXLOCK is not available on this Node.js build'));
+      // Node does not export the constant; libuv defines it in uv/win.h.
+      const exlock = (fsConstants as Record<string, number | undefined>)['UV_FS_O_EXLOCK'] ?? UV_FS_O_EXLOCK_WIN;
       try {
         this.lockFd = openSync(this.lockPath, fsConstants.O_RDWR | fsConstants.O_CREAT | exlock, 0o600);
       } catch (err) {
@@ -265,8 +268,13 @@ export class FileOfferStore extends InMemoryOfferStore {
         fsyncSync(fd);
       } finally { closeSync(fd); }
       renameSync(tmp, this.path);
-      const dirFd = openSync(dir, 'r');
-      try { fsyncSync(dirFd); } finally { closeSync(dirFd); }
+      // POSIX: fsync the directory so the rename itself is durable. Windows
+      // cannot fsync a directory handle (EPERM); there the file data was
+      // already flushed above and the rename replaces the file atomically.
+      if (process.platform !== 'win32') {
+        const dirFd = openSync(dir, 'r');
+        try { fsyncSync(dirFd); } finally { closeSync(dirFd); }
+      }
     } catch (err) {
       try { unlinkSync(tmp); } catch { /* nothing to clean up */ }
       throw new StorePersistenceError('offer-state persistence failed', err);
