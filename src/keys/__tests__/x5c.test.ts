@@ -1,17 +1,25 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
 import { readFileSync, existsSync, rmSync, mkdirSync } from 'fs';
 import { createPrivateKey, createPublicKey, generateKeyPairSync, X509Certificate } from 'crypto';
 import { decodeProtectedHeader, jwtVerify } from 'jose';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
 import type { VeriCredConfig } from '../../config/types.js';
+import { hasOpenssl, generateX5cFixtures } from './x5c-fixtures.js';
 
-// Test-only fixtures from ./fixtures/x5c/generate.sh: root -> intermediate -> leaf.
-const FIX = new URL('./fixtures/x5c/', import.meta.url);
-const pem = (f: string) => readFileSync(new URL(f, FIX), 'utf-8');
-const leafPrivate = createPrivateKey(pem('leaf.key'));
-const leafPublic = createPublicKey(leafPrivate);
+// Test-only chain (root -> intermediate -> leaf) generated at test time by
+// x5c-fixtures.ts, so no private key lives in the repository. Without openssl
+// the suite is skipped locally; on Linux CI a missing openssl fails loudly.
+if (!hasOpenssl && process.env.CI && process.platform === 'linux') {
+  throw new Error('x5c tests need openssl on the PATH in CI');
+}
+const FIX = hasOpenssl ? generateX5cFixtures() : '';
+afterAll(() => { if (FIX) rmSync(FIX, { recursive: true, force: true }); });
+const suite = hasOpenssl ? describe : describe.skip;
+const pem = (f: string) => readFileSync(join(FIX, f), 'utf-8');
+const leafPrivate = hasOpenssl ? createPrivateKey(pem('leaf.key')) : (undefined as never);
+const leafPublic = hasOpenssl ? createPublicKey(leafPrivate) : (undefined as never);
 const ISSUER_URL = 'https://issuer.example.test';
-const CHAIN_PATH = fileURLToPath(new URL('chain.pem', FIX));
+const CHAIN_PATH = join(FIX, 'chain.pem');
 
 vi.mock('../manager.js', () => ({
   getIssuerKeyPair: async () => ({ privateKey: leafPrivate, publicKey: leafPublic, kid: 'leaf-kid' }),
@@ -30,10 +38,10 @@ const { parseCertificateChain, validateCertificateChain, getIssuerSigningIdentit
 const { buildStatusListJWT, assignStatusIndex } = await import('../../revocation/statuslist.js');
 
 const chain = () => parseCertificateChain(pem('chain.pem'));
-const [leaf, intermediate] = chain() as [X509Certificate, X509Certificate];
-const root = new X509Certificate(pem('root.pem'));
+const [leaf, intermediate] = (hasOpenssl ? chain() : []) as [X509Certificate, X509Certificate];
+const root = hasOpenssl ? new X509Certificate(pem('root.pem')) : (undefined as never);
 
-describe('x5c certificate chain', () => {
+suite('x5c certificate chain', () => {
   it('returns standard-Base64 DER, leaf first, root excluded', () => {
     const x5c = validateCertificateChain(chain(), leafPublic, ISSUER_URL);
     expect(x5c).toHaveLength(2);
@@ -80,7 +88,7 @@ describe('x5c certificate chain', () => {
   });
 });
 
-describe('Status List Token with x5c', () => {
+suite('Status List Token with x5c', () => {
   const DATA_DIR = './data-test-x5c';
   beforeEach(() => {
     process.env['DATA_DIR'] = DATA_DIR;

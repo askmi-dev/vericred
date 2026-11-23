@@ -82,8 +82,3 @@ These are implemented deliberately. Never weaken or remove them without an expli
 - Don't refactor working Phase-1 security code for style; only change what the task requires.
 - When ambiguity remains between this file and the docs, ask instead of guessing.
 - After changes, run `npm test` before reporting done.
-
-<!-- entire-agent:begin -->
-Read .entire/agent-guide.md for this repository's workflow, source inspection, and verification guidance.
-@.entire/agent-guide.md
-<!-- entire-agent:end -->

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { generateKeyPair, exportJWK, SignJWT, jwtVerify, calculateJwkThumbprint, importJWK, decodeProtectedHeader } from 'jose';
+import { generateKeyPair, exportJWK, SignJWT, jwtVerify, calculateJwkThumbprint, decodeProtectedHeader } from 'jose';
 import { createHash } from 'crypto';
 import { mkdirSync, existsSync, writeFileSync, rmSync } from 'fs';
 import { loadSecrets } from '../../config/secrets.js';
