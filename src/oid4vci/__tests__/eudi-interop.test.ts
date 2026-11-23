@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { generateKeyPair, exportJWK, SignJWT, jwtVerify, calculateJwkThumbprint, importJWK } from 'jose';
+import { generateKeyPair, exportJWK, SignJWT, jwtVerify, calculateJwkThumbprint, decodeProtectedHeader } from 'jose';
 import { createHash } from 'crypto';
 import { mkdirSync, existsSync, writeFileSync, rmSync } from 'fs';
 import { loadSecrets } from '../../config/secrets.js';
@@ -36,6 +36,8 @@ describe('EUDI-Wallet Interoperability and Cryptographic Presentation Test', () 
     process.env['DATA_DIR'] = tempDir;
     process.env['ISSUER_URL'] = 'http://localhost:3514';
     process.env['PORT'] = '3514';
+    // Issuance must work independently of the disabled hosted verifier.
+    process.env['ENABLE_HOSTED_VERIFIER'] = 'false';
     serverUrl = 'http://localhost:3514';
 
     // Generate fresh P-256 holder key pair
@@ -147,14 +149,12 @@ describe('EUDI-Wallet Interoperability and Cryptographic Presentation Test', () 
     expect(jwtPayload._sd_alg).toBe('sha-256');
     expect(jwtPayload.cnf).toEqual({ jkt: holderThumbprint });
 
-    // Verify credentialStatus embedding (Phase 3 Task 13)
-    expect(jwtPayload.credentialStatus).toBeDefined();
-    const status = jwtPayload.credentialStatus as any;
-    expect(status.type).toBe('StatusList2021Entry');
-    expect(status.statusPurpose).toBe('revocation');
-    expect(status.statusListIndex).toBe('0');
-    expect(status.id).toContain('#0');
-    expect(status.statusListCredential).toContain('/status/');
+    // Verify IETF Token Status List reference (random index, not sequential)
+    expect(decodeProtectedHeader(baseJwt).typ).toBe('dc+sd-jwt');
+    expect(jwtPayload.credentialStatus).toBeUndefined();
+    const statusRef = (jwtPayload.status as any)?.status_list;
+    expect(Number.isInteger(statusRef.idx)).toBe(true);
+    expect(statusRef.uri).toContain('/status/');
 
     const sdHashes = jwtPayload._sd as string[];
     expect(sdHashes).toBeInstanceOf(Array);

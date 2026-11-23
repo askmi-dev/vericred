@@ -9,6 +9,7 @@
     "build:frontend": "npm --prefix stitch-out run build",
     "build": "npm run build:frontend && npm run build:backend",
     "start": "node dist/server.js",
+    "csr": "tsx src/cli/csr.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
