@@ -15,7 +15,8 @@ VeriCred is a lightweight, open-source issuer gateway that lets any organization
 | Blockchain | Dropped | Trust comes from issuer signature, not a chain. Adds complexity, no value for trusted issuers. |
 | Issuance protocol | OID4VCI (draft 13+) | Native EU wallet standard. Works with EUDIW, any compliant wallet. |
 | Credential format | SD-JWT-VC | Standard, selective disclosure, miTch-compatible. |
-| Revocation | W3C StatusList2021 | Simple signed JSON, no special infrastructure needed. |
+| Revocation | IETF Token Status List (was W3C StatusList2021 until 2026-11) | Required for SD-JWT VC by the German EUDI ecosystem's EAA rulebook guidance. Random index per credential so the index can't link batch copies. |
+| Unlinkability | OID4VCI batch issuance, on by default | One copy per verifier; copies share no linkable value. Core product requirement from v1. |
 | DID method | `did:web` | Easy to deploy, no ledger dependency, orgs control their own DID. |
 | Deployment | Open source + optional SaaS | Self-hostable by default. Hosted option for orgs that don't want to run infra. |
 | Stack | Node.js (TypeScript) | Strong OID4VC ecosystem (walt.id libs, Spruce, MATTR). Easy to deploy. |
@@ -130,7 +131,7 @@ Goal: credentials issued by VeriCred flow cleanly into miTch presentations.
 
 - [ ] Confirm SD-JWT-VC output format matches miTch's `MitchPresentationEnvelope` intake
 - [ ] Pairwise pseudonym alignment: ensure VeriCred's HMAC-SHA256 pseudonym scheme is compatible with miTch's holder identity model
-- [ ] OID4VP verifier endpoint: so VeriCred-issued credentials can be verified in the VeriCred UI too (useful for orgs demoing the full flow)
+- Hosted OID4VP verifier: implemented historically, now disabled by default for issuer/verifier role separation. Re-enable requires security backlog closure; see docs/ADR-ISSUER-DOES-NOT-VERIFY.md.
 - [ ] Interop test suite: issue from VeriCred → present via miTch → verify at a third-party verifier
 - [ ] Publish credential schema to a public schema registry (schema.org / EBSI schema registry)
 

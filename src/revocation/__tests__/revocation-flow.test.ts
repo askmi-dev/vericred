@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 import { generateKeyPair, exportJWK, SignJWT, jwtVerify, calculateJwkThumbprint } from 'jose';
+import { decodeStatusList } from './token-status-helpers.js';
 import { mkdirSync, existsSync, writeFileSync, rmSync } from 'fs';
 import { loadSecrets } from '../../config/secrets.js';
 import { getIssuerKeyPair } from '../../keys/manager.js';
@@ -101,12 +102,12 @@ describe('Revocation Flow - OID4VP Verifier Compliance Tests', () => {
     const parts = rawCredential.split('~');
     const baseJwt = parts[0]!;
 
-    // 4. Extract credentialStatus from the issued credential
+    // 4. Extract the Token Status List reference from the issued credential
     const { publicKey } = await getIssuerKeyPair();
     const { payload: credPayload } = await jwtVerify(baseJwt, publicKey);
-    const status = credPayload.credentialStatus as any;
-    const statusIndex = parseInt(status.statusListIndex);
-    const statusUrl = status.statusListCredential;
+    const status = (credPayload.status as any).status_list;
+    const statusIndex = status.idx;
+    const statusUrl = status.uri;
     const credentialId = credPayload.jti as string;
 
     // 5. Verify credential is initially ACTIVE (bit = 0)
@@ -114,8 +115,8 @@ describe('Revocation Flow - OID4VP Verifier Compliance Tests', () => {
     expect(statusListRes1.status).toBe(200);
     const statusListJwt1 = await statusListRes1.text();
     const { payload: slPayload1 } = await jwtVerify(statusListJwt1, publicKey);
-    const encodedList1 = (slPayload1.credentialSubject as any).encodedList;
-    const bytes1 = Buffer.from(encodedList1, 'base64url');
+    const encodedList1 = (slPayload1.status_list as any).lst;
+    const bytes1 = decodeStatusList(encodedList1);
     const byteIdx = Math.floor(statusIndex / 8);
     const bitIdx = statusIndex % 8;
     
@@ -140,15 +141,15 @@ describe('Revocation Flow - OID4VP Verifier Compliance Tests', () => {
     expect(statusListRes2.status).toBe(200);
     const statusListJwt2 = await statusListRes2.text();
     const { payload: slPayload2 } = await jwtVerify(statusListJwt2, publicKey);
-    const encodedList2 = (slPayload2.credentialSubject as any).encodedList;
-    const bytes2 = Buffer.from(encodedList2, 'base64url');
+    const encodedList2 = (slPayload2.status_list as any).lst;
+    const bytes2 = decodeStatusList(encodedList2);
     
     expect((bytes2[byteIdx] >> bitIdx) & 1).toBe(1); // Revoked = 1
 
     // 8. Verify the credential now fails verification due to revocation
     // Simulate OID4VP verifier logic:
-    // - Fetch the StatusList2021 credential
-    // - Extract the encodedList (bitstring)
+    // - Fetch the Token Status List
+    // - Inflate status_list.lst (ZLIB bitstring)
     // - Check the bit at the credential's index
     // - If bit = 1, credential is revoked and MUST fail verification
     
@@ -157,15 +158,15 @@ describe('Revocation Flow - OID4VP Verifier Compliance Tests', () => {
     expect(finalStatusListRes.status).toBe(200);
     const finalStatusListJwt = await finalStatusListRes.text();
     const { payload: finalSlPayload } = await jwtVerify(finalStatusListJwt, publicKey);
-    const finalEncodedList = (finalSlPayload.credentialSubject as any).encodedList;
-    const finalBytes = Buffer.from(finalEncodedList, 'base64url');
+    const finalEncodedList = (finalSlPayload.status_list as any).lst;
+    const finalBytes = decodeStatusList(finalEncodedList);
     
     // Final verification: bit MUST be 1 (revoked)
     const isRevoked = ((finalBytes[byteIdx] >> bitIdx) & 1) === 1;
     expect(isRevoked).toBe(true);
     
     // In OID4VP-compliant verifier, this would cause verification to fail
-    // The verifier checks: if credentialStatus exists and bit is set, reject
+    // The verifier checks: if a status reference exists and bit is set, reject
     expect(isRevoked).toBe(true); // This means verification MUST fail
   });
 
@@ -365,7 +366,7 @@ describe('Revocation Flow - OID4VP Verifier Compliance Tests', () => {
     expect([401, 403]).toContain(unauthorizedRevokeRes.status);
   });
 
-  it('StatusList2021 auto-refreshes after revocation', async () => {
+  it('Token Status List auto-refreshes after revocation', async () => {
     // Issue a credential
     const offerRes = await fetch(`${serverUrl}/offer`, {
       method: 'POST',
@@ -402,15 +403,15 @@ describe('Revocation Flow - OID4VP Verifier Compliance Tests', () => {
     const baseJwt = parts[0]!;
     const { publicKey } = await getIssuerKeyPair();
     const { payload } = await jwtVerify(baseJwt, publicKey);
-    const status = payload.credentialStatus as any;
-    const statusUrl = status.statusListCredential;
+    const status = (payload.status as any).status_list;
+    const statusUrl = status.uri;
     const credentialId = payload.jti as string;
 
     // Get initial StatusList
     const initialStatusRes = await fetch(statusUrl);
     const initialStatusJwt = await initialStatusRes.text();
     const { payload: initialSlPayload } = await jwtVerify(initialStatusJwt, publicKey);
-    const initialEncodedList = (initialSlPayload.credentialSubject as any).encodedList;
+    const initialEncodedList = (initialSlPayload.status_list as any).lst;
 
     // Revoke the credential
     await fetch(`${serverUrl}/admin/api/credentials/${encodeURIComponent(credentialId)}/revoke`, {
@@ -429,19 +430,19 @@ describe('Revocation Flow - OID4VP Verifier Compliance Tests', () => {
     const updatedStatusRes = await fetch(statusUrl);
     const updatedStatusJwt = await updatedStatusRes.text();
     const { payload: updatedSlPayload } = await jwtVerify(updatedStatusJwt, publicKey);
-    const updatedEncodedList = (updatedSlPayload.credentialSubject as any).encodedList;
+    const updatedEncodedList = (updatedSlPayload.status_list as any).lst;
 
     // The encoded lists should be different (bit was flipped)
     // Note: They might be the same if the bit was already set, but in our case it should change
     expect(initialEncodedList).not.toBe(updatedEncodedList);
     
     // Verify the bit was actually flipped
-    const statusIndex = parseInt(status.statusListIndex);
+    const statusIndex = status.idx;
     const byteIdx = Math.floor(statusIndex / 8);
     const bitIdx = statusIndex % 8;
     
-    const initialBytes = Buffer.from(initialEncodedList, 'base64url');
-    const updatedBytes = Buffer.from(updatedEncodedList, 'base64url');
+    const initialBytes = decodeStatusList(initialEncodedList);
+    const updatedBytes = decodeStatusList(updatedEncodedList);
     
     const initialBit = (initialBytes[byteIdx] >> bitIdx) & 1;
     const updatedBit = (updatedBytes[byteIdx] >> bitIdx) & 1;
