@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { isPathWithinRoot } from './util/path-containment.js';
 import { loadConfig } from './config/loader.js';
+import { noteMetadataRequest, observedOrigin, getIssuerUrlStatus, startupIssuerUrlWarning } from './config/issuer-url-check.js';
 import { loadSecrets } from './config/secrets.js';
 import { getIssuerKeyPair } from './keys/manager.js';
 import { createDidRouter } from './did/publisher.js';
@@ -12,7 +13,6 @@ import { createCredentialRouter } from './oid4vci/issuer.js';
 import { createOfferRouter } from './oid4vci/offer.js';
 import { createAdminRouter } from './admin/router.js';
 import { createRevocationRouter } from './revocation/router.js';
-import { createOid4vpRouter } from './oid4vp/router.js';
 import { createConsentRouter } from './oid4vci/consent.js';
 import { requireAdmin } from './middleware/auth.js';
 import { generateHolders } from './connectors/generator.js';
@@ -33,6 +33,12 @@ try {
   }
 } catch {
   // Ignore error if .env file is missing
+}
+
+const hostedVerifierEnabled = process.env.ENABLE_HOSTED_VERIFIER === 'true';
+if (hostedVerifierEnabled && process.env.NODE_ENV === 'production'
+    && process.env.ENABLE_HOSTED_VERIFIER_CONFIRM !== 'yes') {
+  throw new Error('Hosted verifier disabled in production: ENABLE_HOSTED_VERIFIER_CONFIRM=yes required. Resolve verifier security backlog before re-enabling.');
 }
 
 const app = express();
@@ -110,6 +116,11 @@ const lookup = (id: string) => connector.lookup(id);
 
 // Public routes (wallet-facing)
 app.use(createDidRouter());
+// Advisory: does the URL wallets fetch metadata from match issuer.url?
+app.get('/.well-known/openid-credential-issuer', (req, _res, next) => {
+  noteMetadataRequest(loadConfig().issuer.url, observedOrigin(req.headers, req.protocol));
+  next();
+});
 app.use(createMetadataRouter());
 app.use(createTokenRouter());
 // Bearer-token authenticated (lookupAccessToken), but still unauthenticated
@@ -117,7 +128,10 @@ app.use(createTokenRouter());
 // and repeated proof-verification attempts.
 app.use('/credentials', rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false }));
 app.use(createCredentialRouter(secrets.pseudonymSecret));
-app.use(createOid4vpRouter());
+if (hostedVerifierEnabled) {
+  const { createOid4vpRouter } = await import('./oid4vp/router.js');
+  app.use(createOid4vpRouter());
+}
 
 // Public, unauthenticated consent surface (GET .../claims, POST .../decide,
 // and the page shell below) -- rate-limited since there's no auth gate.
@@ -215,7 +229,13 @@ const distPath = process.env.FRONTEND_DIST_PATH || 'stitch-out/dist';
 app.use(express.static(path.resolve(distPath)));
 
 // Health (public, no PII)
-app.get('/health', (_req, res) => res.json({ status: 'ok', issuer: config.issuer.did }));
+// Stays 200 / status ok on an issuer URL mismatch: it is a config warning, not
+// a liveness failure, and platform healthchecks must not restart-loop on it.
+app.get('/health', (_req, res) => res.json({
+  status: 'ok',
+  issuer: config.issuer.did,
+  issuerUrl: getIssuerUrlStatus(loadConfig().issuer.url),
+}));
 
 // Public Info (for white-label landing page)
 app.get('/api/info', (_req, res) => {
@@ -241,4 +261,6 @@ app.listen(PORT, () => {
   console.log('  DID:      ' + config.issuer.url + '/.well-known/did.json');
   console.log('  Metadata: ' + config.issuer.url + '/.well-known/openid-credential-issuer');
   console.log('');
+  const urlWarning = startupIssuerUrlWarning(config.issuer.url);
+  if (urlWarning) console.warn(urlWarning);
 });

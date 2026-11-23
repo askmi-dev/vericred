@@ -35,6 +35,16 @@ export async function getIssuerKeyPair() {
   return rotateIssuerKeyPair();
 }
 
+export const ISSUER_KEY_PATH = KEY_PATH;
+
+/**
+ * The existing issuer keypair, or null. Never generates one: a certificate
+ * requested for a freshly generated key would not match the running issuer.
+ */
+export async function loadExistingIssuerKeyPair() {
+  return existsSync(KEY_PATH) ? getIssuerKeyPair() : null;
+}
+
 /**
  * Generate a fresh P-256 keypair, archiving the current one (if any) to history.
  */
