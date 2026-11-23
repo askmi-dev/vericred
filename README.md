@@ -54,3 +54,13 @@ In the current version **issuer signing keys are held in local config files** (r
 ## License
 
 See [LICENSE](LICENSE) for terms. Maintained by [askmi-dev](https://github.com/askmi-dev) — contact: askmi.dev@icloud.com
+
+## Hosted verifier disabled by default
+
+The issuer does not verify presentations. `/api/oid4vp/*` is not registered
+and its module/session store is not loaded unless `ENABLE_HOSTED_VERIFIER=true`.
+Production additionally requires `ENABLE_HOSTED_VERIFIER_CONFIRM=yes`; this is
+an acknowledgement, not a security fix or permission to bypass the backlog.
+Do not re-enable until the verifier security findings are resolved and reviewed.
+OID4VCI issuance remains available. Existing session files are not deleted.
+See [ADR: Issuer does not verify](docs/ADR-ISSUER-DOES-NOT-VERIFY.md).

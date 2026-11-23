@@ -36,6 +36,8 @@ describe('EUDI-Wallet Interoperability and Cryptographic Presentation Test', () 
     process.env['DATA_DIR'] = tempDir;
     process.env['ISSUER_URL'] = 'http://localhost:3514';
     process.env['PORT'] = '3514';
+    // Issuance must work independently of the disabled hosted verifier.
+    process.env['ENABLE_HOSTED_VERIFIER'] = 'false';
     serverUrl = 'http://localhost:3514';
 
     // Generate fresh P-256 holder key pair
