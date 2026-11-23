@@ -24,7 +24,20 @@ jobs:
         node-version: 22.x
         cache: 'npm'
 
+    # fs-ext (the offer store's single-writer flock) is a native module. The
+    # node-gyp bundled with npm 10 does not detect Visual Studio 2026 on the
+    # Windows runner; node-gyp 13.1.0 does.
+    - name: Use node-gyp with Visual Studio 2026 support (Windows)
+      if: runner.os == 'Windows'
+      shell: bash
+      run: |
+        npm install -g node-gyp@13.1.0
+        echo "npm_config_node_gyp=$(npm prefix -g)/node_modules/node-gyp/bin/node-gyp.js" >> "$GITHUB_ENV"
+
+    # bash runs with -e -o pipefail, so a failed install stops the job here
+    # instead of surfacing later as a missing tsc.
     - name: Install Dependencies
+      shell: bash
       run: |
         npm ci
         npm --prefix stitch-out ci
