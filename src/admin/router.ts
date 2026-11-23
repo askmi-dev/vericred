@@ -200,8 +200,9 @@ export function createAdminRouter(connector: Connector): Router {
       }
       res.redirect('/admin/login?err=1');
     } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: err.message });
+      // Never echo internal error details to an unauthenticated caller.
+      console.error('[admin] login failed:', (err as Error).message);
+      res.status(500).json({ error: 'server_error' });
     }
   });
 

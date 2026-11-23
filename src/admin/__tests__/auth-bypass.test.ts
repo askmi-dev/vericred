@@ -87,7 +87,7 @@ describe('Auth Bypass Protection', () => {
     expect(data).toEqual({ error: 'unauthorized' });
   });
 
-  it.skip('allows access to public landing page', async () => {
+  it('allows access to public landing page', async () => {
     const res = await fetch(`${serverUrl}/`);
     expect(res.status).toBe(200);
     const html = await res.text();
@@ -109,7 +109,7 @@ describe('Auth Bypass Protection', () => {
     expect(loginRes.status).toBe(302);
     expect(loginRes.headers.get('location')).toBe('/console/dashboard');
     const cookieHeader = loginRes.headers.get('set-cookie')!;
-    const cookiePart = cookieHeader.split(',').find(c => c.includes('admin_session='))?.split(';')[0];
+    const cookiePart = cookieHeader.split(',').find(c => c.includes('admin_session='))!.split(';')[0];
 
     const adminRes = await fetch(`${serverUrl}/admin`, {
       redirect: 'manual',
@@ -135,7 +135,7 @@ describe('Auth Bypass Protection', () => {
       redirect: 'manual'
     });
     const cookieHeader = loginRes.headers.get('set-cookie')!;
-    const cookiePart = cookieHeader.split(',').find(c => c.includes('admin_session='))?.split(';')[0];
+    const cookiePart = cookieHeader.split(',').find(c => c.includes('admin_session='))!.split(';')[0];
 
     const logoutRes = await fetch(`${serverUrl}/admin/logout`, {
       redirect: 'manual',

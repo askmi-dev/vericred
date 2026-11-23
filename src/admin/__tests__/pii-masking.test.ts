@@ -64,7 +64,7 @@ describe('Administrative PII-Masking E2E Integration', () => {
     expect(loginRes.status).toBe(302);
     const setCookie = loginRes.headers.get('set-cookie');
     expect(setCookie).toBeTruthy();
-    const cookiePart = setCookie!.split(',').find(c => c.includes('admin_session='))?.split(';')[0] || '';
+    const cookiePart = setCookie!.split(',').find(c => c.includes('admin_session='))!.split(';')[0] || '';
 
     // Fetch holders API with session
     const holdersRes = await fetch(`${serverUrl}/admin/api/holders`, {
@@ -123,7 +123,7 @@ describe('Administrative PII-Masking E2E Integration', () => {
     expect(loginRes.status).toBe(302);
     const setCookie = loginRes.headers.get('set-cookie');
     expect(setCookie).toBeTruthy();
-    const cookiePart = setCookie!.split(',').find(c => c.includes('admin_session='))?.split(';')[0] || '';
+    const cookiePart = setCookie!.split(',').find(c => c.includes('admin_session='))!.split(';')[0] || '';
 
     // Fetch holders API
     const holdersRes = await fetch(`${serverUrl}/admin/api/holders`, {
