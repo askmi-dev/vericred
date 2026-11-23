@@ -151,6 +151,49 @@ describe('#35 review: /credentials issuance guard (startup bypassed)', () => {
     }
   });
 
+  it('an OID4VCI 1.0 batch with valid holder proofs still issues in production mode', async () => {
+    const code = await getPreAuthCode(serverUrl, adminApiKey);
+    const { token, cNonce } = await mintToken(serverUrl, code);
+    const issuer = `http://localhost:${PORT}`;
+    const jwts = [await holderProofJwt(issuer, cNonce), await holderProofJwt(issuer, cNonce)];
+
+    process.env['NODE_ENV'] = 'production';
+    try {
+      const res = await fetch(`${serverUrl}/credentials`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ format: 'dc+sd-jwt', credential_type: 'AgeCredential', proofs: { jwt: jwts } }),
+      });
+      expect(res.status).toBe(200);
+      const body = await res.json() as { credentials?: Array<{ credential: string }> };
+      expect(body.credentials).toHaveLength(2);
+      for (const c of body.credentials!) expect(c.credential).not.toContain('"anonymous"');
+    } finally {
+      delete process.env['NODE_ENV'];
+    }
+  });
+
+  it('a malformed batch in production mode is rejected, never issued anonymously', async () => {
+    const code = await getPreAuthCode(serverUrl, adminApiKey);
+    const { token } = await mintToken(serverUrl, code);
+
+    process.env['NODE_ENV'] = 'production';
+    try {
+      const res = await fetch(`${serverUrl}/credentials`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ format: 'dc+sd-jwt', credential_type: 'AgeCredential', proofs: { jwt: [] } }),
+      });
+      expect(res.status).toBe(400);
+      const body = await res.json() as { error?: string; credential?: string; credentials?: unknown };
+      expect(body.error).toBe('invalid_credential_request');
+      expect(body.credential).toBeUndefined();
+      expect(body.credentials).toBeUndefined();
+    } finally {
+      delete process.env['NODE_ENV'];
+    }
+  });
+
   it('matrix: DEMO_MODE=true with missing or unknown NODE_ENV still allows the documented development-demo fallback', async () => {
     // Honest limit: the guard only recognizes the exact string
     // 'production'. This asserts the current behavior — a deployment
