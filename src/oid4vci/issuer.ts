@@ -1,8 +1,7 @@
 import { Router as createRouter } from 'express';
 import type { Router } from 'express';
-import { SignJWT } from 'jose';
 import { createHmac, randomUUID } from 'crypto';
-import { getIssuerKeyPair } from '../keys/manager.js';
+import { getKeyProvider } from '../keys/provider.js';
 import { getIssuerSigningIdentity } from '../keys/x5c.js';
 import { loadConfig } from '../config/loader.js';
 import { lookupAccessToken, rotateNonce } from './token.js';
@@ -83,7 +82,6 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
 
     const { holderData, cNonce, cNonceExpiresAt } = tokenEntry;
     const config = loadConfig();
-    const { privateKey, kid } = await getIssuerKeyPair();
 
     // ── Holder Proof-of-Possession ──────────────────────────────────────────
     // Two request shapes:
@@ -241,7 +239,7 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
        * - status.status_list: IETF Token Status List reference (random idx)
        * - No raw claim values in payload
        */
-      const jwt = await new SignJWT({
+      const jwt = await getKeyProvider().signJwt({
         vct: credentialType,
         jti: credentialId,
         iss: identity.iss,
@@ -254,9 +252,7 @@ export function createCredentialRouter(pseudonymSecret: string): Router {
         status: {
           status_list: { idx: statusIndex, uri: `${config.issuer.url}/status/${listId}` },
         },
-      })
-        .setProtectedHeader({ alg: 'ES256', kid, typ: format, ...(identity.x5c ? { x5c: identity.x5c } : {}) })
-        .sign(privateKey);
+      }, { typ: format, ...(identity.x5c ? { x5c: identity.x5c } : {}) });
 
       issued.push({ credential: combineSdJwt(jwt, disclosures), credentialId, statusIndex });
     }

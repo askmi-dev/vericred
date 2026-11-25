@@ -20,8 +20,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { randomInt, randomUUID } from 'crypto';
 import { deflateSync } from 'zlib';
-import { SignJWT } from 'jose';
-import { getIssuerKeyPair } from '../keys/manager.js';
+import { getKeyProvider } from '../keys/provider.js';
 import { getIssuerSigningIdentity } from '../keys/x5c.js';
 import { loadConfig } from '../config/loader.js';
 
@@ -283,8 +282,9 @@ export function getListId(): string {
  */
 export async function buildStatusListJWT(): Promise<string> {
   const store = loadStore();
-  const { privateKey, kid } = await getIssuerKeyPair();
   const config = loadConfig();
+  // kid is part of the cache key, so a key rotation re-signs the list.
+  const { kid } = await getKeyProvider().getActiveKey();
 
   const now = Math.floor(Date.now() / 1000);
   const revoked = revokedIndicesIn(store, store.listId);
@@ -300,7 +300,7 @@ export async function buildStatusListJWT(): Promise<string> {
     return cachedStatusListJWT.jwt;
   }
 
-  const jwt = await new SignJWT({
+  const jwt = await getKeyProvider().signJwt({
     iss,
     sub: `${config.issuer.url}/status/${store.listId}`,
     iat: now,
@@ -310,9 +310,7 @@ export async function buildStatusListJWT(): Promise<string> {
       bits: 1,
       lst: deflateSync(buildBitstring(revoked)).toString('base64url'),
     },
-  })
-    .setProtectedHeader({ alg: 'ES256', kid, typ: 'statuslist+jwt', ...(x5c ? { x5c } : {}) })
-    .sign(privateKey);
+  }, { typ: 'statuslist+jwt', ...(x5c ? { x5c } : {}) });
 
   // Cache the signed JWT
   cachedStatusListJWT = {
@@ -336,11 +334,11 @@ export async function buildStatusListJWT(): Promise<string> {
  * rejects (fail-closed). The list retires once legacy credentials expire.
  */
 async function buildLegacyStatusList2021JWT(store: StatusListStore, legacyListId: string): Promise<string> {
-  const { privateKey, kid } = await getIssuerKeyPair();
   const config = loadConfig();
   const bitstring = Buffer.from(buildBitstring(revokedIndicesIn(store, legacyListId))).toString('base64url');
 
-  return new SignJWT({
+  // Payload and header byte-identical to the pre-provider signer: iat last, typ JWT.
+  return getKeyProvider().signJwt({
     '@context': ['https://www.w3.org/2018/credentials/v1', 'https://w3id.org/vc/status-list/2021/v1'],
     type: ['VerifiableCredential', 'StatusList2021Credential'],
     issuer: config.issuer.did,
@@ -351,10 +349,8 @@ async function buildLegacyStatusList2021JWT(store: StatusListStore, legacyListId
       statusPurpose: 'revocation',
       encodedList: bitstring,
     },
-  })
-    .setProtectedHeader({ alg: 'ES256', kid, typ: 'JWT' })
-    .setIssuedAt(Math.floor(Date.now() / 1000))
-    .sign(privateKey);
+    iat: Math.floor(Date.now() / 1000),
+  }, { typ: 'JWT' });
 }
 
 /**

@@ -21,9 +21,25 @@ const leafPublic = hasOpenssl ? createPublicKey(leafPrivate) : (undefined as nev
 const ISSUER_URL = 'https://issuer.example.test';
 const CHAIN_PATH = join(FIX, 'chain.pem');
 
-vi.mock('../manager.js', () => ({
-  getIssuerKeyPair: async () => ({ privateKey: leafPrivate, publicKey: leafPublic, kid: 'leaf-kid' }),
-}));
+// Signing goes through the key provider; its default (file) provider is backed
+// by the test leaf key so x5c validation and signatures use the certificate key.
+vi.mock('../manager.js', async () => {
+  const { SignJWT, exportJWK } = await import('jose');
+  const getIssuerKeyPair = async () => ({ privateKey: leafPrivate, publicKey: leafPublic, kid: 'leaf-kid' });
+  return {
+    getIssuerKeyPair,
+    fileKeyProvider: {
+      async getActiveKey() { return { kid: 'leaf-kid', publicKey: await exportJWK(leafPublic) }; },
+      async getAllPublicKeys() { return [{ kid: 'leaf-kid', publicKey: await exportJWK(leafPublic) }]; },
+      async signJwt(payload: Record<string, unknown>, { typ, x5c }: { typ: string; x5c?: string[] }) {
+        return new SignJWT(payload)
+          .setProtectedHeader({ alg: 'ES256', kid: 'leaf-kid', typ, ...(x5c ? { x5c } : {}) })
+          .sign(leafPrivate);
+      },
+      async rotate() { throw new Error('not used in this test'); },
+    },
+  };
+});
 
 const config = (certificateChain?: string): VeriCredConfig => ({
   issuer: { name: 'Test', url: ISSUER_URL, did: 'did:web:issuer.example.test', certificateChain },

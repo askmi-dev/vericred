@@ -13,6 +13,8 @@ import { listTemplates, getTemplate } from '../credentials/registry.js';
 import { maskHolderRecord } from './masking.js';
 import { loadConfig } from '../config/loader.js';
 import type { Connector } from '../connectors/index.js';
+import { getKeyProvider } from '../keys/provider.js';
+import { calculateJwkThumbprint } from 'jose';
 import type { Request, Response, NextFunction } from 'express';
 
 function requireLoginCsrf(req: Request, res: Response, next: NextFunction): void {
@@ -62,8 +64,6 @@ function requireLoginCsrf(req: Request, res: Response, next: NextFunction): void
   next();
 }
 
-import { getIssuerKeyPair, rotateIssuerKeyPair, getAllPublicKeys } from '../keys/manager.js';
-import { calculateJwkThumbprint, exportJWK } from 'jose';
 import { getInteropLogs } from '../oid4vci/interop-logger.js';
 // Register templates so they appear in listTemplates()
 import '../credentials/templates/age.js';
@@ -124,9 +124,9 @@ export function createAdminRouter(connector: Connector): Router {
 
   router.get('/admin/api/keys-status', requireAdmin, async (_req, res) => {
     try {
-      const { kid, publicKey } = await getIssuerKeyPair();
-      const allKeys = await getAllPublicKeys();
-      const thumbprint = await calculateJwkThumbprint(await exportJWK(publicKey), 'sha256');
+      const { kid, publicKey } = await getKeyProvider().getActiveKey();
+      const allKeys = await getKeyProvider().getAllPublicKeys();
+      const thumbprint = await calculateJwkThumbprint(publicKey, 'sha256');
 
       res.json({
         active: { kid, thumbprint },
@@ -144,7 +144,7 @@ export function createAdminRouter(connector: Connector): Router {
 
   router.post('/admin/api/rotate-keys', requireAdmin, requireCsrf, async (_req, res) => {
     try {
-      const newKey = await rotateIssuerKeyPair();
+      const newKey = await getKeyProvider().rotate();
       res.json({ success: true, message: 'Keys rotated successfully!', kid: newKey.kid });
     } catch (err) {
       res.status(500).json({ error: 'failed to rotate keys' });

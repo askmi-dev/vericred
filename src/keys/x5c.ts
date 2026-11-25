@@ -12,10 +12,11 @@
  * credentials that silently fail verification.
  */
 import { readFileSync } from 'fs';
-import { X509Certificate, KeyObject } from 'crypto';
+import { X509Certificate, KeyObject, createPublicKey } from 'crypto';
+import type { JsonWebKey } from 'crypto';
 import type { KeyLike } from 'jose';
 import type { VeriCredConfig } from '../config/types.js';
-import { getIssuerKeyPair } from './manager.js';
+import { getKeyProvider } from './provider.js';
 
 const PEM_CERT = /-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g;
 
@@ -84,7 +85,10 @@ export async function getIssuerSigningIdentity(config: VeriCredConfig): Promise<
   const path = config.issuer.certificateChain;
   if (!path) return { iss: config.issuer.did };
 
-  const { publicKey, kid } = await getIssuerKeyPair();
+  // Public key from the active provider, so a non-exportable KMS/HSM key is
+  // checked against the certificate the same way as the file key.
+  const { publicKey: jwk, kid } = await getKeyProvider().getActiveKey();
+  const publicKey = createPublicKey({ key: jwk as JsonWebKey, format: 'jwk' });
   if (!cached || cached.path !== path || cached.kid !== kid) {
     cached = { path, kid, certs: parseCertificateChain(readFileSync(path, 'utf-8')) };
   }
