@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { existsSync, rmSync, mkdirSync } from 'fs';
-import { assignStatusIndex, revokeCredential, buildStatusListJWT, getListId, getIssuedCredentials } from '../statuslist.js';
-import { jwtVerify } from 'jose';
+import { existsSync, rmSync, mkdirSync, writeFileSync } from 'fs';
+import { assignStatusIndex, revokeCredential, buildStatusListJWT, getListId, getIssuedCredentials, getStatusListResponse } from '../statuslist.js';
+import { jwtVerify, decodeProtectedHeader } from 'jose';
 import { getIssuerKeyPair } from '../../keys/manager.js';
+import { statusAt } from './token-status-helpers.js';
 
-describe('StatusList2021 Manager', () => {
+describe('Token Status List Manager', () => {
   const DATA_DIR = './data-test-revocation';
 
   beforeEach(() => {
@@ -17,17 +18,20 @@ describe('StatusList2021 Manager', () => {
     if (existsSync(DATA_DIR)) rmSync(DATA_DIR, { recursive: true, force: true });
   });
 
-  it('assigns sequential indices and persists them', () => {
+  it('assigns distinct random indices and persists them', () => {
     const { statusIndex: idx1, listId: lid1 } = assignStatusIndex('vc1', 'a@example.com');
     const { statusIndex: idx2, listId: lid2 } = assignStatusIndex('vc2', 'b@example.com');
 
-    expect(idx1).toBe(0);
-    expect(idx2).toBe(1);
+    expect(idx1).not.toBe(idx2);
+    // Not issuance order: 50 sequential-looking draws would be ~impossible at random
+    const more = Array.from({ length: 50 }, (_, i) => assignStatusIndex(`m${i}`, 'm@example.com').statusIndex);
+    expect(more.some((v, i) => i > 0 && v !== more[i - 1]! + 1)).toBe(true);
+    expect(new Set(more).size).toBe(50);
     expect(lid1).toBe(lid2);
     expect(lid1).toBe(getListId());
 
     const creds = getIssuedCredentials();
-    expect(creds).toHaveLength(2);
+    expect(creds).toHaveLength(52);
     expect(creds[0].credentialId).toBe('vc1');
     expect(creds[1].credentialId).toBe('vc2');
   });
@@ -46,32 +50,111 @@ describe('StatusList2021 Manager', () => {
     expect(ok2).toBe(false);
   });
 
-  it('builds a signed StatusList2021 JWT', async () => {
-    assignStatusIndex('vc1', 'a@example.com');
-    assignStatusIndex('vc2', 'b@example.com');
-    revokeCredential('vc2'); // Index 1 is revoked
+  it('revokes every copy of a batch together, and only that batch', () => {
+    assignStatusIndex('b1', 'a@example.com', 'batch-A');
+    assignStatusIndex('b2', 'a@example.com', 'batch-A');
+    assignStatusIndex('other', 'b@example.com', 'batch-B');
+
+    expect(revokeCredential('b2')).toBe(true);
+    const byId = Object.fromEntries(getIssuedCredentials().map(c => [c.credentialId, c.revoked]));
+    expect(byId).toEqual({ b1: true, b2: true, other: false });
+  });
+
+  it('keeps serving a migrated legacy list as StatusList2021 so revocations never fail open', async () => {
+    // Store written by the pre-Token-Status-List version: sequential indices,
+    // no format marker, index 1 already revoked.
+    const legacyListId = 'legacy-list-0001';
+    writeFileSync(`${DATA_DIR}/statuslist.json`, JSON.stringify({
+      listId: legacyListId,
+      nextIndex: 3,
+      revokedIndices: [1],
+      issuedCredentials: [
+        { credentialId: 'old0', holderEmail: 'a@example.com', statusIndex: 0, issuedAt: '2026-11-01T00:00:00Z', revoked: false },
+        { credentialId: 'old1', holderEmail: 'b@example.com', statusIndex: 1, issuedAt: '2026-11-01T00:00:00Z', revoked: true, revokedAt: '2026-11-02T00:00:00Z' },
+        { credentialId: 'old2', holderEmail: 'c@example.com', statusIndex: 2, issuedAt: '2026-11-01T00:00:00Z', revoked: false },
+      ],
+    }));
+
+    // New credentials go to a fresh Token Status List ID, not the legacy URL.
+    const { listId: newListId, statusIndex: newIdx } = assignStatusIndex('new0', 'd@example.com');
+    expect(newListId).not.toBe(legacyListId);
+    expect(getListId()).toBe(newListId);
+
+    // A revocation of a legacy credential after migration still reaches the legacy list.
+    expect(revokeCredential('old2')).toBe(true);
+
+    const { publicKey } = await getIssuerKeyPair();
+    const legacy = await getStatusListResponse(legacyListId);
+    expect(legacy?.contentType).toBe('application/jwt');
+    const { payload: legacyPayload } = await jwtVerify(legacy!.body, publicKey);
+    expect(legacyPayload.type).toContain('StatusList2021Credential');
+    const bits = Buffer.from((legacyPayload.credentialSubject as any).encodedList, 'base64url');
+    expect(bits[0]).toBe(0b110); // old1 (bit 1) and old2 (bit 2) revoked, old0 active
+
+    const current = await getStatusListResponse(newListId);
+    expect(current?.contentType).toBe('application/statuslist+jwt');
+    const { payload } = await jwtVerify(current!.body, publicKey);
+    const lst = (payload.status_list as { lst: string }).lst;
+    expect(statusAt(lst, newIdx)).toBe(0);
+    // Legacy revocations must not leak into the new list's bits.
+    expect([1, 2].filter(i => i !== newIdx).every(i => statusAt(lst, i) === 0)).toBe(true);
+
+    expect(await getStatusListResponse('unknown-list')).toBeNull();
+  });
+
+  it('refuses a store whose format it cannot determine, until an operator marks it', async () => {
+    // No nextIndex and no format marker: could be either format. Guessing
+    // could fail open, so the store is refused (fail-closed).
+    const ambiguous = {
+      listId: 'tsl-list-0001',
+      revokedIndices: [],
+      issuedCredentials: [
+        { credentialId: 'tsl0', holderEmail: 'a@example.com', statusIndex: 90210, issuedAt: '2026-11-19T00:00:00Z', revoked: true },
+      ],
+    };
+    writeFileSync(`${DATA_DIR}/statuslist.json`, JSON.stringify(ambiguous));
+    expect(() => getListId()).toThrow(/"format": "token-status-list"/);
+    expect(() => assignStatusIndex('x', 'x@example.com')).toThrow();
+    await expect(getStatusListResponse('tsl-list-0001')).rejects.toThrow();
+
+    // Operator confirms it was written as a Token Status List: URL keeps that format.
+    writeFileSync(`${DATA_DIR}/statuslist.json`, JSON.stringify({ ...ambiguous, format: 'token-status-list' }));
+    expect(getListId()).toBe('tsl-list-0001');
+    const res = await getStatusListResponse('tsl-list-0001');
+    expect(res?.contentType).toBe('application/statuslist+jwt');
+    const { publicKey } = await getIssuerKeyPair();
+    const { payload } = await jwtVerify(res!.body, publicKey);
+    expect(statusAt((payload.status_list as { lst: string }).lst, 90210)).toBe(1);
+  });
+
+  it('migrates a store the operator marks as statuslist2021, even without nextIndex', async () => {
+    writeFileSync(`${DATA_DIR}/statuslist.json`, JSON.stringify({
+      listId: 'legacy-marked',
+      format: 'statuslist2021',
+      issuedCredentials: [
+        { credentialId: 'o0', holderEmail: 'a@example.com', statusIndex: 0, issuedAt: '2026-11-01T00:00:00Z', revoked: true },
+      ],
+    }));
+    expect(getListId()).not.toBe('legacy-marked');
+    expect((await getStatusListResponse('legacy-marked'))?.contentType).toBe('application/jwt');
+  });
+
+  it('builds a signed IETF Token Status List', async () => {
+    const { statusIndex: active } = assignStatusIndex('vc1', 'a@example.com');
+    const { statusIndex: revoked } = assignStatusIndex('vc2', 'b@example.com');
+    revokeCredential('vc2');
 
     const jwt = await buildStatusListJWT();
+    expect(decodeProtectedHeader(jwt).typ).toBe('statuslist+jwt');
     const { publicKey } = await getIssuerKeyPair();
     const { payload } = await jwtVerify(jwt, publicKey);
 
-    expect(payload.type).toContain('StatusList2021Credential');
-    expect(payload.credentialSubject).toBeDefined();
-    const subject = payload.credentialSubject as any;
-    expect(subject.type).toBe('StatusList2021');
-    expect(subject.statusPurpose).toBe('revocation');
-    expect(subject.encodedList).toBeDefined();
-
-    // Verify bitstring (index 1 should be set)
-    // index 1 in bitstring: byte 0, bit 1 -> value 2
-    // base64url of [2, 0, 0, ...]
-    const bitstring = subject.encodedList;
-    const bytes = Buffer.from(bitstring, 'base64url');
-    expect(bytes[0]).toBe(2); // bit 1 is set (1 << 1)
+    expect((payload.sub as string).endsWith(`/status/${getListId()}`)).toBe(true);
+    expect(typeof payload.exp).toBe('number');
+    const list = payload.status_list as { bits: number; lst: string };
+    expect(list.bits).toBe(1);
+    expect(statusAt(list.lst, active)).toBe(0);
+    expect(statusAt(list.lst, revoked)).toBe(1);
   });
 
-  it('fails if list is full', () => {
-    // This is hard to test with 128k, but we can mock LIST_SIZE if needed.
-    // For now, we trust the boundary check if (store.nextIndex >= LIST_SIZE).
-  });
 });

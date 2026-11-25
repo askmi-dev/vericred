@@ -13,6 +13,16 @@ import { base64url } from 'jose';
 import type { JWK, JWTPayload } from 'jose';
 import { fileKeyProvider } from './manager.js';
 
+/**
+ * Caller-supplied part of the JWS protected header. The provider adds `alg` and `kid`.
+ * `typ` is protocol-visible (`dc+sd-jwt`, `statuslist+jwt`, ...); `x5c` carries the
+ * registrar-issued certificate chain (HAIP 1.0) when one is configured.
+ */
+export interface SigningHeader {
+  typ: string;
+  x5c?: string[];
+}
+
 export interface ActiveIssuerKey {
   kid: string;
   publicKey: JWK;
@@ -25,9 +35,9 @@ export interface IssuerKeyProvider {
   getAllPublicKeys(): Promise<Array<{ publicKey: JWK; kid: string }>>;
   /**
    * Sign a JWT with the active key (ES256). The provider sets `alg` and `kid` in the
-   * protected header; the caller supplies `typ` and the claims.
+   * protected header; the caller supplies `typ`, optional `x5c` and the claims.
    */
-  signJwt(payload: JWTPayload, typ: string): Promise<string>;
+  signJwt(payload: JWTPayload, header: SigningHeader): Promise<string>;
   /** Make a new key active and archive the previous one. */
   rotate(): Promise<ActiveIssuerKey>;
 }
@@ -40,7 +50,7 @@ export type RawEs256Signer = (signingInput: Uint8Array) => Promise<Uint8Array>;
  * Serialization only; the signature itself comes from the adapter's `sign`.
  */
 export async function signCompactJws(
-  header: { alg: 'ES256'; kid: string; typ: string },
+  header: { alg: 'ES256'; kid: string } & SigningHeader,
   payload: JWTPayload,
   sign: RawEs256Signer
 ): Promise<string> {

@@ -1,15 +1,26 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { loadSecrets } from '../../config/secrets.js';
+import { sessionCookieFrom } from './session-cookie.js';
 
 describe('Administrative PII-Masking E2E Integration', () => {
+
+  const getCsrfData = async () => {
+    const res = await fetch(`${serverUrl}/admin/login`);
+    const html = await res.text();
+    const cookie = res.headers.get('set-cookie');
+    const adminPre = cookie?.match(/admin_pre=([^;]+)/)?.[1] ?? '';
+    const csrfToken = html.match(/name="csrf" value="([^"]+)"/)?.[1] ?? '';
+    return { adminPre, csrfToken };
+  };
+
   let serverUrl: string;
   const adminApiKey = loadSecrets().adminApiKey;
 
   beforeAll(async () => {
     // Set a custom port to avoid conflicts
     process.env['DATA_DIR'] = './data';
-    process.env['PORT'] = '3514';
-    serverUrl = 'http://localhost:3514';
+    process.env['PORT'] = '3530';
+    serverUrl = 'http://localhost:3530';
 
     // Import server to spin up the instance
     await import('../../server.js');
@@ -40,19 +51,21 @@ describe('Administrative PII-Masking E2E Integration', () => {
     process.env['PII_ADMIN_MODE'] = 'false';
 
     // Log in via POST /admin/login to get session
+    const { adminPre, csrfToken } = await getCsrfData();
     const loginRes = await fetch(`${serverUrl}/admin/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
+        'Cookie': `admin_pre=${adminPre}`
       },
-      body: new URLSearchParams({ apiKey: adminApiKey }).toString(),
+      body: new URLSearchParams({ apiKey: adminApiKey, csrf: csrfToken }).toString(),
       redirect: 'manual'
     });
 
     expect(loginRes.status).toBe(302);
     const setCookie = loginRes.headers.get('set-cookie');
     expect(setCookie).toBeTruthy();
-    const cookiePart = setCookie!.split(';')[0];
+    const cookiePart = sessionCookieFrom(setCookie);
 
     // Fetch holders API with session
     const holdersRes = await fetch(`${serverUrl}/admin/api/holders`, {
@@ -97,19 +110,21 @@ describe('Administrative PII-Masking E2E Integration', () => {
     process.env['PII_ADMIN_MODE'] = 'true';
 
     // Log in via POST /admin/login to get session
+    const { adminPre, csrfToken } = await getCsrfData();
     const loginRes = await fetch(`${serverUrl}/admin/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
+        'Cookie': `admin_pre=${adminPre}`
       },
-      body: new URLSearchParams({ apiKey: adminApiKey }).toString(),
+      body: new URLSearchParams({ apiKey: adminApiKey, csrf: csrfToken }).toString(),
       redirect: 'manual'
     });
 
     expect(loginRes.status).toBe(302);
     const setCookie = loginRes.headers.get('set-cookie');
     expect(setCookie).toBeTruthy();
-    const cookiePart = setCookie!.split(';')[0];
+    const cookiePart = sessionCookieFrom(setCookie);
 
     // Fetch holders API
     const holdersRes = await fetch(`${serverUrl}/admin/api/holders`, {

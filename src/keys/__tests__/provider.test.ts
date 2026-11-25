@@ -24,8 +24,8 @@ function makeExternalProvider(): IssuerKeyProvider & { signCalls: number } {
     async getAllPublicKeys() {
       return [active];
     },
-    async signJwt(payload, typ) {
-      return signCompactJws({ alg: 'ES256', kid: active.kid, typ }, payload, async (input) => {
+    async signJwt(payload, header) {
+      return signCompactJws({ alg: 'ES256', kid: active.kid, ...header }, payload, async (input) => {
         signCalls++;
         return new Uint8Array(nodeSign('sha256', input, { key: privateKey, dsaEncoding: 'ieee-p1363' }));
       });
@@ -48,13 +48,34 @@ describe('IssuerKeyProvider', () => {
     const external = makeExternalProvider();
     setKeyProvider(external);
 
-    const jwt = await getKeyProvider().signJwt({ iss: 'did:web:example', iat: 1 }, 'vc+sd-jwt');
+    const jwt = await getKeyProvider().signJwt({ iss: 'did:web:example', iat: 1 }, { typ: 'dc+sd-jwt' });
     const { publicKey, kid } = await getKeyProvider().getActiveKey();
     const { payload, protectedHeader } = await jwtVerify(jwt, await importJWK(publicKey, 'ES256'));
 
     expect(external.signCalls).toBe(1);
-    expect(protectedHeader).toEqual({ alg: 'ES256', kid, typ: 'vc+sd-jwt' });
+    expect(protectedHeader).toEqual({ alg: 'ES256', kid, typ: 'dc+sd-jwt' });
     expect(payload['iss']).toBe('did:web:example');
+  });
+
+  it('passes typ and x5c through to the protected header (external and file provider)', async () => {
+    const x5c = ['MIIBfake-leaf', 'MIIBfake-intermediate'];
+    const external = makeExternalProvider();
+    const ext = await external.signJwt({ sub: 's' }, { typ: 'statuslist+jwt', x5c });
+    const extKey = await importJWK((await external.getActiveKey()).publicKey, 'ES256');
+    const { protectedHeader: extHeader } = await jwtVerify(ext, extKey);
+    expect(extHeader).toEqual({ alg: 'ES256', kid: 'external-kid-1', typ: 'statuslist+jwt', x5c });
+
+    const file = getKeyProvider();
+    const signed = await file.signJwt({ sub: 's' }, { typ: 'dc+sd-jwt', x5c });
+    const { protectedHeader } = await jwtVerify(signed, await importJWK((await file.getActiveKey()).publicKey, 'ES256'));
+    expect(protectedHeader).toMatchObject({ alg: 'ES256', typ: 'dc+sd-jwt', x5c });
+  });
+
+  it('omits x5c when none is given (no empty header field)', async () => {
+    const external = makeExternalProvider();
+    const jwt = await external.signJwt({}, { typ: 'JWT' });
+    const { protectedHeader } = await jwtVerify(jwt, await importJWK((await external.getActiveKey()).publicKey, 'ES256'));
+    expect('x5c' in protectedHeader).toBe(false);
   });
 
   it('rejects a signature that is not 64 bytes (r||s)', async () => {
@@ -66,7 +87,7 @@ describe('IssuerKeyProvider', () => {
   it('a JWT signed by one provider does not verify under another provider key', async () => {
     const a = makeExternalProvider();
     const b = makeExternalProvider();
-    const jwt = await a.signJwt({ x: 1 }, 'JWT');
+    const jwt = await a.signJwt({ x: 1 }, { typ: 'JWT' });
     const bKey = await importJWK((await b.getActiveKey()).publicKey, 'ES256');
     await expect(jwtVerify(jwt, bKey)).rejects.toThrow();
   });

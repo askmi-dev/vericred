@@ -6,7 +6,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { generateKeyPair, exportJWK, importJWK } from 'jose';
 import { SignJWT } from 'jose';
 import type { KeyLike, JWK, JWTPayload } from 'jose';
-import type { IssuerKeyProvider } from './provider.js';
+import type { IssuerKeyProvider, SigningHeader } from './provider.js';
 
 const KEY_DIR = process.env.DATA_DIR ?? './keys';
 const KEY_PATH = `${KEY_DIR}/issuer-key.json`;
@@ -35,6 +35,16 @@ export async function getIssuerKeyPair() {
   }
 
   return rotateIssuerKeyPair();
+}
+
+export const ISSUER_KEY_PATH = KEY_PATH;
+
+/**
+ * The existing issuer keypair, or null. Never generates one: a certificate
+ * requested for a freshly generated key would not match the running issuer.
+ */
+export async function loadExistingIssuerKeyPair() {
+  return existsSync(KEY_PATH) ? getIssuerKeyPair() : null;
 }
 
 /**
@@ -103,10 +113,10 @@ export const fileKeyProvider: IssuerKeyProvider = {
     return { kid, publicKey: await exportJWK(publicKey) };
   },
   getAllPublicKeys,
-  async signJwt(payload: JWTPayload, typ: string) {
+  async signJwt(payload: JWTPayload, { typ, x5c }: SigningHeader) {
     const { privateKey, kid } = await getIssuerKeyPair();
     return new SignJWT(payload)
-      .setProtectedHeader({ alg: 'ES256', kid, typ })
+      .setProtectedHeader({ alg: 'ES256', kid, typ, ...(x5c ? { x5c } : {}) })
       .sign(privateKey);
   },
   async rotate() {
